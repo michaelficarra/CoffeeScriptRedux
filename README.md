@@ -35,28 +35,29 @@ Kickstarter project. Together, you donated over $10,000 toward the project.
 Without you, I wouldn't be able to do this.
 
 * [Groupon](http://groupon.com/), who is generously allowing me to work in their offices
-* Trevor Burnham
+* Trevor Burnham (http://trevorburnham.com)
 * Tobias Lütke
-* Dan Powell
+* Abakas (http://abakas.com)
 * David Heinemeier Hansson
 * Adam Brod
-* Doug Alcorn
+* Gaslight Software (http://gaslightsoftware.com)
 * Josh Koenig
+* Mason Du
+* Sam Stephenson
+* Bevan Hunt
 * Meryn Stol
 * Rob Tsuk
 * Dion Almaer
-* Kyle Cordes
 * Andrew Davey
 * Thomas Burleson
 * Michael Kedzierski
 * Jeremy Kemper
+* Kyle Cordes
 * Jason Lauman
-* Sam Stephenson
-* Mason Du
 * Martin Drenovac
-* Bevan Hunt
 * Julian Bilcke
 * Michael Edmondson
 
-And of course, thank you [Jeremy](https://github.com/jashkenas) for making the
-[original CoffeeScript compiler](https://github.com/jashkenas/coffee-script).
+And of course, thank you [Jeremy](https://github.com/jashkenas) (and all the other
+[contributors](https://github.com/jashkenas/coffee-script/graphs/contributors))
+for making [the original CoffeeScript compiler](https://github.com/jashkenas/coffee-script).

@@ -39,7 +39,7 @@ Without you, I wouldn't be able to do this.
 * Tobias Lütke
 * Abakas (http://abakas.com)
 * David Heinemeier Hansson
-* Adam Brod
+* Brightcove (http://brightcove.com/)
 * Gaslight Software (http://gaslightsoftware.com)
 * Josh Koenig
 * Mason Du

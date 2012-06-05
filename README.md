@@ -30,16 +30,16 @@ yet, you should check that out to find out more about this.
 
 ### Notable Contributors
 
-I'd like to thank the following contributors for their large donations to the
-Kickstarter project. Together, you donated over $10,000 toward the project.
-Without you, I wouldn't be able to do this.
+I'd like to thank the following financial contributors for their large
+donations to the Kickstarter project. Together, you donated over $10,000 toward
+the project. Without you, I wouldn't be able to do this.
 
 * [Groupon](http://groupon.com/), who is generously allowing me to work in their offices
 * Trevor Burnham (http://trevorburnham.com)
 * Tobias Lütke
 * Abakas (http://abakas.com)
-* David Heinemeier Hansson
-* Adam Brod
+* 37signals (http://37signals.com)
+* Brightcove (http://www.brightcove.com)
 * Gaslight Software (http://gaslightsoftware.com)
 * Josh Koenig
 * Mason Du
@@ -53,8 +53,8 @@ Without you, I wouldn't be able to do this.
 * Michael Kedzierski
 * Jeremy Kemper
 * Kyle Cordes
-* Jason Lauman
-* Martin Drenovac
+* Jason R. Lauman
+* Martin Drenovac (Envizion Systems - Aust)
 * Julian Bilcke
 * Michael Edmondson
 

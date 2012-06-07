@@ -41,8 +41,8 @@ the project. Without you, I wouldn't be able to do this.
 * 37signals (http://37signals.com)
 * Brightcove (http://www.brightcove.com)
 * Gaslight Software (http://gaslightsoftware.com)
-* Josh Koenig
-* Mason Du
+* Pantheon (https://www.getpantheon.com)
+* Benbria
 * Sam Stephenson
 * Bevan Hunt
 * Meryn Stol

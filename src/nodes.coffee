@@ -1,354 +1,656 @@
-# AddOp :: Exprs -> Exprs -> AddOp
-class exports.AddOp
-  constructor: (@left, @right) ->
+exports = this
 
-# AndOp :: Exprs -> Exprs -> AndOp
-class exports.AndOp
+
+binOpToJSON = ->
+  nodeType: @className
+  left: @left.toJSON()
+  right: @right.toJSON()
+
+unaryOpToJSON = ->
+  nodeType: @className
+  expression: @expr.toJSON()
+
+assignOpToJSON = ->
+  nodeType: @className
+  assignee: @assignee.toJSON()
+  expression: @expr.toJSON()
+
+statementToJSON = -> nodeType: @className
+
+primitiveToJSON = ->
+  ndoeType: @className
+  data: @data
+
+
+# AddOp :: Exprs -> Exprs -> AddOp
+class @AddOp
+  className: "AddOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # ArrayInitialiser :: [ArrayInitialiserMembers] -> ArrayInitialiser
-class exports.ArrayInitialiser
+class @ArrayInitialiser
+  className: "ArrayInitialiser"
   constructor: (@exprs) ->
+  toJSON: ->
+    nodeType: @className
+    expressions: (e.toJSON() for e in @exprs)
 
 # AssignOp :: Assignables -> Exprs -> AssignOp
-class exports.AssignOp
+class @AssignOp
+  className: "AssignOp"
   constructor: (@assignee, @expr) ->
+  toJSON: assignOpToJSON
 
 # BitAndOp :: Exprs -> Exprs -> BitAndOp
-class exports.BitAndOp
+class @BitAndOp
+  className: "BitAndOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # BitNotOp :: Exprs -> BitNotOp
-class exports.BitNotOp
+class @BitNotOp
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # BitOrOp :: Exprs -> Exprs -> BitOrOp
-class exports.BitOrOp
+class @BitOrOp
+  className: "BitOrOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # BitXorOp :: Exprs -> Exprs -> BitXorOp
-class exports.BitXorOp
+class @BitXorOp
+  className: "BitXorOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # Block :: [Statement] -> Block
-class exports.Block
+class @Block
+  className: "Block"
   constructor: (@statements) ->
+  toJSON: ->
+    nodeType: @className
+    statements: @statements.toJSON()
 
 # Bool :: bool -> Bool
-class exports.Bool
+class @Bool
+  className: "Bool"
   constructor: (@data) ->
+  toJSON: primitiveToJSON
 
 # BoundFunction :: [Parameters] -> Block -> BoundFunction
-class exports.BoundFunction
+class @BoundFunction
+  className: "BoundFunction"
   constructor: (@parameters, @block) ->
+  toJSON: ->
+    nodeType: @className
+    parameters: (p.toJSON() for p in @parameters)
+    block: @block.toJSON()
 
 # Break :: Break
-class exports.Break
+class @Break
+  className: "Break"
   constructor: ->
+  toJSON: statementToJSON
 
-# class exports.:: Maybe Assignable -> Maybe Exprs -> [Exprs] -> Class
-class exports.Class
+# class @:: Maybe Assignable -> Maybe Exprs -> [Exprs] -> Class
+class @Class
+  className: "Class"
   constructor: (@nameAssignment, @parent, @exprs) ->
+    @name =
+      if @nameAssignment?
+        # poor man's pattern matching
+        switch @nameAssignment.className
+          when "Identifier"
+            @nameAssignment
+          when "MemberAccessOp", "ProtoMemberAccessOp", "SoakedMemberAccessOp", "SoakedProtoMemberAccessOp"
+            @nameAssignment.memberName
+          else null
+      else null
+  toJSON: ->
+    nodeType: @className
+    nameAssignment: @nameAssignment?.toJSON()
+    name: @name
+    parent: @parent?.toJSON()
+    expressions: (e.toJSON() for e in @exprs)
 
 # ClassProtoAssignOp :: MemberNames -> Exprs -> ClassProtoAssignOp
-class exports.ClassProtoAssignOp
-  constructor: (@memberName, @expr) ->
+class @ClassProtoAssignOp
+  className: "ClassProtoAssignOp"
+  constructor: (@assignee, @expr) ->
+  toJSON: assignOpToJSON
 
 # CompoundAssignOp :: CompoundAssignableOps -> Assignables -> Exprs -> CompoundAssignOp
-class exports.CompoundAssignOp
+class @CompoundAssignOp
+  className: "CompoundAssignOp"
   constructor: (@op, @assignee, @expr) ->
+  toJSON: ->
+    nodeType: @className
+    op: @op::className
+    assignee: @assignee.toJSON()
+    expression: @expr.toJSON()
 
 # a tree of ConcatOp represents interpolation
 # ConcatOp :: Exprs -> Exprs -> ConcatOp
-class exports.ConcatOp
+class @ConcatOp
+  className: "ConcatOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # Conditional :: Exprs -> Block -> Maybe Block -> Conditional
-class exports.Conditional
+class @Conditional
+  className: "Conditional"
   constructor: (@condition, @block, @elseBlock) ->
+  toJSON: ->
+    nodeType: @className
+    block: @block.toJSON()
+    elseBlock: @elseBlock?.toJSON()
 
 # Continue :: Continue
-class exports.Continue
+class @Continue
+  className: "Continue"
   constructor: ->
-
-# DecrementOp :: Exprs -> DecrementOp
-class exports.DecrementOp
-  constructor: (@expr) ->
+  toJSON: statementToJSON
 
 # DivideOp :: Exprs -> Exprs -> DivideOp
-class exports.DivideOp
+class @DivideOp
+  className: "DivideOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # DoOp :: Exprs -> DoOp
-class exports.DoOp
+class @DoOp
+  className: "DoOp"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # DynamicMemberAccessOp :: Exprs -> Exprs -> DynamicMemberAccessOp
-class exports.DynamicMemberAccessOp
+class @DynamicMemberAccessOp
+  className: "DynamicMemberAccessOp"
   constructor: (@expr, @indexingExpr) ->
+  toJSON: ->
+    nodeType: @className
+    expression: @expr.toJSON()
+    indexingExpression: @indexingExpr.toJSON()
 
 # DynamicProtoMemberAccessOp :: Exprs -> Exprs -> DynamicProtoMemberAccessOp
-class exports.DynamicProtoMemberAccessOp
+class @DynamicProtoMemberAccessOp
+  className: "DynamicProtoMemberAccessOp"
   constructor: (@expr, @indexingExpr) ->
+  toJSON: exports.DynamicMemberAccessOp::toJSON
 
 # EQOp :: Exprs -> Exprs -> EQOp
-class exports.EQOp
+class @EQOp
+  className: "EQOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # ExclusiveRange :: Exprs -> Exprs -> ExclusiveRange
-class exports.ExclusiveRange
+class @ExclusiveRange
+  className: "ExclusiveRange"
   constructor: (@from, @til) ->
+  toJSON: ->
+    nodeType: @className
+    from: @from.toJSON()
+    til: @til.toJSON()
 
 # ExclusiveSlice :: Exprs -> Exprs -> Exprs -> ExclusiveSlice
-class exports.ExclusiveSlice
+class @ExclusiveSlice
+  className: "ExclusiveSlice"
   constructor: (@expr, @from, @til) ->
+  toJSON: ->
+    nodeType: @className
+    expression: @expr.toJSON()
+    from: @from.toJSON()
+    til: @til.toJSON()
 
 # ExistsAssignOp :: Assignables -> Exprs -> ExistsAssignOp
-class exports.ExistsAssignOp
+class @ExistsAssignOp
+  className: "ExistsAssignOp"
   constructor: (@assignee, @expr) ->
+  toJSON: assignOpToJSON
 
 # ExistsOp :: Exprs -> Exprs -> ExistsOp
-class exports.ExistsOp
+class @ExistsOp
+  className: "ExistsOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # ExtendsOp :: Exprs -> Exprs -> ExtendsOp
-class exports.ExtendsOp
+class @ExtendsOp
+  className: "ExtendsOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # Float :: float -> Float
-class exports.Float
+class @Float
+  className: "Float"
   constructor: (@data) ->
+  toJSON: primitiveToJSON
 
 # ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Block -> ForIn
-class exports.ForIn
+class @ForIn
+  className: "ForIn"
   constructor: (@valAssignee, @keyAssignee, @expr, @filterExpr, @block) ->
+  toJSON: ->
+    nodeType: @className
+    valAssignee: @valAssignee.toJSON()
+    keyAssignee: @keyAssignee?.toJSON()
+    expression: @expr.toJSON()
+    filterExpression: @filterExp.toJSON()
+    block: @block.toJSON()
 
 # ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Exprs -> Block -> ForOf
-class exports.ForOf
+class @ForOf
+  className: "ForOf"
   constructor: (@isOwn, @keyAssignee, @valAssignee, @expr, @filterExpr, @block) ->
+  toJSON: ->
+    nodeType: @className
+    isOwn: @isOwn
+    keyAssignee: @keyAssignee.toJSON()
+    valAssignee: @valAssignee?.toJSON()
+    expression: @expr.toJSON()
+    filterExpression: @filterExp.toJSON()
+    block: @block.toJSON()
 
 # Function :: [Parameters] -> Block -> Function
-class exports.Function
+class @Function
+  className: "Function"
   constructor: (@parameters, @block) ->
+  toJSON: ->
+    nodeType: @className
+    parameters: (p.toJSON() for p in @parameters)
+    block: @block.toJSON()
 
 # FunctionApplication :: Exprs -> [Arguments] -> FunctionApplication
-class exports.FunctionApplication
+class @FunctionApplication
+  className: "FunctionApplication"
   constructor: (@function, @arguments) ->
+  toJSON: ->
+    nodeType: @className
+    function: @function.toJSON()
+    arguments: (a.toJSON() for a in @arguments)
 
 # GTEOp :: Exprs -> Exprs -> GTEOp
-class exports.GTEOp
+class @GTEOp
+  className: "GTEOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # GTOp :: Exprs -> Exprs -> GTOp
-class exports.GTOp
+class @GTOp
+  className: "GTOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
+
+# Identifier :: string -> Identifier
+class @Identifier
+  className: "Identifier"
+  constructor: (@data) ->
+  toJSON: primitiveToJSON
 
 # InOp :: Exprs -> Exprs -> InOp
-class exports.InOp
+class @InOp
+  className: "InOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # InclusiveRange :: Exprs -> Exprs -> InclusiveRange
-class exports.InclusiveRange
+class @InclusiveRange
+  className: "InclusiveRange"
   constructor: (@from, @to) ->
+  toJSON: ->
+    nodeType: @className
+    from: @from.toJSON()
+    to: @to.toJSON()
 
 # InclusiveSlice :: Exprs -> Exprs -> Exprs -> InclusiveSlice
-class exports.InclusiveSlice
+class @InclusiveSlice
+  className: "InclusiveSlice"
   constructor: (@expr, @from, @to) ->
-
-# IncrementOp :: Exprs -> IncrementOp
-class exports.IncrementOp
-  constructor: (@expr) ->
+  toJSON: ->
+    nodeType: @className
+    expression: @expression.toJSON()
+    from: @from.toJSON()
+    to: @to.toJSON()
 
 # InstanceofOp :: Exprs -> Exprs -> InstanceofOp
-class exports.InstanceofOp
+class @InstanceofOp
+  className: "InstanceofOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # Int :: float -> Int
-class exports.Int
+class @Int
+  className: "Int"
   constructor: (@data) ->
+  toJSON: primitiveToJSON
 
 # JavaScript :: string -> JavaScript
-class exports.JavaScript
+class @JavaScript
+  className: "JavaScript"
   constructor: (@data) ->
+  toJSON: primitiveToJSON
 
 # LTEOp :: Exprs -> Exprs -> LTEOp
-class exports.LTEOp
+class @LTEOp
+  className: "LTEOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # LTOp :: Exprs -> Exprs -> LTOp
-class exports.LTOp
+class @LTOp
+  className: "LTOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # LeftShiftOp :: Exprs -> Exprs -> LeftShiftOp
-class exports.LeftShiftOp
+class @LeftShiftOp
+  className: "LeftShiftOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
+
+# LogicalAndOp :: Exprs -> Exprs -> LogicalAndOp
+class @LogicalAndOp
+  className: "LogicalAndOp"
+  constructor: (@left, @right) ->
+  toJSON: binOpToJSON
+
+# LogicalNotOp :: Exprs -> LogicalNotOp
+class @LogicalNotOp
+  className: "LogicalNotOp"
+  constructor: (@expr) ->
+  toJSON: unaryOpToJSON
+
+# LogicalOrOp :: Exprs -> Exprs -> LogicalOrOp
+class @LogicalOrOp
+  className: "LogicalOrOp"
+  constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # MemberAccessOp :: Exprs -> MemberNames -> MemberAccessOp
-class exports.MemberAccessOp
+class @MemberAccessOp
+  className: "MemberAccessOp"
   constructor: (@expr, @memberName) ->
+  toJSON: ->
+    nodeType: @className
+    expression: @expr.toJSON()
+    memberName: @memberName.toJSON()
 
 # MultiplyOp :: Exprs -> Exprs -> MultiplyOp
-class exports.MultiplyOp
+class @MultiplyOp
+  className: "MultiplyOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # NEQOp :: Exprs -> Exprs -> NEQOp
-class exports.NEQOp
+class @NEQOp
+  className: "NEQOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # NewOp :: Exprs -> NewOp
-class exports.NewOp
+class @NewOp
+  className: "NewOp"
   constructor: (@expr) ->
-
-# NotOp :: Exprs -> NotOp
-class exports.NotOp
-  constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # Null :: Null
-class exports.Null
+class @Null
+  className: "Null"
   constructor: ->
+  toJSON: statementToJSON
 
 # ObjectInitialiser :: [(ObjectInitialiserKeys, Exprs)] -> ObjectInitialiser
-class exports.ObjectInitialiser
+class @ObjectInitialiser
+  className: "ObjectInitialiser"
   constructor: (@assignments) ->
+  toJSON: ->
+    nodeType: @className
+    assignments: for [key, expr] in @assignments
+      [key.toJSON(), expr.toJSON()]
 
 # OfOp :: Exprs -> Exprs -> OfOp
-class exports.OfOp
+class @OfOp
+  className: "OfOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
-# OrOp :: Exprs -> Exprs -> OrOp
-class exports.OrOp
-  constructor: (@left, @right) ->
+# PreDecrementOp :: Exprs -> PreDecrementOp
+class @PreDecrementOp
+  className: "PreDecrementOp"
+  constructor: (@expr) ->
+  toJSON: unaryOpToJSON
+
+# PreIncrementOp :: Exprs -> PreIncrementOp
+class @PreIncrementOp
+  className: "PreIncrementOp"
+  constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # PostDecrementOp :: Exprs -> PostDecrementOp
-class exports.PostDecrementOp
+class @PostDecrementOp
+  className: "PostDecrementOp"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # PostIncrementOp :: Exprs -> PostIncrementOp
-class exports.PostIncrementOp
+class @PostIncrementOp
+  className: "PostIncrementOp"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # Program :: Block -> Program
-class exports.Program
+class @Program
+  className: "Program"
   constructor: (@block) ->
+  toJSON: ->
+    nodeType: @className
+    block: @block.toJSON()
 
 # ProtoMemberAccessOp :: Exprs -> MemberNames -> ProtoMemberAccessOp
-class exports.ProtoMemberAccessOp
+class @ProtoMemberAccessOp
+  className: "ProtoMemberAccessOp"
   constructor: (@expr, @memberName) ->
+  toJSON: exports.MemberAccessOp::toJSON
 
 # Regexp :: string -> Regexp
-class exports.Regexp
+class @Regexp
+  className: "Regexp"
   constructor: (@data) ->
+  toJSON: primitiveToJSON
 
 # RemOp :: Exprs -> Exprs -> RemOp
-class exports.RemOp
+class @RemOp
+  className: "RemOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # Rest :: Exprs -> Rest
-class exports.Rest
+class @Rest
+  className: "Rest"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # Return :: Exprs -> Return
-class exports.Return
+class @Return
+  className: "Return"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # SeqOp :: Exprs -> Exprs -> SeqOp
-class exports.SeqOp
+class @SeqOp
+  className: "SeqOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # ShallowCopyArray :: Exprs -> ShallowCopyArray
-class exports.ShallowCopyArray
+class @ShallowCopyArray
+  className: "ShallowCopyArray"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # SignedRightShiftOp :: Exprs -> Exprs -> SignedRightShiftOp
-class exports.SignedRightShiftOp
+class @SignedRightShiftOp
+  className: "SignedRightShiftOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # SoakedDynamicMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
-class exports.SoakedDynamicMemberAccessOp
+class @SoakedDynamicMemberAccessOp
+  className: "SoakedDynamicMemberAccessOp"
   constructor: (@expr, @indexingExpr) ->
+  toJSON: exports.DynamicMemberAccessOp::toJSON
 
 # we don't currently support this, but for consistency we should
 # SoakedDynamicProtoMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicProtoMemberAccessOp
-class exports.SoakedDynamicProtoMemberAccessOp
+class @SoakedDynamicProtoMemberAccessOp
+  className: "SoakedDynamicProtoMemberAccessOp"
   constructor: (@expr, @indexingExpr) ->
+  toJSON: exports.DynamicMemberAccessOp::toJSON
 
 # SoakedFunctionApplication :: Exprs -> [Arguments] -> SoakedFunctionApplication
-class exports.SoakedFunctionApplication
+class @SoakedFunctionApplication
+  className: "SoakedFunctionApplication"
   constructor: (@function, @arguments) ->
+  toJSON: exports.FunctionApplication::toJSON
 
 # SoakedMemberAccessOp :: Exprs -> MemberNames -> SoakedMemberAccessOp
-class exports.SoakedMemberAccessOp
+class @SoakedMemberAccessOp
+  className: "SoakedMemberAccessOp"
   constructor: (@expr, @memberName) ->
+  toJSON: exports.MemberAccessOp::toJSON
 
 # we don't currently support this, but for consistency we should
 # SoakedProtoMemberAccessOp :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
-class exports.SoakedProtoMemberAccessOp
+class @SoakedProtoMemberAccessOp
+  className: "SoakedProtoMemberAccessOp"
   constructor: (@expr, @memberName) ->
+  toJSON: exports.MemberAccessOp::toJSON
 
 # Splice :: Slices -> Exprs -> Splice
-class exports.Splice
+class @Splice
+  className: "Splice"
   constructor: (@slice, @expr) ->
+  toJSON: ->
+    nodeType: @className
+    slice: @slice.toJSON()
+    expression: @expr.toJSON()
 
 # Spread :: Exprs -> Spread
-class exports.Spread
+class @Spread
+  className: "Spread"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # String :: string -> String
-class exports.String
+class @String
+  className: "String"
   constructor: (@data) ->
+  toJSON: primitiveToJSON
 
 # SubtractOp :: Exprs -> Exprs -> SubtractOp
-class exports.SubtractOp
+class @SubtractOp
+  className: "SubtractOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # Super :: [Arguments] -> Super
-class exports.Super
+class @Super
+  className: "Super"
   constructor: (@arguments) ->
+  toJSON: ->
+    nodeType: @className
+    arguments: (a.toJSON() for a in @arguments)
 
 # Switch :: Exprs -> [(Exprs, Block)] -> Maybe Block -> Switch
-class exports.Switch
+class @Switch
+  className: "Switch"
   constructor: (@expr, @cases, @elseBlock) ->
+  toJSON: ->
+    nodeType: @className
+    expression: @expr.toJSON()
+    cases: for [expr, block] in @cases
+      [expr.toJSON(), block.toJSON()]
+    elseBlock: @elseBlock?.toJSON()
 
 # Throw :: Exprs -> Throw
-class exports.Throw
+class @Throw
+  className: "Throw"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # Try :: Block -> Maybe Assignable -> Maybe Block -> Maybe Block -> Try
-class exports.Try
-  constructor: (@block, @catchAssignee, @catchBlock, @finallBlock) ->
+class @Try
+  className: "Try"
+  constructor: (@block, @catchAssignee, @catchBlock, @finallyBlock) ->
+  toJSON: ->
+    nodeType: @className
+    block: @block.toJSON()
+    catchAssignee: @catchAssignee?.toJSON()
+    catchBlock: @catchBlock?.toJSON()
+    finallyBlock: @finallyBlock?.toJSON()
 
 # TypeofOp :: Exprs -> TypeofOp
-class exports.TypeofOp
+class @TypeofOp
+  className: "TypeofOp"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # UnaryExistsOp :: Exprs -> UnaryExistsOp
-class exports.UnaryExistsOp
+class @UnaryExistsOp
+  className: "UnaryExistsOp"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # UnaryNegateOp :: Exprs -> UnaryNegateOp
-class exports.UnaryNegateOp
+class @UnaryNegateOp
+  className: "UnaryNegateOp"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # UnaryPlusOp :: Exprs -> UnaryPlusOp
-class exports.UnaryPlusOp
+class @UnaryPlusOp
+  className: "UnaryPlusOp"
   constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # UnboundedLeftSlice :: Exprs -> Exprs -> UnboundedLeftSlice
-class exports.UnboundedLeftSlice
+class @UnboundedLeftSlice
+  className: "UnboundedLeftSlice"
   constructor: (@expr, @til) ->
+  toJSON: ->
+    nodeType: @className
+    expression: @expr.toJSON()
+    til: @til.toJSON()
 
 # UnboundedRightSlice :: Exprs -> Exprs -> UnboundedRightSlice
-class exports.UnboundedRightSlice
+class @UnboundedRightSlice
+  className: "UnboundedRightSlice"
   constructor: (@expr, @from) ->
+  toJSON: ->
+    nodeType: @className
+    expression: @expr.toJSON()
+    from: @from.toJSON()
 
 # Undefined :: Undefined
-class exports.Undefined
+class @Undefined
+  className: "Undefined"
   constructor: ->
+  toJSON: statementToJSON
 
 # UnsignedRightShiftOp :: Exprs -> Exprs -> UnsignedRightShiftOp
-class exports.UnsignedRightShiftOp
+class @UnsignedRightShiftOp
+  className: "UnsignedRightShiftOp"
   constructor: (@left, @right) ->
+  toJSON: binOpToJSON
 
 # While :: Exprs -> Block -> While
-class exports.While
+class @While
+  className: "While"
   constructor: (@condition, @block) ->
+  toJSON: ->
+    nodeType: @className
+    condition: @condition.toJSON()
+    block: @block.toJSON()

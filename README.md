@@ -36,7 +36,7 @@ the project. Without you, I wouldn't be able to do this.
 
 * [Groupon](http://groupon.com/), who is generously allowing me to work in their offices
 * Trevor Burnham (http://trevorburnham.com)
-* Tobias Lütke
+* [Shopify](http://www.shopify.com)
 * Abakas (http://abakas.com)
 * 37signals (http://37signals.com)
 * Brightcove (http://www.brightcove.com)

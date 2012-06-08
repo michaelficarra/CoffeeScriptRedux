@@ -18,7 +18,7 @@ assignOpToJSON = ->
 statementToJSON = -> nodeType: @className
 
 primitiveToJSON = ->
-  ndoeType: @className
+  nodeType: @className
   data: @data
 
 

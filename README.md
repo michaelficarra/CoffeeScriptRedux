@@ -35,13 +35,13 @@ donations to the Kickstarter project. Together, you donated over $10,000 toward
 the project. Without you, I wouldn't be able to do this.
 
 * [Groupon](http://groupon.com/), who is generously allowing me to work in their offices
-* Trevor Burnham (http://trevorburnham.com)
+* [Trevor Burnham](http://trevorburnham.com)
 * [Shopify](http://www.shopify.com)
-* Abakas (http://abakas.com)
-* 37signals (http://37signals.com)
-* Brightcove (http://www.brightcove.com)
-* Gaslight Software (http://gaslightsoftware.com)
-* Pantheon (https://www.getpantheon.com)
+* [Abakas](http://abakas.com)
+* [37signals](http://37signals.com)
+* [Brightcove](http://www.brightcove.com)
+* [Gaslight Software](http://gaslightsoftware.com)
+* [Pantheon](https://www.getpantheon.com)
 * Benbria
 * Sam Stephenson
 * Bevan Hunt

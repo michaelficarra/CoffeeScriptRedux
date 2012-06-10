@@ -18,7 +18,7 @@ assignOpToJSON = ->
 statementToJSON = -> nodeType: @className
 
 primitiveToJSON = ->
-  ndoeType: @className
+  nodeType: @className
   data: @data
 
 
@@ -71,7 +71,7 @@ class @Block
   constructor: (@statements) ->
   toJSON: ->
     nodeType: @className
-    statements: @statements.toJSON()
+    statements: (s.toJSON() for s in @statements)
 
 # Bool :: bool -> Bool
 class @Bool
@@ -152,6 +152,12 @@ class @Continue
   className: "Continue"
   constructor: ->
   toJSON: statementToJSON
+
+# DeleteOp :: MemberAccessOps -> DeleteOp
+class @DeleteOp
+  className: "DeleteOp"
+  constructor: (@expr) ->
+  toJSON: unaryOpToJSON
 
 # DivideOp :: Exprs -> Exprs -> DivideOp
 class @DivideOp

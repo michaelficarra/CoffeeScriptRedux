@@ -250,7 +250,7 @@ class @ForIn extends @Node
     valAssignee: @valAssignee.toJSON()
     keyAssignee: @keyAssignee?.toJSON()
     expression: @expr.toJSON()
-    filterExpression: @filterExp.toJSON()
+    filterExpression: @filterExpr.toJSON()
     block: @block.toJSON()
 
 # ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Exprs -> Block -> ForOf
@@ -263,7 +263,7 @@ class @ForOf extends @Node
     keyAssignee: @keyAssignee.toJSON()
     valAssignee: @valAssignee?.toJSON()
     expression: @expr.toJSON()
-    filterExpression: @filterExp.toJSON()
+    filterExpression: @filterExpr.toJSON()
     block: @block.toJSON()
 
 # Function :: [Parameters] -> Block -> Function

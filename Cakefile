@@ -4,11 +4,31 @@ util = require 'util'
 {exec} = require 'child_process'
 CoffeeScript = require 'coffee-script'
 
+
 inspect = (o) -> util.inspect o, no, 2, yes
 
+sh = (cmd, cb) ->
+  proc = exec cmd, (err, stdout, stderr) ->
+    process.stdout.write stdout if stdout
+    process.stderr.write stderr if stderr
+    throw err if err
+    process.exit proc.exitCode if proc.exitCode
+    cb? proc
+
+
+task 'install', (options, cb) ->
+  sh 'npm install -g .', cb
+
 task 'build:full', (options, cb) ->
-  invoke 'build:parser'
-  invoke 'build'
+  proc = sh 'cake build:parser && cake build'
+  cb? proc
+  ## TODO: enhance cake
+  #invoke 'build:parser', ->
+  #  invoke 'build', cb
+  ## TODO: after we have a stable parser, make this more like jashkenas's buld:full
+  #invoke 'build', ->
+  #  invoke 'build', ->
+  #    invoke 'test', cb
 
 task 'build', (options, cb) ->
   filename = path.join 'src', 'nodes.coffee'
@@ -50,6 +70,7 @@ task 'test', (options, cb) ->
   # Run every test in the `test` folder, recording failures.
   fs.readdir 'test', (err, files) ->
     throw err if err
+    # TODO: CPS
     for file in files when file.match /\.coffee$/i
       code = fs.readFileSync filename = path.join 'test', file
       CoffeeScript.run code.toString(), {filename}

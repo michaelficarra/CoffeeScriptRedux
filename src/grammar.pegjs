@@ -1,73 +1,104 @@
 {
-  var Nodes = require("./lib/coffee-script/nodes"),
-      inspect = function(o){ console.log(require('util').inspect(o, false, 9e9, true)); },
-      constructorLookup =
-        { ';': Nodes.SeqOp
-        , '=': Nodes.AssignOp
-        , '&&': Nodes.AndOp
-        , and: Nodes.AndOp
-        , '||': Nodes.OrOp
-        , or: Nodes.OrOp
-        , '|': Nodes.BitOrOp
-        , '^': Nodes.BitXorOp
-        , '&': Nodes.BitAndOp
-        , '?': Nodes.ExistsOp
-        , '==': Nodes.EQOp
-        , is: Nodes.EQOp
-        , '!=': Nodes.NEQOp
-        , isnt: Nodes.NEQOp
-        , '<=': Nodes.LTEOp
-        , '>=': Nodes.GTEOp
-        , '<': Nodes.LTOp
-        , '>': Nodes.GTOp
-        , instancef: Nodes.InstanceofOp
-        , in: Nodes.InOp
-        , of: Nodes.OfOp
-        , '<<': Nodes.LeftShiftOp
-        , '>>': Nodes.SignedRightShiftOp
-        , '>>>': Nodes.UnsignedRightShiftOp
-        , '+': Nodes.AddOp
-        , '-': Nodes.SubtractOp
-        , '*': Nodes.MultiplyOp
-        , '/': Nodes.DivideOp
-        , '%': Nodes.RemOp
-        , '.': Nodes.MemberAccessOp
-        , '?.': Nodes.SoakedMemberAccessOp
-        , '::': Nodes.ProtoMemberAccessOp
-        , '?::': Nodes.SoakedProtoMemberAccessOp
-        , '[': Nodes.DynamicMemberAccessOp
-        , '?[': Nodes.SoakedDynamicMemberAccessOp
-        , '::[': Nodes.DynamicProtoMemberAccessOp
-        , '?::[': Nodes.SoakedDynamicProtoMemberAccessOp
-        },
-      foldl = function(fn, memo, list){
-        for(var i = 0, l = list.length; i < l; ++i)
-          memo = fn(memo, list[i]);
-        return memo;
-      };
+var Nodes = require("./lib/coffee-script/nodes"),
+    inspect = function(o){ console.log(require('util').inspect(o, false, 9e9, true)); },
+    constructorLookup =
+      { ';': Nodes.SeqOp
+      , '=': Nodes.AssignOp
+      , '&&': Nodes.AndOp
+      , and: Nodes.AndOp
+      , '||': Nodes.OrOp
+      , or: Nodes.OrOp
+      , '|': Nodes.BitOrOp
+      , '^': Nodes.BitXorOp
+      , '&': Nodes.BitAndOp
+      , '?': Nodes.ExistsOp
+      , '==': Nodes.EQOp
+      , is: Nodes.EQOp
+      , '!=': Nodes.NEQOp
+      , isnt: Nodes.NEQOp
+      , '<=': Nodes.LTEOp
+      , '>=': Nodes.GTEOp
+      , '<': Nodes.LTOp
+      , '>': Nodes.GTOp
+      , instancef: Nodes.InstanceofOp
+      , in: Nodes.InOp
+      , of: Nodes.OfOp
+      , '<<': Nodes.LeftShiftOp
+      , '>>': Nodes.SignedRightShiftOp
+      , '>>>': Nodes.UnsignedRightShiftOp
+      , '+': Nodes.AddOp
+      , '-': Nodes.SubtractOp
+      , '*': Nodes.MultiplyOp
+      , '/': Nodes.DivideOp
+      , '%': Nodes.RemOp
+      , '.': Nodes.MemberAccessOp
+      , '?.': Nodes.SoakedMemberAccessOp
+      , '::': Nodes.ProtoMemberAccessOp
+      , '?::': Nodes.SoakedProtoMemberAccessOp
+      , '[': Nodes.DynamicMemberAccessOp
+      , '?[': Nodes.SoakedDynamicMemberAccessOp
+      , '::[': Nodes.DynamicProtoMemberAccessOp
+      , '?::[': Nodes.SoakedDynamicProtoMemberAccessOp
+      },
+    foldl = function(fn, memo, list){
+      for(var i = 0, l = list.length; i < l; ++i)
+        memo = fn(memo, list[i]);
+      return memo;
+    },
+    startsWith = function(str, part) {
+      return part === str.slice(0, part.length);
+    },
+    uniform = function(str){
+      if(0 === str.length) return true;
+      var c = str[0];
+      for(var i = 1, l = str.length; i < l; ++i)
+        if(c !== str[i]) return false;
+      return true;
+    },
+    indent = {};
 }
 
 // TODO: DRY everything!
+// TODO: clean this up, it is very disorganised and messy
 
-start
-  = ws0:_ result:statement* ws1:_ {
-      var raw = ws0 + result.map(function(r){ return r.raw; }).join('') + ws1;
-      return new Nodes.Program(new Nodes.Block(result).r(raw).p(line, column)).r(raw).p(line, column);
+start = program
+
+TERMINATOR = necessary:"\n" superfluous:(_ "\n")* {
+    return necessary + superfluous.map(function(s){ return s[0] + s[1]; }).join('');
+  }
+
+INDENT = ws:__ "\uEFEF" { return ws; }
+DEDENT = ws:_ "\uEFFE" { return ws; }
+
+program = leader:(_ "\n")* b:(_ block)? {
+    leader = leader.map(function(s){ return s.join(''); }).join('');
+    if(b) {
+      var block = b[1];
+      return new Nodes.Program(block).r(leader + b[0] + block.raw).p(line, column);
+    } else {
+      return new Nodes.Program(new Nodes.Block([]).r('').p(1, leader.length)).r(leader).p(line, column);
     }
+  }
 
-statement
-  = result:expression "\n"? { return result; }
+block = s:expression ss:(_ TERMINATOR _ expression)* term:TERMINATOR? {
+    var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
+    return new Nodes.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column);
+  }
 
 expression
-  = left:postfixControlFlowExpression right:(_ ";" _ expression)? {
-      if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
-      return new Nodes.SeqOp(left, right[3]).r(raw).p(line, column);
-    }
+  = while
+  / seqExpression
+
+seqExpression = left:postfixControlFlowExpression right:(_ ";" _ expression)? {
+    if(!right) return left;
+    var raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
+    return new Nodes.SeqOp(left, right[3]).r(raw).p(line, column);
+  }
 
 postfixControlFlowOp
   = all:((IF / UNLESS) _ assignmentExpression) { return [all[0], all]; }
   / all:((WHILE / UNTIL) _ assignmentExpression) { return [all[0], all]; }
+  // TODO: add step to for-in
   / all:(FOR _ Assignable _ ("," _ Assignable _)? IN _ assignmentExpression (_ WHEN _ assignmentExpression)?) { return ['for-in', all]; }
   / all:(FOR _ (OWN _)? Assignable _ ("," _ Assignable _)? OF _ assignmentExpression (_ WHEN _ assignmentExpression)?) { return ['for-of', all]; }
 postfixControlFlowExpression = expr:assignmentExpression postfixes:(_ postfixControlFlowOp)* {
@@ -122,12 +153,12 @@ postfixControlFlowExpression = expr:assignmentExpression postfixes:(_ postfixCon
 assignmentExpression = assignmentOp / compoundAssignmentOp / logicalOrExpression
   assignmentOp = all:(Assignable _ "=" !"=" _ logicalOrExpression) {
       var raw = all[0].raw + all[1] + all[2] + all[4] + all[5].raw;
-      return new Nodes.AssignOp(all[0], all[5]).r(raw).p(lines, column);
+      return new Nodes.AssignOp(all[0], all[5]).r(raw).p(line, column);
     }
   CompoundAssignmentOperators = "*" / "/" / "%" / "+" / "-" / "<<" / ">>" / ">>>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||" / "?"
   compoundAssignmentOp = all:(Assignable _ CompoundAssignmentOperators "=" _ logicalOrExpression) {
       var raw = all[0].raw + all[1] + all[2] + "=" + all[4] + all[5].raw;
-      return new Nodes.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(lines, column);
+      return new Nodes.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(line, column);
     }
 logicalOrExpression = left:logicalAndExpression right:(_ ("||" / OR) !"=" _ logicalOrExpression)? {
     if(!right) return left;
@@ -247,14 +278,65 @@ memberExpression = expr:primaryExpression accesses:(_ MemberAccessOps)* {
     dynamicProtoMemberAccessOp = "::[" _ expression _ "]"
     soakedProtoMemberAccessOp = "?::" _ MemberNames
     soakedDynamicProtoMemberAccessOp = "?::[" _ expression _ "]"
-primaryExpression = THIS / identifier / Literals / "(" _ expression _ ")"
+// TODO: functionLiteral certainly is not a primary expression
+primaryExpression
+  = Numbers
+  / bool
+  / THIS { return new Nodes.Identifier("this").r("this").p(line, column); }
+  / identifier
+  / functionLiteral
+  / "(" _ expression _ ")"
 
 
 
-argumentList = assignmentExpression _ ("," _ assignmentExpression)*
+argumentList = e:assignmentExpression s:_ es:("," _ assignmentExpression)* {
+  var raw = e.raw + s + es.map(function(e){ return e[0] + e[1] + e[2].raw; }).join('');
+  var arr = [e].concat(es);
+  arr.raw = raw;
+}
 
 
-Literals = Numbers / bool / identifier
+while = all:(WHILE _ assignmentExpression _ TERMINATOR INDENT block DEDENT) {
+  var cond = all[2], block = all[6];
+  var raw = 'while' + all[1] + cond.raw + all[3] + all[4] + block.raw;
+  return new Nodes.While(cond, block).r(raw).p(line, column);
+}
+
+functionLiteral
+  = argList:("(" _ argumentList _ ")" _)? arrow:("->" / "=>") block:
+    ( all:(_ expression) { return ['expr'].concat(all); }
+    / all:(_ TERMINATOR INDENT block DEDENT) { return ['block'].concat(all); }
+    )?
+{
+  var raw = '', args = [];
+  if(argList) {
+    args = argList[2];
+    raw += argList[0] + argList[1] + args.raw + argList[3] + argList[4] + argList[5];
+  }
+  var constructor;
+  switch(arrow) {
+    case '->': constructor = Nodes.Function; break;
+    case '=>': constructor = Nodes.BoundFunction; break;
+    default: throw new Error('parsed function arrow ("' + arrow + '") not associated with a constructor');
+  }
+  raw += arrow;
+  if(block) {
+    switch(block[0]) {
+      case 'expr':
+        raw += block[1] + block[2].raw;
+        block = new Nodes.Block([block[2]]).r(block[2].raw).p(block[2].line, block[2].column + block[1].length);
+        break;
+      case 'block':
+        raw += block[1] + block[2] + block[4].raw;
+        block = block[4];
+        break;
+    }
+  } else {
+    block = new Nodes.Block([]).r('').p(line, column + raw.length);
+  }
+  return new constructor(args, block).r(raw).p(line, column);
+}
+
 
 bool
   = match:(TRUE / YES / ON) { return new Nodes.Bool(true).r(match).p(line, column); }
@@ -264,7 +346,7 @@ Numbers
   = "0b" bs:bit+ { return new Nodes.Int(parseInt(bs.join(''), 2)).r("0b" + bs).p(line, column); }
   / "0o" os:octalDigit+ { return new Nodes.Int(parseInt(os.join(''), 8)).r("0o" + os).p(line, column); }
   / "0x" hs:hexDigit+ { return new Nodes.Int(parseInt(hs.join(''), 16)).r("0x" + hs).p(line, column); }
-  / base:decimal e:("e" / "E") sign:("+" / "-")? exponent:decimal {
+  / base:decimal e:[eE] sign:[+-]? exponent:decimal {
       var raw = base + e + sign + exponent
       return new Nodes.Float(parseFloat(raw, 10)).r(raw).p(line, column);
     }
@@ -334,6 +416,7 @@ OFF = w:"off" !identifierPart { return w; }
 ON = w:"on" !identifierPart { return w; }
 OR = w:"or" !identifierPart { return w; }
 OWN = w:"own" !identifierPart { return w; }
+THEN = w:"then" !identifierPart { return w; }
 THIS = w:"this" !identifierPart { return w; }
 TRUE = w:"true" !identifierPart { return w; }
 TYPEOF = w:"typeof" !identifierPart { return w; }

@@ -31,11 +31,17 @@ task 'build:full', (options, cb) ->
   #    invoke 'test', cb
 
 task 'build', (options, cb) ->
-  filename = path.join 'src', 'nodes.coffee'
-  fs.readFile filename, (err, source) ->
+  fs.readdir 'src', (err, files) ->
     throw err if err
-    js = CoffeeScript.compile source.toString(), {filename, header: yes}
-    fs.writeFile (path.join 'lib', 'coffee-script', 'nodes.js'), js, cb
+    for file in files when '.coffee' is path.extname file
+      inputFilename = path.join 'src', file
+      outputFilename = path.join 'lib', 'coffee-script', "#{file[...-7]}.js"
+      do (inputFilename, outputFilename) ->
+        fs.readFile inputFilename, (err, source) ->
+          throw err if err
+          js = CoffeeScript.compile source.toString(), filename: inputFilename, header: yes
+          fs.writeFile outputFilename, js, ->
+            # TODO: `cb?()` when these all finish
 
 task 'build:parser', (options, cb) ->
   pegjs = require 'pegjs'
@@ -71,7 +77,7 @@ task 'test', (options, cb) ->
   fs.readdir 'test', (err, files) ->
     throw err if err
     # TODO: CPS
-    for file in files when file.match /\.coffee$/i
+    for file in files when '.coffee' is path.extname file
       code = fs.readFileSync filename = path.join 'test', file
       CoffeeScript.run code.toString(), {filename}
     cb?()

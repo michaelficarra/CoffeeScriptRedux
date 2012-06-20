@@ -590,6 +590,12 @@ class @Switch extends @Node
       [expr.toJSON(), block.toJSON()]
     elseBlock: @elseBlock?.toJSON()
 
+# This :: This
+class @This extends @Node
+  className: 'This'
+  constructor: ->
+  toJSON: statementToJSON
+
 # Throw :: Exprs -> Throw
 class @Throw extends @Node
   className: 'Throw'

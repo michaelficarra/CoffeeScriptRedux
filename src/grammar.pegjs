@@ -312,12 +312,12 @@ memberExpression = expr:primaryExpression accesses:(_ MemberAccessOps)* {
     dynamicProtoMemberAccessOp = "::[" _ expression _ "]"
     soakedProtoMemberAccessOp = "?::" _ MemberNames
     soakedDynamicProtoMemberAccessOp = "?::[" _ expression _ "]"
-contextVar = "@" m:MemberNames { return new Nodes.MemberAccessOp(new Nodes.Identifier("this").r("@").p(line, column), m).r("@" + m).p(line, column); }
+contextVar = "@" m:MemberNames { return new Nodes.MemberAccessOp((new Nodes.This).r("@").p(line, column), m).r("@" + m).p(line, column); }
 primaryExpression
   = Numbers
   / bool
   / contextVar
-  / r:(THIS / "@") { return new Nodes.Identifier("this").r(r).p(line, column); }
+  / r:(THIS / "@") { return (new Nodes.This).r(r).p(line, column); }
   / identifier
   / "(" ws0:_ e:expression ws1:_ ")" {
     e.raw = '(' + ws0 + e.raw + ws1 + ')';

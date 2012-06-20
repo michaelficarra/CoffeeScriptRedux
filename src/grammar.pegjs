@@ -44,6 +44,11 @@ var Nodes = require("./lib/coffee-script/nodes"),
       for(var i = 0, l = list.length; i < l; ++i)
         memo = fn(memo, list[i]);
       return memo;
+    },
+    foldr = function(fn, memo, list){
+      for(var i = list.length; i--;)
+        memo = fn(memo, list[i]);
+      return memo;
     };
 }
 
@@ -359,6 +364,7 @@ primaryExpression
   / contextVar
   / r:(THIS / "@") { return (new Nodes.This).r(r).p(line, column); }
   / identifier
+  / interpolation
   / string
   / "(" ws0:_ e:expression ws1:_ ")" {
       e.raw = '(' + ws0 + e.raw + ws1 + ')';
@@ -526,7 +532,7 @@ bit = [01]
 
 
 stringData
-  = [^"'\\]
+  = [^"'\\#]
   / "\\u" h0:hexDigit h1:hexDigit h2:hexDigit h3:hexDigit { return String.fromCharCode(parseInt(h0 + h1 + h2 + h3, 16)); }
   / "\\x" h0:hexDigit h1:hexDigit { return String.fromCharCode(parseInt(h0 + h1, 16)); }
   / "\\0" !decimalDigit { return '\0'; }
@@ -538,17 +544,60 @@ stringData
   / "\\f" { return '\f'; }
   / "\\r" { return '\r'; }
   / "\\" c:. { return c; }
+  / c:"#" ![{] { return c; }
 
 // TODO: raw?
 string
-  = "\"\"\"" d:(stringData / "'" / s:("\"" [^"] / "\"\"" / [^"]) { return s.join(''); })+ "\"\"\"" {
-      return new Nodes.String(d ? d.join('') : '').p(line, column);
+  = "\"\"\"" d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ "\"\"\"" {
+      return new Nodes.String(d.join('')).p(line, column);
     }
-  / "'''" d:(stringData / "\"" / s:("'" [^'] / "''" [^']) { return s.join(); })+ "'''" {
-      return new Nodes.String(d ? d.join('') : '').p(line, column);
+  / "'''" d:(stringData / "\"" / "#" / s:("'" "'"? !"'") { return s.join(''); })+ "'''" {
+      return new Nodes.String(d.join('')).p(line, column);
     }
   / "\"" d:(stringData / "'")* "\"" { return new Nodes.String(d ? d.join('') : '').p(line, column); }
-  / "'" d:(stringData / "\"")* "'" { return new Nodes.String(d ? d.join('') : '').p(line, column); }
+  / "'" d:(stringData / "\"" / "#")* "'" { return new Nodes.String(d ? d.join('') : '').p(line, column); }
+
+interpolation
+  = "\"\"\"" es:
+    ( d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ { return new Nodes.String(d.join('')).p(line, column); }
+    / "#{" e:expression "}" { return e; }
+    )+ "\"\"\"" {
+      return foldl(function(memo, s){
+        if(s instanceof Nodes.String) {
+          var left = memo;
+          while(left)
+            if(left instanceof Nodes.String) {
+              left.data = left.data + s.data;
+              return memo;
+            } else if(left instanceof Nodes.ConcatOp) {
+              left = left.right
+            } else {
+              break;
+            }
+        }
+        return new Nodes.ConcatOp(memo, s);
+      }, es.shift(), es);
+    }
+  / "\"" es:
+    ( d:(stringData / "'")+ { return new Nodes.String(d.join('')).p(line, column); }
+    / "#{" e:expression "}" { return e; }
+    )+ "\"" {
+      return foldr(function(memo, s){
+        if(s instanceof Nodes.String) {
+          var right = memo;
+          while(right)
+            if(right instanceof Nodes.String) {
+              right.p(s.line, s.column).data = s.data + right.data
+              return memo;
+            } else if(right instanceof Nodes.ConcatOp) {
+              right = right.left;
+            } else {
+              break;
+            }
+        }
+        return new Nodes.ConcatOp(s, memo);
+      }, es.pop(), es);
+    }
 
 
 throw

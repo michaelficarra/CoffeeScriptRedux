@@ -328,58 +328,58 @@ primaryExpression
 
 
 conditional
-  = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody elseClause:(_ elseClause)? {
-    var raw = kw + ws0 + cond.raw + ws1 + body.raw + (elseClause ? elseClause[0] + elseClause[1].raw : '');
+  = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody elseClause:elseClause? {
+    var raw = kw + ws0 + cond.raw + ws1 + body.raw + (elseClause ? elseClause.raw : '');
     if(kw == 'unless') cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
-    var elseBlock = elseClause ? elseClause[1].block : null;
+    var elseBlock = elseClause ? elseClause.block : null;
     return new Nodes.Conditional(cond, body.block, elseBlock).r(raw).p(line, column);
   }
-elseClause = ELSE ws:_ b:conditionalBody { return {block: b.block, raw: 'else' + ws + b.raw}; }
-conditionalBody
-  = t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
-  / t:THEN ws:_ s:statement {
-    var block = new Block([s]).r(s.raw).p(s.line, s.column);
-    return {block: block, raw: t + ws + s.raw};
-  }
+  elseClause = ELSE ws:_ b:conditionalBody { return {block: b.block, raw: 'else' + ws + b.raw}; }
+  conditionalBody
+    = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
+    / ws0:_ t:THEN ws1:_ s:statement {
+      var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
+      return {block: block, raw: ws0 + t + ws1 + s.raw};
+    }
 
 
 while
-  = kw:(WHILE / UNTIL) ws0:_ cond:assignmentExpression ws1:_ body:whileBody {
-    var raw = kw + ws0 + cond.raw + ws1 + body.raw;
+  = kw:(WHILE / UNTIL) ws:_ cond:assignmentExpression body:whileBody {
+    var raw = kw + ws + cond.raw + body.raw;
     if(kw == 'until') cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
     return new Nodes.While(cond, body.block).r(raw).p(line, column);
   }
-whileBody = conditionalBody
+  whileBody = conditionalBody
 
 
 
-classBlock = s:classStatement ss:(_ TERMINATOR _ classStatement)* term:TERMINATOR? {
-    var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
-    return new Nodes.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column);
-  }
-classStatement = classProtoAssignment / !(return / continue / break) s:statement { return s; }
-classProtoAssignment = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:(functionLiteral / assignmentExpression) {
-  return new Nodes.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
-}
 class
-  = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? ws:_ body:classBody {
+  = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? body:classBody {
     var raw = 'class' + (name ? name[0] + name[1].raw : '') +
       (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
-      ws + body.raw;
+      body.raw;
     name = name ? name[1] : null;
     parent = parent ? parent[3] : null;
     return new Nodes.Class(name, parent, body.block).r(raw).p(line, column);
   }
-classBody
-  = t:TERMINATOR INDENT b:classBlock DEDENT { return {block: b, raw: t + b.raw}; }
-  / t:THEN ws:_ s:classStatement {
-    var block = new Block([s]).r(s.raw).p(s.line, s.column);
-    return {block: block, raw: t + ws + s.raw};
+  classBlock = s:classStatement ss:(_ TERMINATOR _ classStatement)* term:TERMINATOR? {
+      var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
+      return new Nodes.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column);
+    }
+  classStatement = classProtoAssignment / !(return / continue / break) s:statement { return s; }
+  classProtoAssignment = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:(functionLiteral / assignmentExpression) {
+    return new Nodes.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
   }
-  / t:THEN? {
-    var block = new Block([]).r(t).p(line, column);
-    return {block: block, raw: block.raw};
-  }
+  classBody
+    = ws:_ t:TERMINATOR INDENT b:classBlock DEDENT { return {block: b, raw: ws + t + b.raw}; }
+    / ws0:_ t:THEN ws1:_ s:classStatement {
+      var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
+      return {block: block, raw: ws0 + t + ws1 + s.raw};
+    }
+    / ws:_ t:THEN? {
+      var block = new Nodes.Block([]).r('').p(line, column);
+      return {block: block, raw: ws + t};
+    }
 
 
 parameter
@@ -393,39 +393,28 @@ parameterList = e:parameter es:(_ "," _ parameter)* {
 }
 
 functionLiteral
-  = argList:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") block:
-    ( all:(_ statement) { return ['expr'].concat(all); }
-    / all:(_ TERMINATOR INDENT block DEDENT) { return ['block'].concat(all); }
-    )?
-{
-  var raw = '', args = [];
-  if(argList) {
-    args = argList[2];
-    raw += argList[0] + argList[1] + args.raw + argList[3] + argList[4] + argList[5];
-  }
-  var constructor;
-  switch(arrow) {
-    case '->': constructor = Nodes.Function; break;
-    case '=>': constructor = Nodes.BoundFunction; break;
-    default: throw new Error('parsed function arrow ("' + arrow + '") not associated with a constructor');
-  }
-  raw += arrow;
-  if(block) {
-    switch(block[0]) {
-      case 'expr':
-        raw += block[1] + block[2].raw;
-        block = new Nodes.Block([block[2]]).r(block[2].raw).p(block[2].line, block[2].column + block[1].length);
-        break;
-      case 'block':
-        raw += block[1] + block[2] + block[4].raw;
-        block = block[4];
-        break;
+  = argList:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody? {
+    var raw = '', args = [];
+    if(argList) {
+      args = argList[2];
+      raw += argList[0] + argList[1] + args.raw + argList[3] + argList[4] + argList[5];
     }
-  } else {
-    block = new Nodes.Block([]).r('').p(line, column + raw.length);
+    raw += arrow + (body ? body.raw : '');
+    var constructor;
+    switch(arrow) {
+      case '->': constructor = Nodes.Function; break;
+      case '=>': constructor = Nodes.BoundFunction; break;
+      default: throw new Error('parsed function arrow ("' + arrow + '") not associated with a constructor');
+    }
+    var block = body ? body.block : null;
+    return new constructor(args, block).r(raw).p(line, column);
   }
-  return new constructor(args, block).r(raw).p(line, column);
-}
+functionBody
+  = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: ws + t + b.raw}; }
+  / ws:_ s:statement {
+    var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
+    return {block: block, raw: ws + s.raw};
+  }
 
 
 ObjectInitialiserKeys

@@ -23,8 +23,12 @@ primitiveToJSON = ->
 
 
 class @Node
+  generated: no
   r: (@raw) -> this
   p: (@line, @column) -> this
+  g: ->
+    @generated = yes
+    this
 
 
 # AddOp :: Exprs -> Exprs -> AddOp
@@ -73,8 +77,10 @@ class @BitXorOp extends @Node
 
 # Block :: [Statement] -> Block
 class @Block extends @Node
+  Block = this
   className: 'Block'
   constructor: (@statements) ->
+  @wrap = (s) -> new Block([s]).r(s.raw).p(s.line, s.column)
   toJSON: ->
     nodeType: @className
     statements: (s.toJSON() for s in @statements)
@@ -241,15 +247,16 @@ class @Float extends @Node
   constructor: (@data) ->
   toJSON: primitiveToJSON
 
-# ForIn :: Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Block -> ForIn
+# ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Block -> ForIn
 class @ForIn extends @Node
   className: 'ForIn'
-  constructor: (@valAssignee, @keyAssignee, @expr, @filterExpr, @block) ->
+  constructor: (@valAssignee, @keyAssignee, @expr, @step, @filterExpr, @block) ->
   toJSON: ->
     nodeType: @className
     valAssignee: @valAssignee.toJSON()
     keyAssignee: @keyAssignee?.toJSON()
     expression: @expr.toJSON()
+    step: @step.toJSON()
     filterExpression: @filterExpr?.toJSON()
     block: @block.toJSON()
 

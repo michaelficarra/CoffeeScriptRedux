@@ -106,6 +106,9 @@ expression
   / NEW _ functionLiteral
   / seqExpression
   / while
+  / conditional
+  / forOf
+  / forIn
   / class
 
 // begin expression waterfall
@@ -125,7 +128,7 @@ postfixControlFlowOp
 postfixControlFlowExpression
   = expr:assignmentExpression postfixes:(_ postfixControlFlowOp)* {
       return foldl(function(expr, postfixContainer){
-        var raw, cond, list, obj, own, key, val, filter,
+        var raw, cond, list, obj, own, key, val, filter, step,
             ws = postfixContainer[0],
             indicator = postfixContainer[1][0],
             postfix = postfixContainer[1][1];
@@ -134,16 +137,16 @@ postfixControlFlowExpression
           case 'unless':
             cond = postfix[2];
             if(indicator == 'unless')
-              cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+              cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
             raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
-            return new Nodes.condal(cond, expr, null).r(raw).p(line, column)
+            return new Nodes.Conditional(cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
           case 'while':
           case 'until':
             cond = postfix[2];
             if(indicator == 'until')
-              cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+              cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
             raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
-            return new Nodes.While(cond, expr).r(raw).p(line, column)
+            return new Nodes.While(cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
           case 'for-in':
             list = postfix[7];
             val = postfix[2];
@@ -153,7 +156,8 @@ postfixControlFlowExpression
               (key ? postfix[4][0] + postfix[4][1] + key.raw + postfix[4][3] : '') +
               'in' + postfix[6] + list.raw +
               (filter ? postfix[8][0] + 'when' + postfix[8][2] + filter.raw : '');
-            return new Nodes.ForIn(val, key, list, filter, expr).r(raw).p(line, column);
+            step = new Nodes.Int(1).r('1').g();
+            return new Nodes.ForIn(val, key, list, step, filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
           case 'for-of':
             obj = postfix[8];
             key = postfix[3]
@@ -165,7 +169,7 @@ postfixControlFlowExpression
               (val ? postfix[5][0] + postfix[5][1] + val.raw + postfix[5][3] : '') +
               'of' + postfix[7] + obj.raw +
               (filter ? postfix[9][0] + 'when' + postfix[9][2] + filter.raw : '');
-            return new Nodes.ForOf(own, key, val, obj, filter, expr).r(raw).p(line, column);
+            return new Nodes.ForOf(own, key, val, obj, filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
         }
       }, expr, postfixes)
     }
@@ -238,7 +242,7 @@ relationalExpression
       if(!right) return left;
       var op = constructorLookup[right[3]],
           raw = left.raw + right[0] + 'not' + right[2] + right[3] + right[4] + right[5].raw;
-      return new Nodes.Not(new op(left, right[5]).r(raw).p(line, column)).r(raw).p(line, column);
+      return new Nodes.LogicalNotOp(new op(left, right[5]).r(raw).p(line, column)).r(raw).g();
     }
 bitwiseShiftExpression
   = left:additiveExpression right:(_ ("<<" / ">>>" / ">>") _ (functionLiteral / bitwiseShiftExpression))? {
@@ -366,27 +370,27 @@ primaryExpression
 conditional
   = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody elseClause:elseClause? {
       var raw = kw + ws0 + cond.raw + ws1 + body.raw + (elseClause ? elseClause.raw : '');
-      if(kw == 'unless') cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+      if(kw == 'unless') cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
       var elseBlock = elseClause ? elseClause.block : null;
       return new Nodes.Conditional(cond, body.block, elseBlock).r(raw).p(line, column);
     }
-  elseClause = ELSE ws:_ b:conditionalBody { return {block: b.block, raw: 'else' + ws + b.raw}; }
   conditionalBody
     = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
     / ws0:_ t:THEN ws1:_ s:statement {
-        var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
+        var block = Nodes.Block.wrap(s);
         return {block: block, raw: ws0 + t + ws1 + s.raw};
       }
+  elseClause = ws:_ ELSE b:elseBody { return {block: b.block, raw: ws + 'else' + b.raw}; }
+  elseBody = functionBody
 
 
 while
   = kw:(WHILE / UNTIL) ws:_ cond:assignmentExpression body:whileBody {
       var raw = kw + ws + cond.raw + body.raw;
-      if(kw == 'until') cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+      if(kw == 'until') cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
       return new Nodes.While(cond, body.block).r(raw).p(line, column);
     }
   whileBody = conditionalBody
-
 
 
 class
@@ -413,7 +417,7 @@ class
   classBody
     = ws:_ t:TERMINATOR INDENT b:classBlock DEDENT { return {block: b, raw: ws + t + b.raw}; }
     / ws0:_ t:THEN ws1:_ s:classStatement {
-        var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
+        var block = Nodes.Block.wrap(s);
         return {block: block, raw: ws0 + t + ws1 + s.raw};
       }
     / all:(_ THEN)? {
@@ -422,40 +426,62 @@ class
       }
 
 
-parameter
-  = identifier
-  / contextVar
-parameterList
-  = e:parameter es:(_ "," _ parameter)* {
-      var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
-      var arr = [e].concat(es.map(function(e){ return e[3]; }));
-      arr.raw = raw;
-      return arr;
+forBody = conditionalBody
+forOf
+  = FOR ws0:_ own:(OWN _)? key:Assignable ws1:_ maybeVal:("," _ Assignable _)? OF ws2:_ obj:assignmentExpression ws3:_ maybeFilter:(WHEN _ assignmentExpression _)? body:forBody {
+      var raw = 'for' + ws0 + (own ? 'own' + own[1] : '') + key.raw + ws1 +
+        (maybeVal ? ',' + maybeVal[1] + maybeVal[2].raw + maybeVal[3] : '') +
+        'of' + ws2 + obj.raw + ws3 +
+        (maybeFilter ? 'when' + maybeFilter[1] + maybeFilter[2].raw + maybeFilter[3] : '') +
+        body.raw;
+      var val = maybeVal ? maybeVal[2] : null;
+      var filter = maybeFilter ? maybeFilter[2] : null;
+      return new Nodes.ForOf(!!own, key, val, obj, filter, body.block).r(raw).p(line, column);
+    }
+forIn
+  = FOR ws0:_ val:Assignable ws1:_ maybeKey:("," _ Assignable _)? IN ws2:_ list:assignmentExpression ws3:_ maybeStep:(BY _ assignmentExpression _)? maybeFilter:(WHEN _ assignmentExpression _)? body:forBody {
+      var raw = 'for' + ws0 + val.raw + ws1 +
+        (maybeKey ? ',' + maybeKey[1] + maybeKey[2].raw + maybeKey[3] : '') +
+        'in' + ws2 + list.raw + ws3 +
+        (maybeStep ? 'by' + maybeStep[1] + maybeStep[2].raw + maybeStep[3] : '') +
+        (maybeFilter ? 'when' + maybeFilter[1] + maybeFilter[2].raw + maybeFilter[3] : '') +
+        body.raw;
+      var key = maybeKey ? maybeKey[2] : null;
+      var step = maybeStep ? maybeStep[2] : new Nodes.Int(1).r('1').g();
+      var filter = maybeFilter ? maybeFilter[2] : null;
+      return new Nodes.ForIn(val, key, list, step, filter, body.block).r(raw).p(line, column);
     }
 
+
+
 functionLiteral
-  = argList:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody {
-      var raw = '', args = [];
-      if(argList) {
-        args = argList[2];
-        raw += argList[0] + argList[1] + args.raw + argList[3] + argList[4] + argList[5];
-      }
-      raw += arrow + body.raw;
+  = params:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody {
+      var raw =
+        (params ? params[0] + params[1] + params[2].raw + params[3] + params[4] + params[5] : '') +
+        arrow + body.raw;
       var constructor;
       switch(arrow) {
         case '->': constructor = Nodes.Function; break;
         case '=>': constructor = Nodes.BoundFunction; break;
         default: throw new Error('parsed function arrow ("' + arrow + '") not associated with a constructor');
       }
-      return new constructor(args, body.block).r(raw).p(line, column);
+      params = params ? params[2].list : [];
+      return new constructor(params, body.block).r(raw).p(line, column);
     }
   functionBody
     = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: ws + t + b.raw}; }
     / all:(_ statement)? {
         if(!all) return {block: new Nodes.Block([]).r('').p(line, column), raw: ''};
         var ws = all[0], s = all[1];
-        var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
-        return {block: block, raw: ws + s.raw};
+        return {block: Nodes.Block.wrap(s), raw: ws + s.raw};
+      }
+  parameter
+    = identifier
+    / contextVar
+  parameterList
+    = e:parameter es:(_ "," _ parameter)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
+        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
 
 
@@ -483,7 +509,7 @@ decimal
   // trailing and leading radix points are discouraged anyway
   = integral:integer fractional:("." decimalDigit+)? {
       if(fractional != null) fractional = "." + fractional[1].join('');
-      return fractional == null
+      return fractional
         ? new Nodes.Int(+integral).r(integral).p(line, column)
         : new Nodes.Float(parseFloat(integral + fractional, 10)).r(integral + fractional).p(line, column);
     }
@@ -550,6 +576,7 @@ whitespace = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202
 
 AND = w:"and" !identifierPart { return w; }
 BREAK = w:"break" !identifierPart { return w; }
+BY = w:"by" !identifierPart { return w; }
 CONTINUE = w:"continue" !identifierPart { return w; }
 CLASS = w:"class" !identifierPart { return w; }
 DELETE = w:"delete" !identifierPart { return w; }

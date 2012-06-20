@@ -337,9 +337,9 @@ conditional
 elseClause = ELSE ws:_ b:conditionalBody { return {block: b.block, raw: 'else' + ws + b.raw}; }
 conditionalBody
   = t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
-  / THEN ws:_ s:statement {
+  / t:THEN ws:_ s:statement {
     var block = new Block([s]).r(s.raw).p(s.line, s.column);
-    return {block: block, raw: 'then' + ws + s.raw};
+    return {block: block, raw: t + ws + s.raw};
   }
 
 
@@ -362,24 +362,23 @@ classProtoAssignment = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:(functionLite
   return new Nodes.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
 }
 class
-  = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? ws:_ term:TERMINATOR INDENT block:classBlock DEDENT {
+  = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? ws:_ body:classBody {
     var raw = 'class' + (name ? name[0] + name[1].raw : '') +
       (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
-      ws + term + block.raw;
+      ws + body.raw;
     name = name ? name[1] : null;
     parent = parent ? parent[3] : null;
-    return new Nodes.Class(name, parent, block).r(raw).p(line, column);
+    return new Nodes.Class(name, parent, body.block).r(raw).p(line, column);
   }
-  / CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? block:(_ THEN (_ classStatement)?)? {
-    var raw = 'class' + (name ? name[0] + name[1].raw : '') +
-      (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
-      (block ? block[0] + 'then' + (block[2] ? block[2][0] + block[2][1].raw : '') : '');
-    name = name ? name[1] : null;
-    parent = parent ? parent[3] : null;
-    block = block && block[2]
-      ? new Nodes.Block([block[2][1]]).r(block[2][1].raw).p(line, column + raw.length - block[2][1].length)
-      : new Nodes.Block([]).r('').p(line, column + raw.length);
-    return new Nodes.Class(name, parent, block).r(raw).p(line, column);
+classBody
+  = t:TERMINATOR INDENT b:classBlock DEDENT { return {block: b, raw: t + b.raw}; }
+  / t:THEN ws:_ s:classStatement {
+    var block = new Block([s]).r(s.raw).p(s.line, s.column);
+    return {block: block, raw: t + ws + s.raw};
+  }
+  / t:THEN? {
+    var block = new Block([]).r(t).p(line, column);
+    return {block: block, raw: block.raw};
   }
 
 

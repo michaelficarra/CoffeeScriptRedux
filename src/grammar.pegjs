@@ -508,15 +508,15 @@ Numbers
 decimal
   // trailing and leading radix points are discouraged anyway
   = integral:integer fractional:("." decimalDigit+)? {
-      if(fractional != null) fractional = "." + fractional[1].join('');
+      if(fractional) fractional = "." + fractional[1].join('');
       return fractional
-        ? new Nodes.Int(+integral).r(integral).p(line, column)
-        : new Nodes.Float(parseFloat(integral + fractional, 10)).r(integral + fractional).p(line, column);
+        ? new Nodes.Float(parseFloat(integral + fractional, 10)).r(integral + fractional).p(line, column)
+        : new Nodes.Int(+integral).r(integral).p(line, column);
     }
 
 integer
   = "0"
-  / a:[1-9] bs:decimalDigit+ { return a + bs.join(''); }
+  / a:[1-9] bs:decimalDigit* { return a + (bs ? bs.join('') : ''); }
 
 decimalDigit = [0-9]
 hexDigit = [0-9a-fA-F]

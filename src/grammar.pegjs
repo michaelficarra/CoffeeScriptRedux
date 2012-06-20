@@ -416,9 +416,9 @@ class
         var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
         return {block: block, raw: ws0 + t + ws1 + s.raw};
       }
-    / ws:_ t:THEN? {
+    / all:(_ THEN)? {
         var block = new Nodes.Block([]).r('').p(line, column);
-        return {block: block, raw: ws + t};
+        return {block: block, raw: all ? all[0] + all[1] : ''};
       }
 
 
@@ -434,25 +434,26 @@ parameterList
     }
 
 functionLiteral
-  = argList:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody? {
+  = argList:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody {
       var raw = '', args = [];
       if(argList) {
         args = argList[2];
         raw += argList[0] + argList[1] + args.raw + argList[3] + argList[4] + argList[5];
       }
-      raw += arrow + (body ? body.raw : '');
+      raw += arrow + body.raw;
       var constructor;
       switch(arrow) {
         case '->': constructor = Nodes.Function; break;
         case '=>': constructor = Nodes.BoundFunction; break;
         default: throw new Error('parsed function arrow ("' + arrow + '") not associated with a constructor');
       }
-      var block = body ? body.block : null;
-      return new constructor(args, block).r(raw).p(line, column);
+      return new constructor(args, body.block).r(raw).p(line, column);
     }
   functionBody
     = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: ws + t + b.raw}; }
-    / ws:_ s:statement {
+    / all:(_ statement)? {
+        if(!all) return {block: new Nodes.Block([]).r('').p(line, column), raw: ''};
+        var ws = all[0], s = all[1];
         var block = new Nodes.Block([s]).r(s.raw).p(s.line, s.column);
         return {block: block, raw: ws + s.raw};
       }

@@ -241,7 +241,7 @@ class @Float extends @Node
   constructor: (@data) ->
   toJSON: primitiveToJSON
 
-# ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Block -> ForIn
+# ForIn :: Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Block -> ForIn
 class @ForIn extends @Node
   className: 'ForIn'
   constructor: (@valAssignee, @keyAssignee, @expr, @filterExpr, @block) ->
@@ -250,7 +250,7 @@ class @ForIn extends @Node
     valAssignee: @valAssignee.toJSON()
     keyAssignee: @keyAssignee?.toJSON()
     expression: @expr.toJSON()
-    filterExpression: @filterExpr.toJSON()
+    filterExpression: @filterExpr?.toJSON()
     block: @block.toJSON()
 
 # ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Exprs -> Block -> ForOf

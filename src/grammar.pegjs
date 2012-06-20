@@ -89,10 +89,20 @@ statement
   / throw
 
 expression
-  = while
-  / class
-  / functionLiteral
+  = functionLiteral
+  / "++" _ functionLiteral
+  / "--" _ functionLiteral
+  / "+" _ functionLiteral
+  / "-" _ functionLiteral
+  / ("!" / NOT) _ functionLiteral
+  / "~" _ functionLiteral
+  / DO _ functionLiteral
+  / TYPEOF _ functionLiteral
+  / DELETE _ functionLiteral
+  / NEW _ functionLiteral
   / seqExpression
+  / while
+  / class
 
 seqExpression = left:postfixControlFlowExpression right:(_ ";" _ expression)? {
     if(!right) return left;
@@ -133,7 +143,7 @@ postfixControlFlowExpression = expr:assignmentExpression postfixes:(_ postfixCon
           list = postfix[7];
           val = postfix[2];
           key = postfix[4] ? postfix[4][2] : null;
-          filter = postfix[8] ? postfix[8][3] : null
+          filter = postfix[8] ? postfix[8][3] : null;
           raw = expr.raw + ws + 'for' + postfix[1] + postfix[2].raw + postfix[3] +
             (key ? postfix[4][0] + postfix[4][1] + key.raw + postfix[4][3] : '') +
             'in' + postfix[6] + list.raw +
@@ -226,16 +236,15 @@ multiplicativeExpression = left:prefixExpression right:(_ [*/%] !"=" _ (function
   }
 prefixExpression
   = postfixExpression
-  / NEW _ functionLiteral
-  / "++" _ (functionLiteral / prefixExpression)
-  / "--" _ (functionLiteral / prefixExpression)
-  / "+" _ (functionLiteral / prefixExpression)
-  / "-" _ (functionLiteral / prefixExpression)
-  / ("!" / NOT) _ (functionLiteral / prefixExpression)
-  / "~" _ (functionLiteral / prefixExpression)
-  / DO _ (functionLiteral / prefixExpression)
-  / TYPEOF _ (functionLiteral / prefixExpression)
-  / DELETE _ (functionLiteral / prefixExpression)
+  / "++" _ prefixExpression
+  / "--" _ prefixExpression
+  / "+" _ prefixExpression
+  / "-" _ prefixExpression
+  / ("!" / NOT) _ prefixExpression
+  / "~" _ prefixExpression
+  / DO _ prefixExpression
+  / TYPEOF _ prefixExpression
+  / DELETE _ prefixExpression
 postfixExpression = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")*{
     return foldl(function(expr, op){
       var raw;
@@ -247,8 +256,22 @@ postfixExpression = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")
       }
     }, expr, ops);
   }
+argument
+  = identifier
+  / contextVar
+argumentList = e:argument es:(_ "," _ argument)* {
+  var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
+  var arr = [e].concat(es.map(function(e){ return e[3]; }));
+  arr.raw = raw;
+  return arr;
+}
 leftHandSideExpression
-  = memberExpression ("(" _ parameterList? _ ")") ("(" _ parameterList? _ ")" / MemberAccessOps)*
+  = fn:memberExpression args:("(" _ argumentList? _ ")")* {
+    return foldl(function(fn, args){
+      var raw = fn.raw + '(' + args[1] + (args[2] ? args[2].raw : '') + args[3] + ')';
+      return new Nodes.FunctionApplication(fn, args[2] ? args[2] : []).r(raw).p(line, column);
+    }, fn, args);
+  }
   / newExpression
 newExpression
   = memberExpression
@@ -261,7 +284,7 @@ memberExpression = expr:primaryExpression accesses:(_ MemberAccessOps)* {
         case '?.':
         case '::':
         case '?::':
-          raw = expr.raw + ws + access[0] + access[1] + access[2].raw;
+          raw = expr.raw + ws + access[0] + access[1] + access[2];
           break;
         case '[':
         case '?[':
@@ -291,7 +314,10 @@ primaryExpression
   / contextVar
   / r:(THIS / "@") { return new Nodes.Identifier("this").r(r).p(line, column); }
   / identifier
-  / "(" _ expression _ ")"
+  / "(" ws0:_ e:expression ws1:_ ")" {
+    e.raw = '(' + ws0 + e.raw + ws1 + ')';
+    return e;
+  }
 
 
 
@@ -433,6 +459,9 @@ continue = CONTINUE { return (new Nodes.Continue).r("continue").p(line, column);
 break = BREAK { return (new Nodes.Break).r("break").p(line, column); }
 
 
+undefined = UNDEFINED { return (new Nodes.Undefined).r("undefined").p(line, column); }
+null = NULL { return (new Nodes.Undefined).r("undefined").p(line, column); }
+
 
 unassignable = ("arguments" / "eval") !identifierPart
 Assignable
@@ -478,6 +507,7 @@ ISNT = w:"isnt" !identifierPart { return w; }
 NEW = w:"new" !identifierPart { return w; }
 NO = w:"no" !identifierPart { return w; }
 NOT = w:"not" !identifierPart { return w; }
+NULL = w:"null" !identifierPart { return w; }
 OF = w:"of" !identifierPart { return w; }
 OFF = w:"off" !identifierPart { return w; }
 ON = w:"on" !identifierPart { return w; }
@@ -489,6 +519,7 @@ THIS = w:"this" !identifierPart { return w; }
 THROW = w:"throw" !identifierPart { return w; }
 TRUE = w:"true" !identifierPart { return w; }
 TYPEOF = w:"typeof" !identifierPart { return w; }
+UNDEFINED = w:"undefined" !identifierPart { return w; }
 UNLESS = w:"unless" !identifierPart { return w; }
 UNTIL = w:"until" !identifierPart { return w; }
 WHEN = w:"when" !identifierPart { return w; }

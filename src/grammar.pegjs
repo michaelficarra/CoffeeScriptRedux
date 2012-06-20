@@ -208,11 +208,18 @@ equalityExpression = left:relationalExpression right:(_ ("==" / IS / "!=" / ISNT
     var raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
     return new constructorLookup[right[1]](left, right[3]).r(raw).p(line, column);
   }
-relationalExpression = left:bitwiseShiftExpression right:(_ ("<=" / ">=" / "<" / ">" / INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
+relationalExpression
+  = left:bitwiseShiftExpression right:(_ ("<=" / ">=" / "<" / ">" / INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
     if(!right) return left;
     var op = constructorLookup[right[1]],
         raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
     return new op(left, right[3]).r(raw).p(line, column);
+  }
+  / left:bitwiseShiftExpression right:(_ NOT _ (INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
+    if(!right) return left;
+    var op = constructorLookup[right[3]],
+        raw = left.raw + right[0] + 'not' + right[2] + right[3] + right[4] + right[5].raw;
+    return new Nodes.Not(new op(left, right[5]).r(raw).p(line, column)).r(raw).p(line, column);
   }
 bitwiseShiftExpression = left:additiveExpression right:(_ ("<<" / ">>>" / ">>") _ (functionLiteral / bitwiseShiftExpression))? {
     if(!right) return left;

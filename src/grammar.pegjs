@@ -327,21 +327,30 @@ primaryExpression
 
 
 
+conditional
+  = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody elseClause:(_ elseClause)? {
+    var raw = kw + ws0 + cond.raw + ws1 + body.raw + (elseClause ? elseClause[0] + elseClause[1].raw : '');
+    if(kw == 'unless') cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+    var elseBlock = elseClause ? elseClause[1].block : null;
+    return new Nodes.Conditional(cond, body.block, elseBlock).r(raw).p(line, column);
+  }
+elseClause = ELSE ws:_ b:conditionalBody { return {block: b.block, raw: 'else' + ws + b.raw}; }
+conditionalBody
+  = t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
+  / THEN ws:_ s:statement {
+    var block = new Block([s]).r(s.raw).p(s.line, s.column);
+    return {block: block, raw: 'then' + ws + s.raw};
+  }
+
+
 while
-  = all:((WHILE / UNTIL) _ assignmentExpression _ TERMINATOR INDENT block DEDENT) {
-    var cond = all[2], block = all[6];
-    if(all[0] === 'until')
-      cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
-    var raw = all[0] + all[1] + cond.raw + all[3] + all[4] + block.raw;
-    return new Nodes.While(cond, block).r(raw).p(line, column);
+  = kw:(WHILE / UNTIL) ws0:_ cond:assignmentExpression ws1:_ body:whileBody {
+    var raw = kw + ws0 + cond.raw + ws1 + body.raw;
+    if(kw == 'until') cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+    return new Nodes.While(cond, body.block).r(raw).p(line, column);
   }
-  / all:((WHILE / UNTIL) _ assignmentExpression _ THEN _ statement) {
-    var cond = all[2], stmt = all[6];
-    if(all[0] === 'until')
-      cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
-    var raw = all[0] + all[1] + cond.raw + all[3] + all[4] + all[5] + stmt.raw;
-    return new Nodes.While(cond, new Nodes.Block([stmt]).r(stmt.raw).p(line, column + raw.length - stmt.raw.length)).r(raw).p(line, column);
-  }
+whileBody = conditionalBody
+
 
 
 classBlock = s:classStatement ss:(_ TERMINATOR _ classStatement)* term:TERMINATOR? {
@@ -505,6 +514,7 @@ CONTINUE = w:"continue" !identifierPart { return w; }
 CLASS = w:"class" !identifierPart { return w; }
 DELETE = w:"delete" !identifierPart { return w; }
 DO = w:"do" !identifierPart { return w; }
+ELSE = w:"else" !identifierPart { return w; }
 EXTENDS = w:"extends" !identifierPart { return w; }
 FALSE = w:"false" !identifierPart { return w; }
 FOR = w:"for" !identifierPart { return w; }

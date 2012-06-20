@@ -359,6 +359,7 @@ primaryExpression
   / contextVar
   / r:(THIS / "@") { return (new Nodes.This).r(r).p(line, column); }
   / identifier
+  / string
   / "(" ws0:_ e:expression ws1:_ ")" {
       e.raw = '(' + ws0 + e.raw + ws1 + ')';
       return e;
@@ -487,7 +488,7 @@ functionLiteral
 
 ObjectInitialiserKeys
   = i:identifierName { return new Nodes.String(i).r(i).p(line, column); }
-//  / string
+  / string
   / Numbers
 
 
@@ -524,20 +525,46 @@ octalDigit = [0-7]
 bit = [01]
 
 
+stringData
+  = [^"'\\]
+  / "\\u" h0:hexDigit h1:hexDigit h2:hexDigit h3:hexDigit { return String.fromCharCode(parseInt(h0 + h1 + h2 + h3, 16)); }
+  / "\\x" h0:hexDigit h1:hexDigit { return String.fromCharCode(parseInt(h0 + h1, 16)); }
+  / "\\0" !decimalDigit { return '\0'; }
+  / "\\0" &decimalDigit { throw new SyntaxError(['string data'], 'octal escape sequence', offset, line, column); }
+  / "\\b" { return '\b'; }
+  / "\\t" { return '\t'; }
+  / "\\n" { return '\n'; }
+  / "\\v" { return '\v'; }
+  / "\\f" { return '\f'; }
+  / "\\r" { return '\r'; }
+  / "\\" c:. { return c; }
+
+// TODO: raw?
+string
+  = "\"\"\"" d:(stringData / "'" / s:("\"" [^"] / "\"\"" / [^"]) { return s.join(''); })+ "\"\"\"" {
+      return new Nodes.String(d ? d.join('') : '').p(line, column);
+    }
+  / "'''" d:(stringData / "\"" / s:("'" [^'] / "''" [^']) { return s.join(); })+ "'''" {
+      return new Nodes.String(d ? d.join('') : '').p(line, column);
+    }
+  / "\"" d:(stringData / "'")* "\"" { return new Nodes.String(d ? d.join('') : '').p(line, column); }
+  / "'" d:(stringData / "\"")* "'" { return new Nodes.String(d ? d.join('') : '').p(line, column); }
+
+
 throw
   = THROW ws:_ e:assignmentExpression {
-      return new Nodes.Throw(e).r("throw" + ws + e.raw).p(line, column);
+      return new Nodes.Throw(e).r('throw' + ws + e.raw).p(line, column);
     }
 return
   = RETURN ws:_ e:assignmentExpression {
-      return new Nodes.Return(e).r("return" + ws + e.raw).p(line, column);
+      return new Nodes.Return(e).r('return' + ws + e.raw).p(line, column);
     }
-continue = CONTINUE { return (new Nodes.Continue).r("continue").p(line, column); }
-break = BREAK { return (new Nodes.Break).r("break").p(line, column); }
+continue = CONTINUE { return (new Nodes.Continue).r('continue').p(line, column); }
+break = BREAK { return (new Nodes.Break).r('break').p(line, column); }
 
 
-undefined = UNDEFINED { return (new Nodes.Undefined).r("undefined").p(line, column); }
-null = NULL { return (new Nodes.Undefined).r("undefined").p(line, column); }
+undefined = UNDEFINED { return (new Nodes.Undefined).r('undefined').p(line, column); }
+null = NULL { return (new Nodes.Undefined).r('undefined').p(line, column); }
 
 
 unassignable = ("arguments" / "eval") !identifierPart

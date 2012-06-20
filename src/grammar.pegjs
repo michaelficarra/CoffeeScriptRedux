@@ -113,32 +113,30 @@ seqExpression = left:postfixControlFlowExpression right:(_ ";" _ expression)? {
 postfixControlFlowOp
   = all:((IF / UNLESS) _ assignmentExpression) { return [all[0], all]; }
   / all:((WHILE / UNTIL) _ assignmentExpression) { return [all[0], all]; }
-  // TODO: add step to for-in
+// TODO: add step to for-in
   / all:(FOR _ Assignable _ ("," _ Assignable _)? IN _ assignmentExpression (_ WHEN _ assignmentExpression)?) { return ['for-in', all]; }
   / all:(FOR _ (OWN _)? Assignable _ ("," _ Assignable _)? OF _ assignmentExpression (_ WHEN _ assignmentExpression)?) { return ['for-of', all]; }
 postfixControlFlowExpression = expr:assignmentExpression postfixes:(_ postfixControlFlowOp)* {
     return foldl(function(expr, postfixContainer){
-      var raw, condition, list, obj, own, key, val, filter,
+      var raw, cond, list, obj, own, key, val, filter,
           ws = postfixContainer[0],
           indicator = postfixContainer[1][0],
           postfix = postfixContainer[1][1];
       switch(indicator){
         case 'if':
-          condition = postfix[2];
-          raw = expr.raw + ws + 'if' + postfix[1] + condition.raw;
-          return new Nodes.Conditional(condition, expr, null).r(raw).p(line, column)
         case 'unless':
-          condition = new Nodes.NotOp(postfix[2]).r('not (' + postfix[2].raw + ')').p(postfix[2].line, postfix[2].column);
-          raw = expr.raw + ws + 'unless' + postfix[1] + condition.raw;
-          return new Nodes.Conditional(condition, expr, null).r(raw).p(line, column)
+          cond = postfix[2];
+          if(indicator == 'unless')
+            cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+          raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
+          return new Nodes.condal(cond, expr, null).r(raw).p(line, column)
         case 'while':
-          condition = postfix[2];
-          raw = expr.raw + ws + 'while' + postfix[1] + condition.raw;
-          return new Nodes.While(condition, expr).r(raw).p(line, column)
-        case 'unless':
-          condition = new Nodes.NotOp(postfix[2]).r('not (' + postfix[2].raw + ')').p(postfix[2].line, postfix[2].column);
-          raw = expr.raw + ws + 'unless' + postfix[1] + condition.raw;
-          return new Nodes.While(condition, expr).r(raw).p(line, column)
+        case 'until':
+          cond = postfix[2];
+          if(indicator == 'until')
+            cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+          raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
+          return new Nodes.While(cond, expr).r(raw).p(line, column)
         case 'for-in':
           list = postfix[7];
           val = postfix[2];
@@ -323,14 +321,18 @@ primaryExpression
 
 
 while
-  = all:(WHILE _ assignmentExpression _ TERMINATOR INDENT block DEDENT) {
+  = all:((WHILE / UNTIL) _ assignmentExpression _ TERMINATOR INDENT block DEDENT) {
     var cond = all[2], block = all[6];
-    var raw = 'while' + all[1] + cond.raw + all[3] + all[4] + block.raw;
+    if(all[0] === 'until')
+      cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+    var raw = all[0] + all[1] + cond.raw + all[3] + all[4] + block.raw;
     return new Nodes.While(cond, block).r(raw).p(line, column);
   }
-  / all:(WHILE _ assignmentExpression _ THEN _ statement) {
+  / all:((WHILE / UNTIL) _ assignmentExpression _ THEN _ statement) {
     var cond = all[2], stmt = all[6];
-    var raw = 'while' + all[1] + cond.raw + all[3] + all[4] + all[5] + stmt.raw;
+    if(all[0] === 'until')
+      cond = new Nodes.NotOp(cond).r('not (' + cond.raw + ')').p(cond.line, cond.column);
+    var raw = all[0] + all[1] + cond.raw + all[3] + all[4] + all[5] + stmt.raw;
     return new Nodes.While(cond, new Nodes.Block([stmt]).r(stmt.raw).p(line, column + raw.length - stmt.raw.length)).r(raw).p(line, column);
   }
 

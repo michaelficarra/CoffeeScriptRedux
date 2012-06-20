@@ -100,16 +100,16 @@ class @Break extends @Node
   constructor: ->
   toJSON: statementToJSON
 
-# class @:: Maybe Assignable -> Maybe Exprs -> [Exprs] -> Class
+# class @:: Maybe Assignable -> Maybe Exprs -> Block -> Class
 class @Class extends @Node
   className: 'Class'
-  constructor: (@nameAssignment, @parent, @exprs) ->
+  constructor: (@nameAssignment, @parent, @block) ->
     @name =
       if @nameAssignment?
         # poor man's pattern matching
         switch @nameAssignment.className
           when 'Identifier'
-            @nameAssignment
+            @nameAssignment.data
           when 'MemberAccessOp', 'ProtoMemberAccessOp', 'SoakedMemberAccessOp', 'SoakedProtoMemberAccessOp'
             @nameAssignment.memberName
           else null
@@ -119,9 +119,9 @@ class @Class extends @Node
     nameAssignment: @nameAssignment?.toJSON()
     name: @name
     parent: @parent?.toJSON()
-    expressions: (e.toJSON() for e in @exprs)
+    block: @block.toJSON()
 
-# ClassProtoAssignOp :: MemberNames -> Exprs -> ClassProtoAssignOp
+# ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
 class @ClassProtoAssignOp extends @Node
   className: 'ClassProtoAssignOp'
   constructor: (@assignee, @expr) ->
@@ -388,7 +388,7 @@ class @MemberAccessOp extends @Node
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
-    memberName: @memberName.toJSON()
+    memberName: @memberName
 
 # MultiplyOp :: Exprs -> Exprs -> MultiplyOp
 class @MultiplyOp extends @Node

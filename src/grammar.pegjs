@@ -44,18 +44,7 @@ var Nodes = require("./lib/coffee-script/nodes"),
       for(var i = 0, l = list.length; i < l; ++i)
         memo = fn(memo, list[i]);
       return memo;
-    },
-    startsWith = function(str, part) {
-      return part === str.slice(0, part.length);
-    },
-    uniform = function(str){
-      if(0 === str.length) return true;
-      var c = str[0];
-      for(var i = 1, l = str.length; i < l; ++i)
-        if(c !== str[i]) return false;
-      return true;
-    },
-    indent = {};
+    };
 }
 
 // TODO: DRY everything!
@@ -70,23 +59,39 @@ TERMINATOR = necessary:"\n" superfluous:(_ "\n")* {
 INDENT = ws:__ "\uEFEF" { return ws; }
 DEDENT = ws:_ "\uEFFE" { return ws; }
 
-program = leader:(_ "\n")* b:(_ block)? {
+program = leader:(_ "\n")* b:(_ toplevelBlock)? {
     leader = leader.map(function(s){ return s.join(''); }).join('');
     if(b) {
       var block = b[1];
       return new Nodes.Program(block).r(leader + b[0] + block.raw).p(line, column);
     } else {
-      return new Nodes.Program(new Nodes.Block([]).r('').p(1, leader.length)).r(leader).p(line, column);
+      return new Nodes.Program(new Nodes.Block([]).r('').p(line, column)).r(leader).p(line, column);
     }
   }
 
-block = s:expression ss:(_ TERMINATOR _ expression)* term:TERMINATOR? {
+toplevelBlock = s:toplevelStatement ss:(_ TERMINATOR _ toplevelStatement)* term:TERMINATOR? {
+    var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
+    return new Nodes.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column);
+  }
+toplevelStatement = !(return / continue / break) s:statement { return s; }
+
+block = s:statement ss:(_ TERMINATOR _ statement)* term:TERMINATOR? {
     var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
     return new Nodes.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column);
   }
 
+
+statement
+  = expression
+  / return
+  / continue
+  / break
+  / throw
+
 expression
   = while
+  / class
+  / functionLiteral
   / seqExpression
 
 seqExpression = left:postfixControlFlowExpression right:(_ ";" _ expression)? {
@@ -151,69 +156,69 @@ postfixControlFlowExpression = expr:assignmentExpression postfixes:(_ postfixCon
   }
 
 assignmentExpression = assignmentOp / compoundAssignmentOp / logicalOrExpression
-  assignmentOp = all:(Assignable _ "=" !"=" _ logicalOrExpression) {
+  assignmentOp = all:(Assignable _ "=" !"=" _ (functionLiteral / assignmentExpression)) {
       var raw = all[0].raw + all[1] + all[2] + all[4] + all[5].raw;
       return new Nodes.AssignOp(all[0], all[5]).r(raw).p(line, column);
     }
   CompoundAssignmentOperators = "*" / "/" / "%" / "+" / "-" / "<<" / ">>" / ">>>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||" / "?"
-  compoundAssignmentOp = all:(Assignable _ CompoundAssignmentOperators "=" _ logicalOrExpression) {
+  compoundAssignmentOp = all:(Assignable _ CompoundAssignmentOperators "=" _ (functionLiteral / assignmentExpression)) {
       var raw = all[0].raw + all[1] + all[2] + "=" + all[4] + all[5].raw;
       return new Nodes.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(line, column);
     }
-logicalOrExpression = left:logicalAndExpression right:(_ ("||" / OR) !"=" _ logicalOrExpression)? {
+logicalOrExpression = left:logicalAndExpression right:(_ ("||" / OR) !"=" _ (functionLiteral / logicalOrExpression))? {
     if(!right) return left;
     var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-    return new Nodes.OrOp(left, right[4]).r(raw).p(line, column);
+    return new Nodes.LogicalOrOp(left, right[4]).r(raw).p(line, column);
   }
-logicalAndExpression = left:bitwiseOrExpression right:(_ ("&&" / AND) !"=" _ logicalAndExpression)? {
+logicalAndExpression = left:bitwiseOrExpression right:(_ ("&&" / AND) !"=" _ (functionLiteral / logicalAndExpression))? {
     if(!right) return left;
     var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-    return new Nodes.AndOp(left, right[4]).r(raw).p(line, column);
+    return new Nodes.LogicalAndOp(left, right[4]).r(raw).p(line, column);
   }
-bitwiseOrExpression = left:bitwiseXorExpression right:(_ "|" !"=" _ bitwiseOrExpression)? {
+bitwiseOrExpression = left:bitwiseXorExpression right:(_ "|" !"=" _ (functionLiteral / bitwiseOrExpression))? {
     if(!right) return left;
     var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
     return new Nodes.BitOrOp(left, right[4]).r(raw).p(line, column);
   }
-bitwiseXorExpression = left:bitwiseAndExpression right:(_ "^" !"=" _ bitwiseXorExpression)? {
+bitwiseXorExpression = left:bitwiseAndExpression right:(_ "^" !"=" _ (functionLiteral / bitwiseXorExpression))? {
     if(!right) return left;
     var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
     return new Nodes.BitXorOp(left, right[4]).r(raw).p(line, column);
   }
-bitwiseAndExpression = left:existentialExpression right:(_ "&" !"=" _ bitwiseAndExpression)? {
+bitwiseAndExpression = left:existentialExpression right:(_ "&" !"=" _ (functionLiteral / bitwiseAndExpression))? {
     if(!right) return left;
     var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
     return new Nodes.BitAndOp(left, right[4]).r(raw).p(line, column);
   }
-existentialExpression = left:equalityExpression right:(_ "?" !"=" _ existentialExpression)? {
+existentialExpression = left:equalityExpression right:(_ "?" !"=" _ (functionLiteral / existentialExpression))? {
     if(!right) return left;
     var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
     return new Nodes.ExistsOp(left, right[4]).r(raw).p(line, column);
   }
-equalityExpression = left:relationalExpression right:(_ ("==" / IS / "!=" / ISNT) _ equalityExpression)? {
+equalityExpression = left:relationalExpression right:(_ ("==" / IS / "!=" / ISNT) _ (functionLiteral / equalityExpression))? {
     if(!right) return left;
     var raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
     return new constructorLookup[right[1]](left, right[3]).r(raw).p(line, column);
   }
-relationalExpression = left:bitwiseShiftExpression right:(_ ("<=" / ">=" / "<" / ">" / INSTANCEOF / IN / OF) _ relationalExpression)? {
+relationalExpression = left:bitwiseShiftExpression right:(_ ("<=" / ">=" / "<" / ">" / INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
     if(!right) return left;
     var op = constructorLookup[right[1]],
         raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
     return new op(left, right[3]).r(raw).p(line, column);
   }
-bitwiseShiftExpression = left:additiveExpression right:(_ ("<<" / ">>>" / ">>") _ bitwiseShiftExpression)? {
+bitwiseShiftExpression = left:additiveExpression right:(_ ("<<" / ">>>" / ">>") _ (functionLiteral / bitwiseShiftExpression))? {
     if(!right) return left;
     var op = constructorLookup[right[1]],
         raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
     return new op(left, right[3]).r(raw).p(line, column);
   }
-additiveExpression = left:multiplicativeExpression right:(_ ("+" ![+=] / "-" ![-=]) _ additiveExpression)? {
+additiveExpression = left:multiplicativeExpression right:(_ ("+" ![+=] / "-" ![-=]) _ (functionLiteral / additiveExpression))? {
     if(!right) return left;
     var op = constructorLookup[right[1][0]],
         raw = left.raw + right[0] + right[1][0] + right[2] + right[3].raw;
     return new op(left, right[3]).r(raw).p(line, column);
   }
-multiplicativeExpression = left:prefixExpression right:(_ [*/%] !"=" _ multiplicativeExpression)? {
+multiplicativeExpression = left:prefixExpression right:(_ [*/%] !"=" _ (functionLiteral / multiplicativeExpression))? {
     if(!right) return left;
     var op = constructorLookup[right[1]],
         raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
@@ -221,15 +226,16 @@ multiplicativeExpression = left:prefixExpression right:(_ [*/%] !"=" _ multiplic
   }
 prefixExpression
   = postfixExpression
-  / "++" _ prefixExpression
-  / "--" _ prefixExpression
-  / "+" _ prefixExpression
-  / "-" _ prefixExpression
-  / ("!" / NOT) _ prefixExpression
-  / "~" _ prefixExpression
-  / DO _ prefixExpression
-  / TYPEOF _ prefixExpression
-  / DELETE _ prefixExpression
+  / NEW _ functionLiteral
+  / "++" _ (functionLiteral / prefixExpression)
+  / "--" _ (functionLiteral / prefixExpression)
+  / "+" _ (functionLiteral / prefixExpression)
+  / "-" _ (functionLiteral / prefixExpression)
+  / ("!" / NOT) _ (functionLiteral / prefixExpression)
+  / "~" _ (functionLiteral / prefixExpression)
+  / DO _ (functionLiteral / prefixExpression)
+  / TYPEOF _ (functionLiteral / prefixExpression)
+  / DELETE _ (functionLiteral / prefixExpression)
 postfixExpression = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")*{
     return foldl(function(expr, op){
       var raw;
@@ -242,7 +248,7 @@ postfixExpression = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")
     }, expr, ops);
   }
 leftHandSideExpression
-  = memberExpression ("(" _ argumentList? _ ")") ("(" _ argumentList? _ ")" / MemberAccessOps)*
+  = memberExpression ("(" _ parameterList? _ ")") ("(" _ parameterList? _ ")" / MemberAccessOps)*
   / newExpression
 newExpression
   = memberExpression
@@ -278,33 +284,74 @@ memberExpression = expr:primaryExpression accesses:(_ MemberAccessOps)* {
     dynamicProtoMemberAccessOp = "::[" _ expression _ "]"
     soakedProtoMemberAccessOp = "?::" _ MemberNames
     soakedDynamicProtoMemberAccessOp = "?::[" _ expression _ "]"
-// TODO: functionLiteral certainly is not a primary expression
+contextVar = "@" m:MemberNames { return new Nodes.MemberAccessOp(new Nodes.Identifier("this").r("@").p(line, column), m).r("@" + m).p(line, column); }
 primaryExpression
   = Numbers
   / bool
-  / THIS { return new Nodes.Identifier("this").r("this").p(line, column); }
+  / contextVar
+  / r:(THIS / "@") { return new Nodes.Identifier("this").r(r).p(line, column); }
   / identifier
-  / functionLiteral
   / "(" _ expression _ ")"
 
 
 
-argumentList = e:assignmentExpression s:_ es:("," _ assignmentExpression)* {
-  var raw = e.raw + s + es.map(function(e){ return e[0] + e[1] + e[2].raw; }).join('');
-  var arr = [e].concat(es);
-  arr.raw = raw;
+
+while
+  = all:(WHILE _ assignmentExpression _ TERMINATOR INDENT block DEDENT) {
+    var cond = all[2], block = all[6];
+    var raw = 'while' + all[1] + cond.raw + all[3] + all[4] + block.raw;
+    return new Nodes.While(cond, block).r(raw).p(line, column);
+  }
+  / all:(WHILE _ assignmentExpression _ THEN _ statement) {
+    var cond = all[2], stmt = all[6];
+    var raw = 'while' + all[1] + cond.raw + all[3] + all[4] + all[5] + stmt.raw;
+    return new Nodes.While(cond, new Nodes.Block([stmt]).r(stmt.raw).p(line, column + raw.length - stmt.raw.length)).r(raw).p(line, column);
+  }
+
+
+classBlock = s:classStatement ss:(_ TERMINATOR _ classStatement)* term:TERMINATOR? {
+    var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
+    return new Nodes.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column);
+  }
+classStatement = classProtoAssignment / !(return / continue / break) s:statement { return s; }
+classProtoAssignment = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:(functionLiteral / assignmentExpression) {
+  return new Nodes.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
 }
+class
+  = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? ws:_ term:TERMINATOR INDENT block:classBlock DEDENT {
+    var raw = 'class' + (name ? name[0] + name[1].raw : '') +
+      (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
+      ws + term + block.raw;
+    name = name ? name[1] : null;
+    parent = parent ? parent[3] : null;
+    return new Nodes.Class(name, parent, block).r(raw).p(line, column);
+  }
+  / CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? block:(_ THEN (_ classStatement)?)? {
+    var raw = 'class' + (name ? name[0] + name[1].raw : '') +
+      (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
+      (block ? block[0] + 'then' + (block[2] ? block[2][0] + block[2][1].raw : '') : '');
+    name = name ? name[1] : null;
+    parent = parent ? parent[3] : null;
+    block = block && block[2]
+      ? new Nodes.Block([block[2][1]]).r(block[2][1].raw).p(line, column + raw.length - block[2][1].length)
+      : new Nodes.Block([]).r('').p(line, column + raw.length);
+    return new Nodes.Class(name, parent, block).r(raw).p(line, column);
+  }
 
 
-while = all:(WHILE _ assignmentExpression _ TERMINATOR INDENT block DEDENT) {
-  var cond = all[2], block = all[6];
-  var raw = 'while' + all[1] + cond.raw + all[3] + all[4] + block.raw;
-  return new Nodes.While(cond, block).r(raw).p(line, column);
+parameter
+  = identifier
+  / contextVar
+parameterList = e:parameter es:(_ "," _ parameter)* {
+  var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
+  var arr = [e].concat(es.map(function(e){ return e[3]; }));
+  arr.raw = raw;
+  return arr;
 }
 
 functionLiteral
-  = argList:("(" _ argumentList _ ")" _)? arrow:("->" / "=>") block:
-    ( all:(_ expression) { return ['expr'].concat(all); }
+  = argList:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") block:
+    ( all:(_ statement) { return ['expr'].concat(all); }
     / all:(_ TERMINATOR INDENT block DEDENT) { return ['block'].concat(all); }
     )?
 {
@@ -338,6 +385,12 @@ functionLiteral
 }
 
 
+ObjectInitialiserKeys
+  = i:identifierName { return new Nodes.String(i).r(i).p(line, column); }
+//  / string
+  / Numbers
+
+
 bool
   = match:(TRUE / YES / ON) { return new Nodes.Bool(true).r(match).p(line, column); }
   / match:(FALSE / NO / OFF) { return new Nodes.Bool(false).r(match).p(line, column); }
@@ -364,25 +417,35 @@ decimal
 integer
   = "0" / a:[1-9] bs:decimalDigit+ { return a + bs.join(''); }
 
-
 decimalDigit = [0-9]
 hexDigit = [0-9a-fA-F]
 octalDigit = [0-7]
 bit = [01]
 
 
+throw = THROW ws:_ e:assignmentExpression {
+  return new Nodes.Throw(e).r("throw" + ws + e.raw).p(line, column);
+}
+return = RETURN ws:_ e:assignmentExpression {
+  return new Nodes.Return(e).r("return" + ws + e.raw).p(line, column);
+}
+continue = CONTINUE { return (new Nodes.Continue).r("continue").p(line, column); }
+break = BREAK { return (new Nodes.Break).r("break").p(line, column); }
+
+
+
 unassignable = ("arguments" / "eval") !identifierPart
 Assignable
   = !unassignable i:identifier { return i; }
   / memberExpression
+  / contextVar
 
 
 // identifiers
 
-identifier = !reserved i:identifierName { return i; }
+identifier = !reserved i:identifierName { return new Nodes.Identifier(i).r(i).p(line, column); }
 identifierName = c:identifierStart cs:identifierPart* {
-    var i = c + cs.join('');
-    return new Nodes.Identifier(i).r(i).p(line, column);
+    return c + cs.join('');
   }
 identifierStart = UnicodeLetter / [$_] / "\\" UnicodeEscapeSequence
 identifierPart = identifierStart / UnicodeCombiningMark / UnicodeDigit / UnicodeConnectorPunctuation / ZWNJ / ZWJ
@@ -398,9 +461,13 @@ whitespace = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202
 
 // keywords
 
-AND = w:"AND" !identifierPart { return w; }
+AND = w:"and" !identifierPart { return w; }
+BREAK = w:"break" !identifierPart { return w; }
+CONTINUE = w:"continue" !identifierPart { return w; }
+CLASS = w:"class" !identifierPart { return w; }
 DELETE = w:"delete" !identifierPart { return w; }
 DO = w:"do" !identifierPart { return w; }
+EXTENDS = w:"extends" !identifierPart { return w; }
 FALSE = w:"false" !identifierPart { return w; }
 FOR = w:"for" !identifierPart { return w; }
 IF = w:"if" !identifierPart { return w; }
@@ -416,8 +483,10 @@ OFF = w:"off" !identifierPart { return w; }
 ON = w:"on" !identifierPart { return w; }
 OR = w:"or" !identifierPart { return w; }
 OWN = w:"own" !identifierPart { return w; }
+RETURN = w:"return" !identifierPart { return w; }
 THEN = w:"then" !identifierPart { return w; }
 THIS = w:"this" !identifierPart { return w; }
+THROW = w:"throw" !identifierPart { return w; }
 TRUE = w:"true" !identifierPart { return w; }
 TYPEOF = w:"typeof" !identifierPart { return w; }
 UNLESS = w:"unless" !identifierPart { return w; }

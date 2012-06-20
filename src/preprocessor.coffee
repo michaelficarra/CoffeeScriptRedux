@@ -11,6 +11,8 @@ DEDENT = '\uEFFE'
 
 class @Preprocessor extends EventEmitter
   constructor: ->
+    # `base` is either `null` or a regexp that matches the base indentation
+    # `indent` is either `null` or the characters that make up one indentation
     @base = @indent = null
     @level = 0
     @ss = new StringScanner ''
@@ -22,33 +24,33 @@ class @Preprocessor extends EventEmitter
   scan: (r) -> @p @ss.scan r
 
   # TODO: interpolations may have indentation
-  # TODO: preserve line numbers for errors
 
   processInput = (isEnd) -> (data) ->
     @ss.concat data unless isEnd
 
-    if (@ss.check /// [#{ws}]* $ ///)?
+    if (@ss.check /// [#{ws}\n]* $ ///)?
       return unless isEnd
-      @scan /// [#{ws}]* $ ///
+      @scan /// [#{ws}\n]* $ ///
+      @p "#{DEDENT}\n" while @level-- if @level > 0
       @emit 'end'
       return
 
     if @ss.bol()
 
       # ignore whitespace-only lines
-      @scan /// (?:[#{ws}]* (?:\n|$))+ ///
+      @scan /// (?:[#{ws}]* \n)+ ///
 
       if @base?
         unless (@scan @base)?
           throw new Error "inconsistent base indentation"
       else
-        return unless (@ss.exists /// [^#{ws}\n] ///)?
-        # ignore leading whitespace-only lines
-        @scan /// (?:[#{ws}]* (\n|$))+ ///
+        return unless (@ss.check /// [^#{ws}\n] ///)?
         b = @scan /// [#{ws}]* ///
-        @base = /// #{b ? ''} ///
+        @base = /// #{b} ///
 
-      if @indent?
+      if not isEnd and (@ss.check /// [#{ws}]* $ ///)?
+        return
+      else if @indent?
         # a single indent
         if @ss.check /// (?:#{@indent}){#{@level + 1}} [^#{ws}] ///
           @scan /// (?:#{@indent}){#{@level + 1}} ///
@@ -65,25 +67,29 @@ class @Preprocessor extends EventEmitter
         else if @ss.check /// (?:#{@indent}){#{@level}} [^#{ws}] ///
           @scan /// (?:#{@indent}){#{@level}} ///
         else
+          # TODO: show expected indentation, also line number
           throw new Error "invalid indentation"
-      else if @ss.check /// [#{ws}] ///
+      else if @ss.check /// [#{ws}]+ [^#{ws}] ///
         # first indentation
         @indent = @scan /// [#{ws}]+ ///
         @p INDENT
         @level = 1
 
     # scan through all that junk after the indentation
-    while @scan /// [^\n'"\\\/\#`]+ /// # don't pass over anything that could begin something that could safely contain newlines
-      @ss.scan /// \\\n[#{ws}]* /// # ignore newlines preceded by backslashes
-      @scan /###([^#][\s\S]*?)(?:###[^\n\S]*|(?:###)?$)|^(?:\s*#(?!##[^#]).*)+/ # comments
-      @scan /// ("""|''') [\s\S]*? \1 /// # heredoc
-      @scan /"(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*'/ # string
-      @scan /// ^ /{3} ([\s\S]+?) /{3} ([imgy]{0,4}) (?!\w) /// # heregex
-      @scan /`(?:[^`\\]+|\\.)*`/ # JS literal
+    continue while false or
+      (@scan /(?:[^\n'"\\\/\#`]+|\/\/?[^\/])+/) or # don't pass over anything that could begin something that could safely contain newlines
+      (@ss.scan /\\\n/) or # ignore newlines preceded by backslashes
+      (@ss.scan /#(?!##[^#]).*/) or # single-line comments
+      (@scan /###[^#][\s\S]*?###/) or # multi-line comments
+      # TODO: should this be so naive?
+      (@scan /// ("""|''') [\s\S]*? \1 ///) or # heredoc
+      (@scan /"(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*'/) or # string
+      (@scan /// ^ /{3} ([\s\S]+?) /{3} ([imgy]{0,4}) (?!\w) ///) or # heregex
+      (@scan /`(?:[^`\\]+|\\.)*`/) or # JS literal
+      false
 
-    if @scan /\n/
-      if isEnd then @processEnd()
-      else @processData ''
+    if isEnd then processEnd()
+    else if @scan /// (?:[#{ws}]* \n)+ /// then @processData ''
 
 
   processData: processInput no

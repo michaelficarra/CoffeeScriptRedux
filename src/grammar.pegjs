@@ -110,8 +110,9 @@ expression
   / DELETE _ functionLiteral
   / NEW _ functionLiteral
   / seqExpression
-  / while
   / conditional
+  / while
+  / loop
   / forOf
   / forIn
   / class
@@ -393,6 +394,14 @@ while
   whileBody = conditionalBody
 
 
+loop
+  = LOOP body:loopBody {
+      var cond = new Nodes.Bool(true).r('true').g();
+      return new Nodes.While(cond, body.block).r('loop' + body.raw).p(line, column);
+    }
+  loopBody = conditionalBody
+
+
 class
   = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? body:classBody {
       var raw = 'class' + (name ? name[0] + name[1].raw : '') +
@@ -665,6 +674,7 @@ IN = w:"in" !identifierPart { return w; }
 INSTANCEOF = w:"instanceof" !identifierPart { return w; }
 IS = w:"is" !identifierPart { return w; }
 ISNT = w:"isnt" !identifierPart { return w; }
+LOOP = w:"loop" !identifierPart { return w; }
 NEW = w:"new" !identifierPart { return w; }
 NO = w:"no" !identifierPart { return w; }
 NOT = w:"not" !identifierPart { return w; }

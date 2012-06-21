@@ -276,13 +276,13 @@ prefixExpression
   / "--" _ prefixExpression
   / "+" _ prefixExpression
   / "-" _ prefixExpression
-  / ("!" / NOT) _ prefixExpression
+  / o:("!" / NOT) ws:_ e:prefixExpression { return new Nodes.LogicalNotOp(e).r(o + ws + e.raw).p(line, column); }
   / "~" _ prefixExpression
   / DO _ prefixExpression
   / TYPEOF _ prefixExpression
   / DELETE _ prefixExpression
 postfixExpression
-  = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")*{
+  = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
       return foldl(function(expr, op){
         var raw;
         switch(op){
@@ -294,22 +294,24 @@ postfixExpression
       }, expr, ops);
     }
 leftHandSideExpression
-  = fn:memberExpression args:("(" _ argumentList? _ ")")* {
+  = fn:memberExpression args:("(" _ argumentList? _ ")")+ {
       return foldl(function(fn, args){
         var raw = fn.raw + '(' + args[1] + (args[2] ? args[2].raw : '') + args[3] + ')';
-        return new Nodes.FunctionApplication(fn, args[2] ? args[2] : []).r(raw).p(line, column);
+        return new Nodes.FunctionApplication(fn, args[2] ? args[2].list : []).r(raw).p(line, column);
       }, fn, args);
+    }
+  / fn:memberExpression ws:__ args:argumentList {
+      var raw = fn.raw + ws + args.raw;
+      return new Nodes.FunctionApplication(fn, args.list).r(raw).p(line, column);
     }
   / newExpression
   argument
-    = identifier
-    / contextVar
+    = functionLiteral
+    / assignmentExpression
   argumentList
     = e:argument es:(_ "," _ argument)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
-        var arr = [e].concat(es.map(function(e){ return e[3]; }));
-        arr.raw = raw;
-        return arr;
+        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
 newExpression
   = memberExpression
@@ -338,22 +340,14 @@ memberExpression
   MemberNames
     = identifierName
   MemberAccessOps
-    = memberAccessOp
-    / soakedMemberAccessOp
-    / dynamicMemberAccessOp
-    / soakedDynamicMemberAccessOp
-    / protoMemberAccessOp
-    / dynamicProtoMemberAccessOp
-    / soakedProtoMemberAccessOp
-    / soakedDynamicProtoMemberAccessOp
-    memberAccessOp = "." _ MemberNames
-    soakedMemberAccessOp = "?." _ MemberNames
-    dynamicMemberAccessOp = "[" _ expression _ "]"
-    soakedDynamicMemberAccessOp = "?[" _ expression _ "]"
-    protoMemberAccessOp = "::" _ MemberNames
-    dynamicProtoMemberAccessOp = "::[" _ expression _ "]"
-    soakedProtoMemberAccessOp = "?::" _ MemberNames
-    soakedDynamicProtoMemberAccessOp = "?::[" _ expression _ "]"
+    = "." _ MemberNames
+    / "?." _ MemberNames
+    / "[" _ expression _ "]"
+    / "?[" _ expression _ "]"
+    / "::" _ MemberNames
+    / "::[" _ expression _ "]"
+    / "?::" _ MemberNames
+    / "?::[" _ expression _ "]"
   contextVar
     = "@" m:MemberNames {
         return new Nodes.MemberAccessOp((new Nodes.This).r("@").p(line, column), m).r("@" + m).p(line, column);
@@ -364,14 +358,13 @@ primaryExpression
   / contextVar
   / r:(THIS / "@") { return (new Nodes.This).r(r).p(line, column); }
   / identifier
+  / arrayLiteral
   / interpolation
   / string
   / "(" ws0:_ e:expression ws1:_ ")" {
       e.raw = '(' + ws0 + e.raw + ws1 + ')';
       return e;
     }
-
-
 
 
 conditional
@@ -460,7 +453,6 @@ forIn
     }
 
 
-
 functionLiteral
   = params:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody {
       var raw =
@@ -476,7 +468,7 @@ functionLiteral
       return new constructor(params, body.block).r(raw).p(line, column);
     }
   functionBody
-    = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: ws + t + b.raw}; }
+    = ws:_ t0:TERMINATOR INDENT b:block DEDENT t1:TERMINATOR? { return {block: b, raw: ws + t0 + b.raw + t1}; }
     / all:(_ statement)? {
         if(!all) return {block: new Nodes.Block([]).r('').p(line, column), raw: ''};
         var ws = all[0], s = all[1];
@@ -490,6 +482,13 @@ functionLiteral
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
+
+
+arrayLiteral
+  // for now, array intialiser members are the same as function application arguments
+  = "[" ws0:_ args:argumentList ws1:_ "]" {
+      return new Nodes.ArrayInitialiser(args.list).r("[" + ws0 + args.raw + ws1 + "]").p(line, column);
+    }
 
 
 ObjectInitialiserKeys
@@ -576,7 +575,7 @@ interpolation
             }
         }
         return new Nodes.ConcatOp(memo, s);
-      }, es.shift(), es);
+      }, es.shift(), es).p(line, column);
     }
   / "\"" es:
     ( d:(stringData / "'")+ { return new Nodes.String(d.join('')).p(line, column); }
@@ -596,7 +595,7 @@ interpolation
             }
         }
         return new Nodes.ConcatOp(s, memo);
-      }, es.pop(), es);
+      }, es.pop(), es).p(line, column);
     }
 
 

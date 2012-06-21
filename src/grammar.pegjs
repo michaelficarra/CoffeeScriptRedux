@@ -20,6 +20,7 @@ var Nodes = require("./lib/coffee-script/nodes"),
       , '>=': Nodes.GTEOp
       , '<': Nodes.LTOp
       , '>': Nodes.GTOp
+      , extends: Nodes.ExtendsOp
       , instancef: Nodes.InstanceofOp
       , in: Nodes.InOp
       , of: Nodes.OfOp
@@ -238,7 +239,7 @@ equalityExpression
       return new constructorLookup[right[1]](left, right[3]).r(raw).p(line, column);
     }
 relationalExpression
-  = left:bitwiseShiftExpression right:(_ ("<=" / ">=" / "<" / ">" / INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
+  = left:bitwiseShiftExpression right:(_ ("<=" / ">=" / "<" / ">" / EXTENDS / INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
       if(!right) return left;
       var op = constructorLookup[right[1]],
           raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;

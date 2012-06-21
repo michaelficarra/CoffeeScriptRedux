@@ -478,10 +478,17 @@ class @ProtoMemberAccessOp extends @Node
   toJSON: exports.MemberAccessOp::toJSON
 
 # Regexp :: string -> Regexp
-class @Regexp extends @Node
+class @RegExp extends @Node
   className: 'Regexp'
-  constructor: (@data) ->
-  toJSON: primitiveToJSON
+  constructor: (@data, flags) ->
+    flags = flags.split ''
+    @flags = {}
+    for flag in ['g', 'i', 'm', 'y']
+      @flags[flag] = flag in flags
+  toJSON: ->
+    nodeType: @className
+    data: @data
+    flags: @flags
 
 # RemOp :: Exprs -> Exprs -> RemOp
 class @RemOp extends @Node

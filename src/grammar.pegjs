@@ -363,6 +363,7 @@ primaryExpression
   / arrayLiteral
   / interpolation
   / string
+  / regexp
   / "(" ws0:_ e:expression ws1:_ ")" {
       e.raw = '(' + ws0 + e.raw + ws1 + ')';
       return e;
@@ -540,20 +541,6 @@ octalDigit = [0-7]
 bit = [01]
 
 
-stringData
-  = [^"'\\#]
-  / "\\u" h0:hexDigit h1:hexDigit h2:hexDigit h3:hexDigit { return String.fromCharCode(parseInt(h0 + h1 + h2 + h3, 16)); }
-  / "\\x" h0:hexDigit h1:hexDigit { return String.fromCharCode(parseInt(h0 + h1, 16)); }
-  / "\\0" !decimalDigit { return '\0'; }
-  / "\\0" &decimalDigit { throw new SyntaxError(['string data'], 'octal escape sequence', offset, line, column); }
-  / "\\b" { return '\b'; }
-  / "\\t" { return '\t'; }
-  / "\\n" { return '\n'; }
-  / "\\v" { return '\v'; }
-  / "\\f" { return '\f'; }
-  / "\\r" { return '\r'; }
-  / "\\" c:. { return c; }
-  / c:"#" ![{] { return c; }
 
 // TODO: raw?
 string
@@ -565,6 +552,20 @@ string
     }
   / "\"" d:(stringData / "'")* "\"" { return new Nodes.String(d ? d.join('') : '').p(line, column); }
   / "'" d:(stringData / "\"" / "#")* "'" { return new Nodes.String(d ? d.join('') : '').p(line, column); }
+  stringData
+    = [^"'\\#]
+    / "\\u" h0:hexDigit h1:hexDigit h2:hexDigit h3:hexDigit { return String.fromCharCode(parseInt(h0 + h1 + h2 + h3, 16)); }
+    / "\\x" h0:hexDigit h1:hexDigit { return String.fromCharCode(parseInt(h0 + h1, 16)); }
+    / "\\0" !decimalDigit { return '\0'; }
+    / "\\0" &decimalDigit { throw new SyntaxError(['string data'], 'octal escape sequence', offset, line, column); }
+    / "\\b" { return '\b'; }
+    / "\\t" { return '\t'; }
+    / "\\n" { return '\n'; }
+    / "\\v" { return '\v'; }
+    / "\\f" { return '\f'; }
+    / "\\r" { return '\r'; }
+    / "\\" c:. { return c; }
+    / c:"#" ![{] { return c; }
 
 interpolation
   = "\"\"\"" es:
@@ -607,6 +608,30 @@ interpolation
         return new Nodes.ConcatOp(s, memo);
       }, es.pop(), es).p(line, column);
     }
+
+
+// TODO: raw
+regexpData
+  = [^/[(]
+  / "[" d:regexpData* "]" { return "[" + (d ? d.join('') : '') + "]"; }
+  / "(" d:regexpData* ")" { return "(" + (d ? d.join('') : '') + ")"; }
+  / "\\" c:. { return c; }
+regexp
+  = "/" d:regexpData* "/" flags:[gimy]* {
+    if(!flags) {
+      flags = '';
+    } else {
+      if(flags.length > 4) return null;
+      flags.sort();
+      var flag = null;
+      for(var i = 0, l = flags.length; i < l; ++i)
+        if(flag == flags[i]) return null;
+        else flag = flags[i];
+      flags = flags.join('');
+    }
+    return new Nodes.RegExp((d ? d.join('') : ''), flags).p(line, column);
+  }
+// TODO: heregex
 
 
 throw

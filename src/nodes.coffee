@@ -151,13 +151,19 @@ class @ConcatOp extends @Node
   toJSON: binOpToJSON
 
 # Conditional :: Exprs -> Block -> Maybe Block -> Conditional
-class @Conditional extends @Node
+Conditional = class @Conditional extends @Node
   className: 'Conditional'
   constructor: (@condition, @block, @elseBlock) ->
   toJSON: ->
     nodeType: @className
     block: @block.toJSON()
     elseBlock: @elseBlock?.toJSON()
+
+# NegatedConditional :: Exprs -> Block -> Maybe Block -> NegatedConditional
+class @NegatedConditional extends @Node
+  className: 'NegatedConditional'
+  constructor: (@condition, @block, @elseBlock) ->
+  toJSON: Conditional::toJSON
 
 # Continue :: Continue
 class @Continue extends @Node
@@ -184,7 +190,7 @@ class @DoOp extends @Node
   toJSON: unaryOpToJSON
 
 # DynamicMemberAccessOp :: Exprs -> Exprs -> DynamicMemberAccessOp
-class @DynamicMemberAccessOp extends @Node
+DynamicMemberAccessOp = class @DynamicMemberAccessOp extends @Node
   className: 'DynamicMemberAccessOp'
   constructor: (@expr, @indexingExpr) ->
   toJSON: ->
@@ -196,7 +202,20 @@ class @DynamicMemberAccessOp extends @Node
 class @DynamicProtoMemberAccessOp extends @Node
   className: 'DynamicProtoMemberAccessOp'
   constructor: (@expr, @indexingExpr) ->
-  toJSON: exports.DynamicMemberAccessOp::toJSON
+  toJSON: DynamicMemberAccessOp::toJSON
+
+# SoakedDynamicMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
+class @SoakedDynamicMemberAccessOp extends @Node
+  className: 'SoakedDynamicMemberAccessOp'
+  constructor: (@expr, @indexingExpr) ->
+  toJSON: DynamicMemberAccessOp::toJSON
+
+# we don't currently support this, but for consistency we should
+# SoakedDynamicProtoMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicProtoMemberAccessOp
+class @SoakedDynamicProtoMemberAccessOp extends @Node
+  className: 'SoakedDynamicProtoMemberAccessOp'
+  constructor: (@expr, @indexingExpr) ->
+  toJSON: DynamicMemberAccessOp::toJSON
 
 # EQOp :: Exprs -> Exprs -> EQOp
 class @EQOp extends @Node
@@ -283,13 +302,19 @@ class @Function extends @Node
     block: @block.toJSON()
 
 # FunctionApplication :: Exprs -> [Arguments] -> FunctionApplication
-class @FunctionApplication extends @Node
+FunctionApplication = class @FunctionApplication extends @Node
   className: 'FunctionApplication'
   constructor: (@function, @arguments) ->
   toJSON: ->
     nodeType: @className
     function: @function.toJSON()
     arguments: (a.toJSON() for a in @arguments)
+
+# SoakedFunctionApplication :: Exprs -> [Arguments] -> SoakedFunctionApplication
+class @SoakedFunctionApplication extends @Node
+  className: 'SoakedFunctionApplication'
+  constructor: (@function, @arguments) ->
+  toJSON: FunctionApplication::toJSON
 
 # GTEOp :: Exprs -> Exprs -> GTEOp
 class @GTEOp extends @Node
@@ -302,6 +327,18 @@ class @GTOp extends @Node
   className: 'GTOp'
   constructor: (@left, @right) ->
   toJSON: binOpToJSON
+
+# HeregExp :: Exprs -> [string] -> HeregExp
+class @HeregExp extends @Node
+  className: 'HeregExp'
+  constructor: (@expr, flags) ->
+    @flags = {}
+    for flag in ['g', 'i', 'm', 'y']
+      @flags[flag] = flag in flags
+  toJSON: ->
+    nodeType: @className
+    expression: @expr
+    flags: @flags
 
 # Identifier :: string -> Identifier
 class @Identifier extends @Node
@@ -389,13 +426,32 @@ class @LogicalOrOp extends @Node
   toJSON: binOpToJSON
 
 # MemberAccessOp :: Exprs -> MemberNames -> MemberAccessOp
-class @MemberAccessOp extends @Node
+MemberAccessOp = class @MemberAccessOp extends @Node
   className: 'MemberAccessOp'
   constructor: (@expr, @memberName) ->
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
     memberName: @memberName
+
+# ProtoMemberAccessOp :: Exprs -> MemberNames -> ProtoMemberAccessOp
+class @ProtoMemberAccessOp extends @Node
+  className: 'ProtoMemberAccessOp'
+  constructor: (@expr, @memberName) ->
+  toJSON: MemberAccessOp::toJSON
+
+# SoakedMemberAccessOp :: Exprs -> MemberNames -> SoakedMemberAccessOp
+class @SoakedMemberAccessOp extends @Node
+  className: 'SoakedMemberAccessOp'
+  constructor: (@expr, @memberName) ->
+  toJSON: MemberAccessOp::toJSON
+
+# we don't currently support this, but for consistency we should
+# SoakedProtoMemberAccessOp :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
+class @SoakedProtoMemberAccessOp extends @Node
+  className: 'SoakedProtoMemberAccessOp'
+  constructor: (@expr, @memberName) ->
+  toJSON: MemberAccessOp::toJSON
 
 # MultiplyOp :: Exprs -> Exprs -> MultiplyOp
 class @MultiplyOp extends @Node
@@ -471,17 +527,10 @@ class @Program extends @Node
     nodeType: @className
     block: @block.toJSON()
 
-# ProtoMemberAccessOp :: Exprs -> MemberNames -> ProtoMemberAccessOp
-class @ProtoMemberAccessOp extends @Node
-  className: 'ProtoMemberAccessOp'
-  constructor: (@expr, @memberName) ->
-  toJSON: exports.MemberAccessOp::toJSON
-
-# Regexp :: string -> Regexp
+# RegExp :: string -> [string] -> RegExp
 class @RegExp extends @Node
-  className: 'Regexp'
+  className: 'RegExp'
   constructor: (@data, flags) ->
-    flags = flags.split ''
     @flags = {}
     for flag in ['g', 'i', 'm', 'y']
       @flags[flag] = flag in flags
@@ -525,38 +574,6 @@ class @SignedRightShiftOp extends @Node
   className: 'SignedRightShiftOp'
   constructor: (@left, @right) ->
   toJSON: binOpToJSON
-
-# SoakedDynamicMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
-class @SoakedDynamicMemberAccessOp extends @Node
-  className: 'SoakedDynamicMemberAccessOp'
-  constructor: (@expr, @indexingExpr) ->
-  toJSON: exports.DynamicMemberAccessOp::toJSON
-
-# we don't currently support this, but for consistency we should
-# SoakedDynamicProtoMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicProtoMemberAccessOp
-class @SoakedDynamicProtoMemberAccessOp extends @Node
-  className: 'SoakedDynamicProtoMemberAccessOp'
-  constructor: (@expr, @indexingExpr) ->
-  toJSON: exports.DynamicMemberAccessOp::toJSON
-
-# SoakedFunctionApplication :: Exprs -> [Arguments] -> SoakedFunctionApplication
-class @SoakedFunctionApplication extends @Node
-  className: 'SoakedFunctionApplication'
-  constructor: (@function, @arguments) ->
-  toJSON: exports.FunctionApplication::toJSON
-
-# SoakedMemberAccessOp :: Exprs -> MemberNames -> SoakedMemberAccessOp
-class @SoakedMemberAccessOp extends @Node
-  className: 'SoakedMemberAccessOp'
-  constructor: (@expr, @memberName) ->
-  toJSON: exports.MemberAccessOp::toJSON
-
-# we don't currently support this, but for consistency we should
-# SoakedProtoMemberAccessOp :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
-class @SoakedProtoMemberAccessOp extends @Node
-  className: 'SoakedProtoMemberAccessOp'
-  constructor: (@expr, @memberName) ->
-  toJSON: exports.MemberAccessOp::toJSON
 
 # Splice :: Slices -> Exprs -> Splice
 class @Splice extends @Node
@@ -682,10 +699,24 @@ class @UnsignedRightShiftOp extends @Node
   toJSON: binOpToJSON
 
 # While :: Exprs -> Block -> While
-class @While extends @Node
+While = class @While extends @Node
   className: 'While'
   constructor: (@condition, @block) ->
   toJSON: ->
     nodeType: @className
     condition: @condition.toJSON()
+    block: @block.toJSON()
+
+# NegatedWhile :: Exprs -> Block -> NegatedWhile
+class @NegatedWhile extends @Node
+  className: 'NegatedWhile'
+  constructor: (@condition, @block) ->
+  toJSON: While::toJSON
+
+# Loop :: Block -> Loop
+class @Loop extends @Node
+  className: 'Loop'
+  constructor: (@block) ->
+  toJSON: ->
+    nodeType: @className
     block: @block.toJSON()

@@ -46,10 +46,32 @@ var Nodes = require("./lib/coffee-script/nodes"),
         memo = fn(memo, list[i]);
       return memo;
     },
-    foldr = function(fn, memo, list){
-      for(var i = list.length; i--;)
-        memo = fn(memo, list[i]);
-      return memo;
+    createInterpolation = function(es){
+      return foldl(function(memo, s){
+        if(s instanceof Nodes.String) {
+          var left = memo;
+          while(left)
+            if(left instanceof Nodes.String) {
+              left.data = left.data + s.data;
+              return memo;
+            } else if(left instanceof Nodes.ConcatOp) {
+              left = left.right
+            } else {
+              break;
+            }
+        }
+        return new Nodes.ConcatOp(memo, s);
+      }, es.shift(), es);
+    },
+    isValidRegExpFlags = function(flags) {
+      if(!flags) return true;
+      if(flags.length > 4) return false;
+      flags.sort();
+      var flag = null;
+      for(var i = 0, l = flags.length; i < l; ++i)
+        if(flag == flags[i]) return false;
+        else flag = flags[i];
+      return true;
     };
 }
 
@@ -129,8 +151,7 @@ seqExpression
 postfixControlFlowOp
   = all:((IF / UNLESS) _ assignmentExpression) { return [all[0], all]; }
   / all:((WHILE / UNTIL) _ assignmentExpression) { return [all[0], all]; }
-// TODO: add step to for-in
-  / all:(FOR _ Assignable _ ("," _ Assignable _)? IN _ assignmentExpression (_ WHEN _ assignmentExpression)?) { return ['for-in', all]; }
+  / all:(FOR _ Assignable _ ("," _ Assignable _)? IN _ assignmentExpression (_ BY _ assignmentExpression)? (_ WHEN _ assignmentExpression)?) { return ['for-in', all]; }
   / all:(FOR _ (OWN _)? Assignable _ ("," _ Assignable _)? OF _ assignmentExpression (_ WHEN _ assignmentExpression)?) { return ['for-of', all]; }
 postfixControlFlowExpression
   = expr:assignmentExpression postfixes:(_ postfixControlFlowOp)* {
@@ -143,27 +164,27 @@ postfixControlFlowExpression
           case 'if':
           case 'unless':
             cond = postfix[2];
-            if(indicator == 'unless')
-              cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
             raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
-            return new Nodes.Conditional(cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
+            var constructor = (indicator == 'unless') ? Nodes.NegatedConditional : Nodes.Conditional;
+            return new constructor(cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
           case 'while':
           case 'until':
             cond = postfix[2];
-            if(indicator == 'until')
-              cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
             raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
-            return new Nodes.While(cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
+            var constructor = (indicator == 'until') ? Nodes.NegatedWhile : Nodes.While;
+            return new constructor(cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
           case 'for-in':
             list = postfix[7];
             val = postfix[2];
             key = postfix[4] ? postfix[4][2] : null;
-            filter = postfix[8] ? postfix[8][3] : null;
+            step = postfix[8] ? postfix[8][3] : null;
+            filter = postfix[9] ? postfix[9][3] : null;
             raw = expr.raw + ws + 'for' + postfix[1] + postfix[2].raw + postfix[3] +
               (key ? postfix[4][0] + postfix[4][1] + key.raw + postfix[4][3] : '') +
               'in' + postfix[6] + list.raw +
-              (filter ? postfix[8][0] + 'when' + postfix[8][2] + filter.raw : '');
-            step = new Nodes.Int(1).r('1').g();
+              (step ? postfix[8][0] + 'by' + postfix[8][2] + step.raw : '');
+              (filter ? postfix[9][0] + 'when' + postfix[9][2] + filter.raw : '');
+            step = new Nodes.Int(step || 1).r(step || '1').g();
             return new Nodes.ForIn(val, key, list, step, filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
           case 'for-of':
             obj = postfix[8];
@@ -373,9 +394,9 @@ primaryExpression
 conditional
   = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody elseClause:elseClause? {
       var raw = kw + ws0 + cond.raw + ws1 + body.raw + (elseClause ? elseClause.raw : '');
-      if(kw == 'unless') cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
+      var constructor = kw == 'unless' ? Nodes.NegatedConditional : Nodes.Conditional;
       var elseBlock = elseClause ? elseClause.block : null;
-      return new Nodes.Conditional(cond, body.block, elseBlock).r(raw).p(line, column);
+      return new constructor(cond, body.block, elseBlock).r(raw).p(line, column);
     }
   conditionalBody
     = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
@@ -390,18 +411,16 @@ conditional
 while
   = kw:(WHILE / UNTIL) ws:_ cond:assignmentExpression body:whileBody {
       var raw = kw + ws + cond.raw + body.raw;
-      if(kw == 'until') cond = new Nodes.LogicalNotOp(cond).r('not (' + cond.raw + ')').g();
-      return new Nodes.While(cond, body.block).r(raw).p(line, column);
+      var constructor = kw == 'until' ? Nodes.NegatedWhile : Nodes.While;
+      return new constructor(cond, body.block).r(raw).p(line, column);
     }
   whileBody = conditionalBody
 
 
 loop
-  = LOOP body:loopBody {
-      var cond = new Nodes.Bool(true).r('true').g();
-      return new Nodes.While(cond, body.block).r('loop' + body.raw).p(line, column);
+  = LOOP body:whileBody {
+      return new Nodes.Loop(body.block).r('loop' + body.raw).p(line, column);
     }
-  loopBody = conditionalBody
 
 
 class
@@ -541,8 +560,7 @@ octalDigit = [0-7]
 bit = [01]
 
 
-
-// TODO: raw?
+// TODO: raw
 string
   = "\"\"\"" d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ "\"\"\"" {
       return new Nodes.String(d.join('')).p(line, column);
@@ -565,73 +583,53 @@ string
     / "\\f" { return '\f'; }
     / "\\r" { return '\r'; }
     / "\\" c:. { return c; }
-    / c:"#" ![{] { return c; }
+    / c:"#" !"{" { return c; }
 
+// TODO: raw
 interpolation
   = "\"\"\"" es:
     ( d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ { return new Nodes.String(d.join('')).p(line, column); }
     / "#{" e:expression "}" { return e; }
     )+ "\"\"\"" {
-      return foldl(function(memo, s){
-        if(s instanceof Nodes.String) {
-          var left = memo;
-          while(left)
-            if(left instanceof Nodes.String) {
-              left.data = left.data + s.data;
-              return memo;
-            } else if(left instanceof Nodes.ConcatOp) {
-              left = left.right
-            } else {
-              break;
-            }
-        }
-        return new Nodes.ConcatOp(memo, s);
-      }, es.shift(), es).p(line, column);
+      return createInterpolation(es).p(line, column);
     }
   / "\"" es:
     ( d:(stringData / "'")+ { return new Nodes.String(d.join('')).p(line, column); }
     / "#{" e:expression "}" { return e; }
     )+ "\"" {
-      return foldr(function(memo, s){
-        if(s instanceof Nodes.String) {
-          var right = memo;
-          while(right)
-            if(right instanceof Nodes.String) {
-              right.p(s.line, s.column).data = s.data + right.data
-              return memo;
-            } else if(right instanceof Nodes.ConcatOp) {
-              right = right.left;
-            } else {
-              break;
-            }
-        }
-        return new Nodes.ConcatOp(s, memo);
-      }, es.pop(), es).p(line, column);
+      return createInterpolation(es).p(line, column);
     }
 
 
 // TODO: raw
-regexpData
-  = [^/[(]
-  / "[" d:regexpData* "]" { return "[" + (d ? d.join('') : '') + "]"; }
-  / "(" d:regexpData* ")" { return "(" + (d ? d.join('') : '') + ")"; }
-  / "\\" c:. { return c; }
 regexp
-  = "/" d:regexpData* "/" flags:[gimy]* {
-    if(!flags) {
-      flags = '';
-    } else {
-      if(flags.length > 4) return null;
-      flags.sort();
-      var flag = null;
-      for(var i = 0, l = flags.length; i < l; ++i)
-        if(flag == flags[i]) return null;
-        else flag = flags[i];
-      flags = flags.join('');
+  = "///" es:hereregexpData+ "///" flags:[gimy]* {
+      if(!isValidRegExpFlags(flags))
+        throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
+      if(!flags) flags = [];
+      var interp = createInterpolation(foldl(function(memo, e){ return memo.concat(e); }, [], es));
+      if(interp instanceof Nodes.String) return new Nodes.RegExp(interp.data, flags).p(line, column);
+      return new Nodes.HeregExp(interp, flags).p(line, column);
     }
-    return new Nodes.RegExp((d ? d.join('') : ''), flags).p(line, column);
-  }
-// TODO: heregex
+  / "/" d:regexpData* "/" flags:[gimy]* {
+      if(!isValidRegExpFlags(flags))
+        throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
+      return new Nodes.RegExp(d ? d.join('') : '', flags || []).p(line, column);;
+    }
+  regexpData
+    = [^\\/[(]
+    / "[" d:regexpData* "]" { return "[" + (d ? d.join('') : '') + "]"; }
+    / "(" d:regexpData* ")" { return "(" + (d ? d.join('') : '') + ")"; }
+    / "\\" c:. { return c; }
+  hereregexpData
+    = " " { return [new Nodes.String(' ').g().p(line, column)]; }
+    / s:[^\\/[(#]+ { return [new Nodes.String(s.join('')).g().p(line, column)];  }
+    / "[" d:hereregexpData* "]" { return [new Nodes.String("[").g().p(line, column)].concat(d || []).concat([new Nodes.String("]").g().p(line, column)]); }
+    / "(" d:hereregexpData* ")" { return [new Nodes.String("(").g().p(line, column)].concat(d || []).concat([new Nodes.String(")").g().p(line, column)]); }
+    / "\\" c:. { return [new Nodes.String(c).g().p(line, column)]; }
+    / s:("/" "/"? !"/") { return [new Nodes.String(s.join('')).g().p(line, column)]; }
+    / c:"#" !"{" { return [new Nodes.String(c).g().p(line, column)]; }
+    / "#{" e:expression "}" { return [e]; }
 
 
 throw

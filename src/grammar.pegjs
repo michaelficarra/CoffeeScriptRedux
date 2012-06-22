@@ -46,12 +46,15 @@ var Nodes = require("./lib/coffee-script/nodes"),
         memo = fn(memo, list[i]);
       return memo;
     },
+    // TODO: change this to produce a list, and fold into a concatOp at optimisation phase
     createInterpolation = function(es){
+      var init = new Nodes.String('').g().p(es[0].line, es[0].column);
       return foldl(function(memo, s){
         if(s instanceof Nodes.String) {
           var left = memo;
           while(left)
             if(left instanceof Nodes.String) {
+              if(left === init) delete left.p(s.line, s.column).generated;
               left.data = left.data + s.data;
               return memo;
             } else if(left instanceof Nodes.ConcatOp) {
@@ -61,7 +64,7 @@ var Nodes = require("./lib/coffee-script/nodes"),
             }
         }
         return new Nodes.ConcatOp(memo, s);
-      }, es.shift(), es);
+      }, init, es);
     },
     isValidRegExpFlags = function(flags) {
       if(!flags) return true;
@@ -382,6 +385,7 @@ primaryExpression
   / r:(THIS / "@") { return (new Nodes.This).r(r).p(line, column); }
   / identifier
   / arrayLiteral
+  / objectLiteral
   / interpolation
   / string
   / regexp
@@ -424,7 +428,7 @@ loop
 
 
 class
-  = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ assignmentExpression)? body:classBody {
+  = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ (functionLiteral / assignmentExpression))? body:classBody {
       var raw = 'class' + (name ? name[0] + name[1].raw : '') +
         (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
         body.raw;
@@ -520,11 +524,25 @@ arrayLiteral
       return new Nodes.ArrayInitialiser(args.list).r("[" + ws0 + args.raw + ws1 + "]").p(line, column);
     }
 
-
-ObjectInitialiserKeys
-  = i:identifierName { return new Nodes.String(i).r(i).p(line, column); }
-  / string
-  / Numbers
+objectLiteral
+  = "{" ws:(TERMINATOR / _) members:(objectLiteralMemberList _)? t:TERMINATOR? "}" {
+    var raw = "{" + ws + (members ? members[0].raw + members[1] : '') + t + "}";
+    members = members ? members[0].list : [];
+    return new Nodes.ObjectInitialiser(members).r(raw).p(line, column);
+  }
+  objectLiteralMemberList
+    = e:objectLiteralMember es:(TERMINATOR? _ "," TERMINATOR? _ objectLiteralMember)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
+        return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
+      }
+  objectLiteralMember
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:(functionLiteral / assignmentExpression) {
+      return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
+    }
+  ObjectInitialiserKeys
+    = i:identifierName { return new Nodes.String(i).r(i).p(line, column); }
+    / string
+    / Numbers
 
 
 bool
@@ -589,13 +607,13 @@ string
 interpolation
   = "\"\"\"" es:
     ( d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ { return new Nodes.String(d.join('')).p(line, column); }
-    / "#{" e:expression "}" { return e; }
+    / "#{" _ e:expression _ "}" { return e; }
     )+ "\"\"\"" {
       return createInterpolation(es).p(line, column);
     }
   / "\"" es:
     ( d:(stringData / "'")+ { return new Nodes.String(d.join('')).p(line, column); }
-    / "#{" e:expression "}" { return e; }
+    / "#{" _ e:expression _ "}" { return e; }
     )+ "\"" {
       return createInterpolation(es).p(line, column);
     }
@@ -629,15 +647,15 @@ regexp
     / "\\" c:. { return [new Nodes.String(c).g().p(line, column)]; }
     / s:("/" "/"? !"/") { return [new Nodes.String(s.join('')).g().p(line, column)]; }
     / c:"#" !"{" { return [new Nodes.String(c).g().p(line, column)]; }
-    / "#{" e:expression "}" { return [e]; }
+    / "#{" _ e:expression _ "}" { return [e]; }
 
 
 throw
-  = THROW ws:_ e:assignmentExpression {
+  = THROW ws:_ e:(functionLiteral / assignmentExpression) {
       return new Nodes.Throw(e).r('throw' + ws + e.raw).p(line, column);
     }
 return
-  = RETURN ws:_ e:assignmentExpression {
+  = RETURN ws:_ e:(functionLiteral / assignmentExpression) {
       return new Nodes.Return(e).r('return' + ws + e.raw).p(line, column);
     }
 continue = CONTINUE { return (new Nodes.Continue).r('continue').p(line, column); }

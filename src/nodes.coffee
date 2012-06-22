@@ -483,10 +483,10 @@ class @Null extends @Node
 # ObjectInitialiser :: [(ObjectInitialiserKeys, Exprs)] -> ObjectInitialiser
 class @ObjectInitialiser extends @Node
   className: 'ObjectInitialiser'
-  constructor: (@assignments) ->
+  constructor: (@members) ->
   toJSON: ->
     nodeType: @className
-    assignments: for [key, expr] in @assignments
+    members: for [key, expr] in @members
       [key.toJSON(), expr.toJSON()]
 
 # OfOp :: Exprs -> Exprs -> OfOp

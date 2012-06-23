@@ -344,9 +344,22 @@ leftHandSideExpression
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
 newExpression
-  = NEW _ leftHandSideExpression
-  / memberExpression
-memberExpression = memberAccess / primaryExpression
+  = memberExpression
+  / NEW ws:__ e:newExpression {
+      return new Nodes.NewOp(e, []).r('new' + ws + e.raw).p(line, column);
+    }
+memberExpression
+  = NEW ws0:__ e:memberExpression "(" ws1:_ args:argumentList? ws2:_ ")" {
+      var raw = 'new' + ws0 + e + '(' + ws1 + (args ? args.raw : '') + ws2 + ')';
+      args = args ? args.list : [];
+      return new Nodes.NewOp(e, args).r(raw).p(line, column);
+    }
+  / NEW ws0:__ e:memberExpression ws1:__ args:argumentList {
+      var raw = 'new' + ws0 + e + ws1 + args.raw;
+      return new Nodes.NewOp(e, args.list).r(raw).p(line, column);
+    }
+  / memberAccess
+  / primaryExpression
   memberAccess
     = expr:primaryExpression accesses:(_ MemberAccessOps)+ {
         return foldl(function(expr, pair){

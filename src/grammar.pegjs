@@ -32,6 +32,7 @@ var Nodes = require("./lib/coffee-script/nodes"),
       , '*': Nodes.MultiplyOp
       , '/': Nodes.DivideOp
       , '%': Nodes.RemOp
+      , '(': Nodes.FunctionApplication
       , '.': Nodes.MemberAccessOp
       , '?.': Nodes.SoakedMemberAccessOp
       , '::': Nodes.ProtoMemberAccessOp
@@ -139,14 +140,15 @@ expression
   / TYPEOF _ functionLiteral
   / DELETE _ functionLiteral
   / NEW _ functionLiteral
-  / implicitObjectLiteral
-  / seqExpression
   / conditional
   / while
   / loop
   / forOf
   / forIn
   / class
+  / switch
+  / implicitObjectLiteral
+  / seqExpression
 
 // begin expression waterfall
 seqExpression
@@ -313,7 +315,7 @@ prefixExpression
   / TYPEOF _ prefixExpression
   / DELETE _ prefixExpression
 postfixExpression
-  = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
+  = expr:callExpression ops:("?" / "[..]" / "++" / "--")* {
       return foldl(function(expr, op){
         var raw;
         switch(op){
@@ -324,7 +326,7 @@ postfixExpression
         }
       }, expr, ops);
     }
-leftHandSideExpression
+callExpression
   = fn:memberExpression args:("(" _ argumentList? _ ")")+ {
       return foldl(function(fn, args){
         var raw = fn.raw + '(' + args[1] + (args[2] ? args[2].raw : '') + args[3] + ')';
@@ -346,53 +348,58 @@ leftHandSideExpression
       }
 newExpression
   = memberExpression
+  / NEW ws0:__ e:memberAccess "(" ws1:_ args:(argumentList _)? ")" accesses:
+    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {raw: ws + a.raw, type: a.op, operand: a.operand}; }
+    / "(" _ a:(argumentList _)? ")" { return {raw: '', type: '(', operand: a ? a[0].list : []}; }
+    )* {
+      var raw = 'new' + ws0 + e + '(' + ws1 + (args ? args[0].raw + args[1] : '') + ')';
+      args = args ? args[0].list : [];
+      e = new Nodes.NewOp(e, args).r(raw).p(line, column);
+      return foldl(function(left, op){
+        var raw = left.raw + op.raw;
+        var right = op.operand;
+        return new constructorLookup[op.type](left, right).r(raw).p(line, column)
+      }, e, accesses || []);
+    }
+  / NEW ws0:__ e:memberAccess ws1:__ args:argumentList {
+      var raw = 'new' + ws0 + e + ws1 + args.raw;
+      return new Nodes.NewOp(e, args.list).r(raw).p(line, column);
+    }
   / NEW ws:__ e:newExpression {
       return new Nodes.NewOp(e, []).r('new' + ws + e.raw).p(line, column);
     }
 memberExpression
-  = NEW ws0:__ e:memberExpression "(" ws1:_ args:argumentList? ws2:_ ")" {
-      var raw = 'new' + ws0 + e + '(' + ws1 + (args ? args.raw : '') + ws2 + ')';
-      args = args ? args.list : [];
-      return new Nodes.NewOp(e, args).r(raw).p(line, column);
+  = e:memberAccess accesses:
+    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {raw: ws + a.raw, type: a.op, operand: a.operand}; }
+    / "(" _ a:(argumentList _)? ")" { return {raw: '', type: '(', operand: a ? a[0].list : []}; }
+    )* {
+      return foldl(function(left, op){
+        var raw = left.raw + op.raw;
+        var right = op.operand;
+        return new constructorLookup[op.type](left, right).r(raw).p(line, column)
+      }, e, accesses || []);
     }
-  / NEW ws0:__ e:memberExpression ws1:__ args:argumentList {
-      var raw = 'new' + ws0 + e + ws1 + args.raw;
-      return new Nodes.NewOp(e, args.list).r(raw).p(line, column);
-    }
-  / memberAccess
-  / primaryExpression
   memberAccess
-    = expr:primaryExpression accesses:(_ MemberAccessOps)+ {
-        return foldl(function(expr, pair){
-          var raw, ws = pair[0], access = pair[1];
-          switch(access[0]){
-            case '.':
-            case '?.':
-            case '::':
-            case '?::':
-              raw = expr.raw + ws + access[0] + access[1] + access[2];
-              break;
-            case '[':
-            case '?[':
-            case '::[':
-            case '?::[':
-              raw = expr.raw + ws + access[0] + access[1] + access[2].raw + access[3] + ']';
-              break;
-          }
-          return new constructorLookup[access[0]](expr, access[2]).r(raw).p(line, column)
-        }, expr, accesses);
+    = e:primaryExpression accesses:((_ / TERMINATOR) MemberAccessOps)* {
+        return foldl(function(left, op){
+          var ws = op[0];
+          op = op[1];
+          var raw = left.raw + ws + op.raw;
+          var right = op.operand;
+          return new constructorLookup[op.op](left, right).r(raw).p(line, column)
+        }, e, accesses || []);
       }
   MemberNames
     = identifierName
   MemberAccessOps
-    = "." _ MemberNames
-    / "?." _ MemberNames
-    / "[" _ expression _ "]"
-    / "?[" _ expression _ "]"
-    / "::" _ MemberNames
-    / "::[" _ expression _ "]"
-    / "?::" _ MemberNames
-    / "?::[" _ expression _ "]"
+    = op:"." ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
+    / op:"?." ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
+    / op:"[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
+    / op:"?[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
+    / op:"::" ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
+    / op:"::[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
+    / op:"?::" ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
+    / op:"?::[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
 primaryExpression
   = Numbers
   / bool
@@ -417,17 +424,21 @@ primaryExpression
 
 
 conditional
-  = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody elseClause:elseClause? {
-      var raw = kw + ws0 + cond.raw + ws1 + body.raw + (elseClause ? elseClause.raw : '');
+  = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody term:TERMINATOR? elseClause:elseClause? {
+      var raw = kw + ws0 + cond.raw + ws1 + body.raw + term + (elseClause ? elseClause.raw : '');
       var constructor = kw == 'unless' ? Nodes.NegatedConditional : Nodes.Conditional;
       var elseBlock = elseClause ? elseClause.block : null;
       return new constructor(cond, body.block, elseBlock).r(raw).p(line, column);
     }
   conditionalBody
     = ws:_ t:TERMINDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
-    / ws0:_ t:THEN ws1:_ s:statement {
+    / ws0:_ THEN ws1:_ s:statement {
         var block = Nodes.Block.wrap(s);
-        return {block: block, raw: ws0 + t + ws1 + s.raw};
+        return {block: block, raw: ws0 + 'then' + ws1 + s.raw};
+      }
+    / ws:_ THEN {
+        var block = new Nodes.Block([]).r('').p(line, column);
+        return {block: block, raw: ws + 'then'};
       }
   elseClause = ws:_ ELSE b:elseBody { return {block: b.block, raw: ws + 'else' + b.raw}; }
   elseBody = functionBody
@@ -457,6 +468,16 @@ class
       parent = parent ? parent[3] : null;
       return new Nodes.Class(name, parent, body.block).r(raw).p(line, column);
     }
+  classBody
+    = ws:_ t:TERMINDENT b:classBlock DEDENT { return {block: b, raw: ws + t + b.raw}; }
+    / ws0:_ t:THEN ws1:_ s:classStatement {
+        var block = Nodes.Block.wrap(s);
+        return {block: block, raw: ws0 + t + ws1 + s.raw};
+      }
+    / all:(_ THEN)? {
+        var block = new Nodes.Block([]).r('').p(line, column);
+        return {block: block, raw: all ? all[0] + all[1] : ''};
+      }
   classBlock
     = s:classStatement ss:(_ TERMINATOR _ classStatement)* term:TERMINATOR? {
         var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
@@ -468,16 +489,6 @@ class
   classProtoAssignment
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:(functionLiteral / assignmentExpression) {
         return new Nodes.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
-      }
-  classBody
-    = ws:_ t:TERMINDENT b:classBlock DEDENT { return {block: b, raw: ws + t + b.raw}; }
-    / ws0:_ t:THEN ws1:_ s:classStatement {
-        var block = Nodes.Block.wrap(s);
-        return {block: block, raw: ws0 + t + ws1 + s.raw};
-      }
-    / all:(_ THEN)? {
-        var block = new Nodes.Block([]).r('').p(line, column);
-        return {block: block, raw: all ? all[0] + all[1] : ''};
       }
 
 
@@ -507,9 +518,44 @@ forIn
       return new Nodes.ForIn(val, key, list, step, filter, body.block).r(raw).p(line, column);
     }
 
+switch
+  = SWITCH ws:_ e:(functionLiteral / assignmentExpression)? body:switchBody {
+      var raw = 'switch' + ws + (e ? e.raw : '') + body.raw;
+      return new Nodes.Switch(e || null, body.cases, body['else'] || null).r(raw).p(line, column);
+    }
+  switchBody
+    = ws:_ t:TERMINDENT b:switchBlock DEDENT { return {cases: b.cases, 'else': b['else'], raw: ws + t + b.raw}; }
+    / ws0:_ t:THEN ws1:_ w:when { return {cases: [[w.conditions, w.block]], raw: ws0 + t + ws1 + w.raw}; }
+    / ws:_ THEN { return {cases: [], raw: ws + 'then'}; }
+  switchBlock
+    = w:when ws:(_ TERMINATOR _ when)* elseClause:(_ TERMINATOR _ elseClause)? term:TERMINATOR? {
+        var raw = w.raw + ws.map(function(w){ return w[0] + w[1] + w[2] + w[3].raw; }).join('') +
+          (elseClause ? elseClause[0] + elseClause[1] + elseClause[2] + elseClause[3].raw : '') + term;
+        var cases = [[w.conditions, w.block]].concat(ws.map(function(w){
+          return [w[3].conditions, w[3].block];
+        }));
+        return {cases: cases, 'else': elseClause ? elseClause[3].block : null, raw: raw};
+      }
+  when
+    = WHEN ws:_ conditions:whenConditions body:whenBody {
+      return 0,
+      { conditions: conditions.list
+      , block: body.block
+      , raw: 'when' + ws + conditions.raw + body.raw
+      };
+    }
+  whenCondition = assignmentExpression
+  whenConditions
+    = c:whenCondition cs:(_ "," _ whenCondition)* {
+        var raw = c.raw + cs.map(function(c){ return c[0] + c[1] + c[2] + c[3].raw; }).join('');
+        return {list: [c].concat(cs.map(function(c){ return c[3]; })), raw: raw};
+      }
+  whenBody = conditionalBody
+
 
 functionLiteral
-  = params:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody {
+  = params:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody? {
+      if(!body) body = {block: new Nodes.Block([]).r('').p(line, column), raw: ''};
       var raw =
         (params ? params[0] + params[1] + params[2].raw + params[3] + params[4] + params[5] : '') +
         arrow + body.raw;
@@ -524,9 +570,7 @@ functionLiteral
     }
   functionBody
     = ws:_ t0:TERMINDENT b:block t1:TERMINATOR? DEDENT { return {block: b, raw: ws + t0 + b.raw + t1}; }
-    / all:(_ statement)? {
-        if(!all) return {block: new Nodes.Block([]).r('').p(line, column), raw: ''};
-        var ws = all[0], s = all[1];
+    / ws:_ s:statement {
         return {block: Nodes.Block.wrap(s), raw: ws + s.raw};
       }
   parameter
@@ -769,6 +813,7 @@ ON = w:"on" !identifierPart { return w; }
 OR = w:"or" !identifierPart { return w; }
 OWN = w:"own" !identifierPart { return w; }
 RETURN = w:"return" !identifierPart { return w; }
+SWITCH = w:"switch" !identifierPart { return w; }
 THEN = w:"then" !identifierPart { return w; }
 THIS = w:"this" !identifierPart { return w; }
 THROW = w:"throw" !identifierPart { return w; }

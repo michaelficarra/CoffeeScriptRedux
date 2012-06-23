@@ -610,15 +610,15 @@ class @Super extends @Node
     nodeType: @className
     arguments: (a.toJSON() for a in @arguments)
 
-# Switch :: Exprs -> [(Exprs, Block)] -> Maybe Block -> Switch
+# Switch :: Maybe Exprs -> [([Exprs], Block)] -> Maybe Block -> Switch
 class @Switch extends @Node
   className: 'Switch'
   constructor: (@expr, @cases, @elseBlock) ->
   toJSON: ->
     nodeType: @className
-    expression: @expr.toJSON()
-    cases: for [expr, block] in @cases
-      [expr.toJSON(), block.toJSON()]
+    expression: @expr?.toJSON()
+    cases: for [exprs, block] in @cases
+      [e.toJSON() for e in exprs, block.toJSON()]
     elseBlock: @elseBlock?.toJSON()
 
 # This :: This

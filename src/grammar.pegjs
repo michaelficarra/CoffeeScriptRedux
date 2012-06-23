@@ -338,14 +338,18 @@ callExpression
         return new Nodes.FunctionApplication(fn, args[2] ? args[2].list : []).r(raw).p(line, column);
       }, fn, args);
     }
-  / fn:memberExpression ws:__ args:argumentList {
+  / fn:memberExpression ws:__ args:secondaryArgumentList {
       var raw = fn.raw + ws + args.raw;
       return new Nodes.FunctionApplication(fn, args.list).r(raw).p(line, column);
     }
   / newExpression
-  argument = expression
   argumentList
-    = e:argument es:(_ "," _ argument)* {
+    = e:expression es:(_ "," _ expression)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
+        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
+      }
+  secondaryArgumentList
+    = e:secondaryExpression es:(_ "," _ secondaryExpression)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
@@ -364,7 +368,7 @@ newExpression
         return new constructorLookup[op.type](left, right).r(raw).p(line, column)
       }, e, accesses || []);
     }
-  / NEW ws0:__ e:memberExpression ws1:__ args:argumentList {
+  / NEW ws0:__ e:memberExpression ws1:__ args:secondaryArgumentList {
       var raw = 'new' + ws0 + e + ws1 + args.raw;
       return new Nodes.NewOp(e, args.list).r(raw).p(line, column);
     }
@@ -488,9 +492,9 @@ class
       }
   classStatement
     = classProtoAssignment
-    / !(return / continue / break) s:statement { return s; }
+    / expression
   classProtoAssignment
-    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:(functionLiteral / assignmentExpression) {
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:expression {
         return new Nodes.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
       }
 

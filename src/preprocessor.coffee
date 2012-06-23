@@ -66,8 +66,7 @@ class @Preprocessor extends EventEmitter
         when null, INDENT, '#{', '[', '(', '{'
           if 0 is @ss.pointer() or @scan /// (?:[#{ws}]* \n)+ ///
 
-            while @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n) ///
-              @p '\n'
+            @p '\n' while @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n) ///
 
             # we might require more input to determine indentation
             return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?

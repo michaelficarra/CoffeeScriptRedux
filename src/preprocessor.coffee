@@ -66,14 +66,15 @@ class @Preprocessor extends EventEmitter
       switch @context.peek()
         when null, INDENT, '#{', '[', '(', '{'
           if 0 is @ss.pointer() or @scan /// (?:[#{ws}]* \n)+ ///
+            @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n)+ ///
+
             # we might require more input to determine indentation
-            return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
+            return if not isEnd and (@ss.check /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n)* [#{ws}\n]* $ ///)?
 
             if @base?
               unless (@scan @base)?
                 throw new Error "inconsistent base indentation"
             else
-              @scan /// (?:[#{ws}]* \n)+ ///
               # TODO: combine these next two lines once self-hosted
               b = @scan /// [#{ws}]* ///
               @base = /// #{b} ///
@@ -81,7 +82,7 @@ class @Preprocessor extends EventEmitter
             if @indent?
               level = (0 for c in @context when c is INDENT).length
               # a single indent
-              if @ss.check /// (?:#{@indent}){#{level + 1}} [^#{ws}] ///
+              if @ss.check /// (?:#{@indent}){#{level + 1}} [^#{ws}#] ///
                 @scan /// (?:#{@indent}){#{level + 1}} ///
                 @context.observe INDENT
                 @p INDENT

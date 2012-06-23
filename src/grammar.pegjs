@@ -91,8 +91,8 @@ TERMINATOR = necessary:"\n" superfluous:(_ "\n")* {
 INDENT = ws:__ "\uEFEF" { return ws; }
 DEDENT = ws:_ "\uEFFE" { return ws; }
 
-TERMINDENT = t0:TERMINATOR INDENT t1:(TERMINATOR _)? {
-    return t0 + (t1 ? t1[0] + t1[1] : '');
+TERMINDENT = t:TERMINATOR INDENT {
+    return t;
   }
 
 program

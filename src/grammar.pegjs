@@ -139,6 +139,7 @@ expression
   / TYPEOF _ functionLiteral
   / DELETE _ functionLiteral
   / NEW _ functionLiteral
+  / implicitObjectLiteral
   / seqExpression
   / conditional
   / while
@@ -552,7 +553,7 @@ objectLiteral
     return new Nodes.ObjectInitialiser(members).r(raw).p(line, column);
   }
   objectLiteralMemberList
-    = e:objectLiteralMember es:(TERMINATOR? _ "," TERMINATOR? _ objectLiteralMember)* {
+    = e:objectLiteralMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ objectLiteralMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
         return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
       }
@@ -567,6 +568,20 @@ objectLiteral
     = i:identifierName { return new Nodes.String(i).r(i).p(line, column); }
     / string
     / Numbers
+// TODO: complete support for implicit objects
+implicitObjectLiteral
+  = members:implicitObjectLiteralMemberList {
+    return new Nodes.ObjectInitialiser(members.list).r(members.raw).p(line, column);
+  }
+  implicitObjectLiteralMemberList
+    = e:implicitObjectLiteralMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ implicitObjectLiteralMember)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
+        return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
+      }
+  implicitObjectLiteralMember
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:(functionLiteral / assignmentExpression) {
+        return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
+      }
 
 
 bool

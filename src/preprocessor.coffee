@@ -62,7 +62,6 @@ class @Preprocessor extends EventEmitter
     @ss.concat data unless isEnd
 
     while @ss.rest().length
-      console.log (inspect @context[..]), inspect @ss.rest()[...200]
       switch @context.peek()
         when null, INDENT, '#{', '[', '(', '{'
           if 0 is @ss.pointer() or @scan /// (?:[#{ws}]* \n)+ ///

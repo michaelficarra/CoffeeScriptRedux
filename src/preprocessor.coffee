@@ -65,10 +65,12 @@ class @Preprocessor extends EventEmitter
       switch @context.peek()
         when null, INDENT, '#{', '[', '(', '{'
           if 0 is @ss.pointer() or @scan /// (?:[#{ws}]* \n)+ ///
-            @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n)+ ///
+
+            while @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n) ///
+              @p '\n'
 
             # we might require more input to determine indentation
-            return if not isEnd and (@ss.check /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n)* [#{ws}\n]* $ ///)?
+            return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
 
             if @base?
               unless (@scan @base)?

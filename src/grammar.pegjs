@@ -92,8 +92,8 @@ TERMINATOR = necessary:"\n" superfluous:(_ "\n")* {
 INDENT = ws:__ "\uEFEF" { return ws; }
 DEDENT = ws:_ "\uEFFE" { return ws; }
 
-TERMINDENT = t:TERMINATOR INDENT {
-    return t;
+TERMINDENT = t:TERMINATOR i:INDENT {
+    return t + i;
   }
 
 program
@@ -128,7 +128,8 @@ statement
   / break
   / throw
 
-expression
+// TODO: rename?
+expressionworthy
   = functionLiteral
   / "++" _ functionLiteral
   / "--" _ functionLiteral
@@ -148,7 +149,8 @@ expression
   / class
   / switch
   / implicitObjectLiteral
-  / seqExpression
+expression = expressionworthy / seqExpression
+secondaryExpression = expressionworthy / assignmentExpression
 
 // begin expression waterfall
 seqExpression
@@ -216,14 +218,17 @@ assignmentExpression
   / compoundAssignmentOp
   / logicalOrExpression
   assignmentOp
-    = all:(Assignable _ "=" !"=" _ (functionLiteral / assignmentExpression)) {
-        var raw = all[0].raw + all[1] + all[2] + all[4] + all[5].raw;
-        return new Nodes.AssignOp(all[0], all[5]).r(raw).p(line, column);
+    = left:Assignable ws0:_ "=" !"=" ws1:_ right:
+      ( e:secondaryExpression { return {raw: e.raw, expr: e} }
+      / t0:TERMINDENT e:secondaryExpression t1:TERMINATOR? d:DEDENT { return {raw: t0 + e.raw + t1 + d, expr: e} }
+      ) {
+        var raw = left.raw + ws0 + '=' + ws1 + right.raw;
+        return new Nodes.AssignOp(left, right.expr).r(raw).p(line, column);
       }
   CompoundAssignmentOperators
     = "*" / "/" / "%" / "+" / "-" / "<<" / ">>" / ">>>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||" / "?"
   compoundAssignmentOp
-    = all:(Assignable _ CompoundAssignmentOperators "=" _ (functionLiteral / assignmentExpression)) {
+    = all:(Assignable _ CompoundAssignmentOperators "=" _ secondaryExpression) {
         var raw = all[0].raw + all[1] + all[2] + "=" + all[4] + all[5].raw;
         return new Nodes.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(line, column);
       }
@@ -305,13 +310,13 @@ multiplicativeExpression
     }
 prefixExpression
   = postfixExpression
-  / "++" _ prefixExpression
-  / "--" _ prefixExpression
-  / "+" _ prefixExpression
-  / "-" _ prefixExpression
+  / "++" ws:_ e:prefixExpression { return new Nodes.PreIncrementOp(e).r('++' + ws + e.raw).p(line, column); }
+  / "--" ws:_ e:prefixExpression { return new Nodes.PreDecrementOp(e).r('--' + ws + e.raw).p(line, column); }
+  / "+" e:prefixExpression { return new Nodes.UnaryPlusOp(e).r('-' + e.raw).p(line, column); }
+  / "-" e:prefixExpression { return new Nodes.UnaryNegateOp(e).r('-' + e.raw).p(line, column); }
   / o:("!" / NOT) ws:_ e:prefixExpression { return new Nodes.LogicalNotOp(e).r(o + ws + e.raw).p(line, column); }
   / "~" _ prefixExpression
-  / DO _ prefixExpression
+  / DO ws:_ e:prefixExpression { return new Nodes.DoOp(e).r('-' + ws + e.raw).p(line, column); }
   / TYPEOF _ prefixExpression
   / DELETE _ prefixExpression
 postfixExpression
@@ -338,9 +343,7 @@ callExpression
       return new Nodes.FunctionApplication(fn, args.list).r(raw).p(line, column);
     }
   / newExpression
-  argument
-    = functionLiteral
-    / assignmentExpression
+  argument = secondaryExpression
   argumentList
     = e:argument es:(_ "," _ argument)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
@@ -369,7 +372,7 @@ newExpression
       return new Nodes.NewOp(e, []).r('new' + ws + e.raw).p(line, column);
     }
 memberExpression
-  = e:memberAccess accesses:
+  = e:primaryExpression accesses:
     ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {raw: ws + a.raw, type: a.op, operand: a.operand}; }
     / "(" _ a:(argumentList _)? ")" { return {raw: '', type: '(', operand: a ? a[0].list : []}; }
     )* {
@@ -380,7 +383,7 @@ memberExpression
       }, e, accesses || []);
     }
   memberAccess
-    = e:primaryExpression accesses:((_ / TERMINATOR) MemberAccessOps)* {
+    = e:primaryExpression accesses:((_ / TERMINATOR) MemberAccessOps)+ {
         return foldl(function(left, op){
           var ws = op[0];
           op = op[1];
@@ -424,8 +427,8 @@ primaryExpression
 
 
 conditional
-  = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression ws1:_ body:conditionalBody term:TERMINATOR? elseClause:elseClause? {
-      var raw = kw + ws0 + cond.raw + ws1 + body.raw + term + (elseClause ? elseClause.raw : '');
+  = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression body:conditionalBody elseClause:elseClause? {
+      var raw = kw + ws0 + cond.raw + body.raw + (elseClause ? elseClause.raw : '');
       var constructor = kw == 'unless' ? Nodes.NegatedConditional : Nodes.Conditional;
       var elseBlock = elseClause ? elseClause.block : null;
       return new constructor(cond, body.block, elseBlock).r(raw).p(line, column);
@@ -440,7 +443,7 @@ conditional
         var block = new Nodes.Block([]).r('').p(line, column);
         return {block: block, raw: ws + 'then'};
       }
-  elseClause = ws:_ ELSE b:elseBody { return {block: b.block, raw: ws + 'else' + b.raw}; }
+  elseClause = ws0:_ term:TERMINATOR? ws1:_ ELSE b:elseBody { return {block: b.block, raw: ws0 + term + ws1 + 'else' + b.raw}; }
   elseBody = functionBody
 
 
@@ -602,7 +605,7 @@ objectLiteral
         return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
       }
   objectLiteralMember
-    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:(functionLiteral / assignmentExpression) {
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
         return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
       }
 	/ v:ObjectInitialiserKeys {
@@ -623,7 +626,7 @@ implicitObjectLiteral
         return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
       }
   implicitObjectLiteralMember
-    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:(functionLiteral / assignmentExpression) {
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
         return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
       }
 
@@ -704,7 +707,11 @@ interpolation
 
 // TODO: raw
 regexp
-  = "///" es:hereregexpData+ "///" flags:[gimy]* {
+  = "///" es:
+    ( [ \n]+ { return [new Nodes.String('').g().p(line, column)]; }
+    / s:[^\\/#[]+ { return [new Nodes.String(s.join('')).g().p(line, column)]; }
+    / hereregexpData
+    )+ "///" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
       if(!flags) flags = [];
@@ -712,21 +719,16 @@ regexp
       if(interp instanceof Nodes.String) return new Nodes.RegExp(interp.data, flags).p(line, column);
       return new Nodes.HeregExp(interp, flags).p(line, column);
     }
-  / "/" d:regexpData* "/" flags:[gimy]* {
+  / "/" d:(d:[^/\\[]+ { return d.join(''); } / regexpData)* "/" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
       return new Nodes.RegExp(d ? d.join('') : '', flags || []).p(line, column);;
     }
   regexpData
-    = [^\\/[(]
-    / "[" d:regexpData* "]" { return "[" + (d ? d.join('') : '') + "]"; }
-    / "(" d:regexpData* ")" { return "(" + (d ? d.join('') : '') + ")"; }
+    = "[" d:([^\\\]] / regexpData)* "]" { return "[" + (d ? d.join('') : '') + "]"; }
     / "\\" c:. { return c; }
   hereregexpData
-    = " " { return [new Nodes.String(' ').g().p(line, column)]; }
-    / s:[^\\/[(#]+ { return [new Nodes.String(s.join('')).g().p(line, column)];  }
-    / "[" d:hereregexpData* "]" { return [new Nodes.String("[").g().p(line, column)].concat(d || []).concat([new Nodes.String("]").g().p(line, column)]); }
-    / "(" d:hereregexpData* ")" { return [new Nodes.String("(").g().p(line, column)].concat(d || []).concat([new Nodes.String(")").g().p(line, column)]); }
+    = "[" d:([^\\/\]] / hereregexpData)* "]" { return [new Nodes.String("[").g().p(line, column)].concat(d || []).concat([new Nodes.String("]").g().p(line, column)]); }
     / "\\" c:. { return [new Nodes.String(c).g().p(line, column)]; }
     / s:("/" "/"? !"/") { return [new Nodes.String(s.join('')).g().p(line, column)]; }
     / c:"#" !"{" { return [new Nodes.String(c).g().p(line, column)]; }
@@ -754,9 +756,6 @@ Assignable
   = !unassignable i:identifier { return i; }
   / memberAccess
   / contextVar
-  / identifier
-  / arrayLiteral
-  / objectLiteral
 
 
 // identifiers

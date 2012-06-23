@@ -343,7 +343,7 @@ callExpression
       return new Nodes.FunctionApplication(fn, args.list).r(raw).p(line, column);
     }
   / newExpression
-  argument = secondaryExpression
+  argument = expression
   argumentList
     = e:argument es:(_ "," _ argument)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
@@ -364,7 +364,7 @@ newExpression
         return new constructorLookup[op.type](left, right).r(raw).p(line, column)
       }, e, accesses || []);
     }
-  / NEW ws0:__ e:memberAccess ws1:__ args:argumentList {
+  / NEW ws0:__ e:memberExpression ws1:__ args:argumentList {
       var raw = 'new' + ws0 + e + ws1 + args.raw;
       return new Nodes.NewOp(e, args.list).r(raw).p(line, column);
     }
@@ -756,6 +756,33 @@ Assignable
   = !unassignable i:identifier { return i; }
   / memberAccess
   / contextVar
+  / "[" ws0:_ args:positionalDestructuringList ws1:_ "]" {
+      var raw = "[" + ws0 + args.raw + ws1 + "]";
+      args = args ? args.list : [];
+      return new Nodes.ArrayInitialiser(args).r(raw).p(line, column);
+    }
+  / "{" ws:(TERMINATOR / _) members:(namedDestructuringMemberList _)? t:TERMINATOR? "}" {
+    var raw = "{" + ws + (members ? members[0].raw + members[1] : '') + t + "}";
+    members = members ? members[0].list : [];
+    return new Nodes.ObjectInitialiser(members).r(raw).p(line, column);
+  }
+  positionalDestructuringList
+    = e:Assignable es:(_ "," _ Assignable)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
+        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
+      }
+  namedDestructuringMemberList
+    = e:objectLiteralMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ objectLiteralMember)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
+        return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
+      }
+  namesDestructuringMember
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:Assignable {
+        return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
+      }
+	/ !unassignable i:identifier {
+        return {member: [i, i], raw: i.raw};
+      }
 
 
 // identifiers

@@ -18,23 +18,23 @@ class @Preprocessor extends EventEmitter
     @context = []
     @context.peek = -> if @length then this[@length - 1] else null
     @context.err = (c) ->
-      throw new Error (("Unexpected " + (inspect c) + "\nStack Contents: " + inspect this[..]).replace(///#{INDENT}///g, 'INDENT').replace(///#{DEDENT}///g, 'DEDENT'))
+      throw new Error "Unexpected " + inspect c
     @context.observe = (c) ->
       top = @peek()
       switch c
         # opening token is closing token
-        when '"""', '\'\'\'', '"', '\'', '###', '#', '`', '///', '/'
+        when '"""', '\'\'\'', '"', '\'', '###', '`', '///', '/'
           if top is c then do @pop
           else @push c
         # strictly opening tokens
-        when INDENT, 'regexp-[', 'regexp-(', 'regexp-{', 'heregexp-[', 'heregexp-(', 'heregexp-{', '#{', '[', '(', '{', '\\'
+        when INDENT, '#', '#{', '[', '(', '{', '\\', 'regexp-[', 'regexp-(', 'regexp-{', 'heregexp-#', 'heregexp-[', 'heregexp-(', 'heregexp-{'
           @push c
         # strictly closing tokens
         when DEDENT
           (@err c) unless top is INDENT
           do @pop
         when '\n'
-          (@err c) unless top is '#'
+          (@err c) unless top in ['#', 'heregexp-#']
           do @pop
         when ']'
           (@err c) unless top in ['[', 'regexp-[', 'heregexp-[']
@@ -62,50 +62,12 @@ class @Preprocessor extends EventEmitter
     @ss.concat data unless isEnd
 
     while @ss.rest().length
+      console.log (inspect @context[..]), inspect @ss.rest()[...200]
       switch @context.peek()
         when null, INDENT, '#{', '[', '(', '{'
-          switch @context.peek()
-            when '#{'
-              # safe things, but not closing brace
-              @scan /[^\n'"\\\/#`[({}]+/
-              if tok = @scan /\}/ then @context.observe tok
-            when '['
-              # safe things, but not closing bracket
-              @scan /[^\n'"\\\/#`[({\]]+/
-              if tok = @scan /\]/ then @context.observe tok
-            when '('
-              # safe things, but not closing paren
-              @scan /[^\n'"\\\/#`[({)]+/
-              if tok = @scan /\)/ then @context.observe tok
-            when '{'
-              # safe things, but not closing brace
-              @scan /[^\n'"\\\/#`[({}]+/
-              if tok = @scan /\}/ then @context.observe tok
-            else
-              # scan safe characters (anything that doesn't *introduce* context)
-              @scan /[^\n'"\\\/#`[({]+/
-
-          if tok = @scan /"""|'''|\/\/\/|###|["'/`#[({\\]/
-            @context.observe tok
-            continue
-          if @scan /// [#{ws}]+ \# ///
-            @context.observe '#'
-            continue
-
-          # either reached the end of the file or require more input
-          if (@ss.check /// [#{ws}\n]* $ ///)?
-            return unless isEnd
-            @scan /// [#{ws}\n]* $ ///
-            while @context.length and INDENT is @context.peek()
-              @context.observe DEDENT
-              @p "#{DEDENT}\n"
-            if @context.length
-              # TODO: store offsets of tokens when inserted and report position of unclosed starting token
-              throw new Error 'Unclosed ' + (inspect @context.peek()) + ' at EOF'
-            @emit 'end'
-            return
-
-          else if 0 is @ss.pointer() or @scan /// (?:[#{ws}]* \n)+ ///
+          if 0 is @ss.pointer() or @scan /// (?:[#{ws}]* \n)+ ///
+            # we might require more input to determine indentation
+            return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
 
             if @base?
               unless (@scan @base)?
@@ -143,6 +105,34 @@ class @Preprocessor extends EventEmitter
               @context.observe INDENT
               @p INDENT
 
+          switch @context.peek()
+            when '#{'
+              # safe things, but not closing brace
+              @scan /[^\n'"\\\/#`[({}]+/
+              if tok = @scan /\}/ then @context.observe tok
+            when '['
+              # safe things, but not closing bracket
+              @scan /[^\n'"\\\/#`[({\]]+/
+              if tok = @scan /\]/ then @context.observe tok
+            when '('
+              # safe things, but not closing paren
+              @scan /[^\n'"\\\/#`[({)]+/
+              if tok = @scan /\)/ then @context.observe tok
+            when '{'
+              # safe things, but not closing brace
+              @scan /[^\n'"\\\/#`[({}]+/
+              if tok = @scan /\}/ then @context.observe tok
+            else
+              # scan safe characters (anything that doesn't *introduce* context)
+              @scan /[^\n'"\\\/#`[({]+/
+
+          if tok = @scan /"""|'''|\/\/\/|###|["'/`[({\\]/
+            @context.observe tok
+          else if @ss.check /// [#{ws}]* \# ///
+            @scan /// [#{ws}]* ///
+            @ss.scan /#/
+            @context.observe '#'
+
         when '\\'
           if (@ss.scan /\n/) or (@scan /./) then @context.observe 'end-\\'
         when '"""'
@@ -166,25 +156,31 @@ class @Preprocessor extends EventEmitter
           @scan /(?:[^#]+|##?(?!#))+/
           if tok = @scan /###/ then @context.observe tok
         when '#'
-          @scan /[^\n]+/
+          @ss.scan /[^\n]+/
           if tok = @scan /\n/ then @context.observe tok
         when '`'
           @scan /[^`]+/
           if tok = @scan /`/ then @context.observe tok
         when '///'
           @scan /(?:[^[/#\\]+|\/\/?(?!\/)|\\.)+/
-          if tok = @scan /#{?|\/\/\/|\\/ then @context.observe tok
-          else if tok = @scan /\[/ then @context.observe "heregexp-#{tok}"
+          if tok = @scan /#{|\/\/\/|\\/ then @context.observe tok
+          else if @ss.scan /#/ then @context.observe 'heregexp-#'
+          else if tok = @scan /[\[]/ then @context.observe "heregexp-#{tok}"
         when 'heregexp-['
-          @scan /(?:[^\]\\#]+|#(?!#))+/
-          if tok = @scan /[\]\\]|#{/ then @context.observe tok
+          @scan /(?:[^\]\/\\]+|\/\/?(?!\/))+/
+          if tok = @scan /[\]\\]|#{|\/\/\// then @context.observe tok
+        when 'heregexp-#'
+          @ss.scan /(?:[^\n/]+|\/\/?(?!\/))+/
+          if tok = @scan /\n|\/\/\// then @context.observe tok
         #when 'heregexp-('
-        #  @scan /[^)/[({#\\]+/
-        #  if tok = @scan /[)/\\]|#{/ then @context.observe tok
+        #  @scan /(?:[^)/[({#\\]+|\/\/?(?!\/))+/
+        #  if tok = @ss.scan /#(?!{)/ then @context.observe 'heregexp-#'
+        #  else if tok = @scan /[)\\]|#{|\/\/\// then @context.observe tok
         #  else if tok = @scan /[[({]/ then @context.observe "heregexp-#{tok}"
         #when 'heregexp-{'
-        #  @scan /[^}/[({#\\]+/
-        #  if tok = @scan /[}/\\]|#{/ then @context.observe tok
+        #  @scan /(?:[^}/[({#\\]+|\/\/?(?!\/))+/
+        #  if tok = @ss.scan /#(?!{)/ then @context.observe 'heregexp-#'
+        #  else if tok = @scan /[}/\\]|#{|\/\/\// then @context.observe tok
         #  else if tok = @scan /[[({]/ then @context.observe "heregexp-#{tok}"
         when '/'
           @scan /[^[/\\]+/
@@ -202,6 +198,7 @@ class @Preprocessor extends EventEmitter
         #  if tok = @scan /[}/\\]/ then @context.observe tok
         #  else if tok = @scan /[[({]/ then @context.observe "regexp-#{tok}"
 
+    # reached the end of the file
     if isEnd
       @scan /// [#{ws}\n]* $ ///
       while @context.length and INDENT is @context.peek()

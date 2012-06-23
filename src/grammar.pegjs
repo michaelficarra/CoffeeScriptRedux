@@ -91,6 +91,10 @@ TERMINATOR = necessary:"\n" superfluous:(_ "\n")* {
 INDENT = ws:__ "\uEFEF" { return ws; }
 DEDENT = ws:_ "\uEFFE" { return ws; }
 
+TERMINDENT = t0:TERMINATOR INDENT t1:(TERMINATOR _)? {
+    return t0 + (t1 ? t1[0] + t1[1] : '');
+  }
+
 program
   = leader:(_ "\n")* b:(_ toplevelBlock)? {
       leader = leader.map(function(s){ return s.join(''); }).join('');
@@ -312,10 +316,10 @@ postfixExpression
       return foldl(function(expr, op){
         var raw;
         switch(op){
-          case '?': return new UnaryExistsOp(expr).r(expr.raw + op).p(line, column)
-          case '[..]': return new ShallowCopyArray(expr).r(expr.raw + op).p(line, column)
-          case '++': return new PostIncrementOp(expr).r(expr.raw + op).p(line, column)
-          case '--': return new PostDecrementOp(expr).r(expr.raw + op).p(line, column)
+          case '?': return new Nodes.UnaryExistsOp(expr).r(expr.raw + op).p(line, column)
+          case '[..]': return new Nodes.ShallowCopyArray(expr).r(expr.raw + op).p(line, column)
+          case '++': return new Nodes.PostIncrementOp(expr).r(expr.raw + op).p(line, column)
+          case '--': return new Nodes.PostDecrementOp(expr).r(expr.raw + op).p(line, column)
         }
       }, expr, ops);
     }
@@ -340,29 +344,30 @@ leftHandSideExpression
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
 newExpression
-  = memberExpression
-  / NEW _ newExpression
-memberExpression
-  = expr:primaryExpression accesses:(_ MemberAccessOps)* {
-      return foldl(function(expr, pair){
-        var raw, ws = pair[0], access = pair[1];
-        switch(access[0]){
-          case '.':
-          case '?.':
-          case '::':
-          case '?::':
-            raw = expr.raw + ws + access[0] + access[1] + access[2];
-            break;
-          case '[':
-          case '?[':
-          case '::[':
-          case '?::[':
-            raw = expr.raw + ws + access[0] + access[1] + access[2].raw + access[3] + ']';
-            break;
-        }
-        return new constructorLookup[access[0]](expr, access[2]).r(raw).p(line, column)
-      }, expr, accesses);
-    }
+  = NEW _ leftHandSideExpression
+  / memberExpression
+memberExpression = memberAccess / primaryExpression
+  memberAccess
+    = expr:primaryExpression accesses:(_ MemberAccessOps)+ {
+        return foldl(function(expr, pair){
+          var raw, ws = pair[0], access = pair[1];
+          switch(access[0]){
+            case '.':
+            case '?.':
+            case '::':
+            case '?::':
+              raw = expr.raw + ws + access[0] + access[1] + access[2];
+              break;
+            case '[':
+            case '?[':
+            case '::[':
+            case '?::[':
+              raw = expr.raw + ws + access[0] + access[1] + access[2].raw + access[3] + ']';
+              break;
+          }
+          return new constructorLookup[access[0]](expr, access[2]).r(raw).p(line, column)
+        }, expr, accesses);
+      }
   MemberNames
     = identifierName
   MemberAccessOps
@@ -374,13 +379,11 @@ memberExpression
     / "::[" _ expression _ "]"
     / "?::" _ MemberNames
     / "?::[" _ expression _ "]"
-  contextVar
-    = "@" m:MemberNames {
-        return new Nodes.MemberAccessOp((new Nodes.This).r("@").p(line, column), m).r("@" + m).p(line, column);
-      }
 primaryExpression
   = Numbers
   / bool
+  / null
+  / undefined
   / contextVar
   / r:(THIS / "@") { return (new Nodes.This).r(r).p(line, column); }
   / identifier
@@ -393,6 +396,10 @@ primaryExpression
       e.raw = '(' + ws0 + e.raw + ws1 + ')';
       return e;
     }
+  contextVar
+    = "@" m:MemberNames {
+        return new Nodes.MemberAccessOp((new Nodes.This).r("@").p(line, column), m).r("@" + m).p(line, column);
+      }
 
 
 conditional
@@ -403,7 +410,7 @@ conditional
       return new constructor(cond, body.block, elseBlock).r(raw).p(line, column);
     }
   conditionalBody
-    = ws:_ t:TERMINATOR INDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
+    = ws:_ t:TERMINDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
     / ws0:_ t:THEN ws1:_ s:statement {
         var block = Nodes.Block.wrap(s);
         return {block: block, raw: ws0 + t + ws1 + s.raw};
@@ -449,7 +456,7 @@ class
         return new Nodes.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
       }
   classBody
-    = ws:_ t:TERMINATOR INDENT b:classBlock DEDENT { return {block: b, raw: ws + t + b.raw}; }
+    = ws:_ t:TERMINDENT b:classBlock DEDENT { return {block: b, raw: ws + t + b.raw}; }
     / ws0:_ t:THEN ws1:_ s:classStatement {
         var block = Nodes.Block.wrap(s);
         return {block: block, raw: ws0 + t + ws1 + s.raw};
@@ -502,15 +509,14 @@ functionLiteral
       return new constructor(params, body.block).r(raw).p(line, column);
     }
   functionBody
-    = ws:_ t0:TERMINATOR INDENT b:block DEDENT t1:TERMINATOR? { return {block: b, raw: ws + t0 + b.raw + t1}; }
+    = ws:_ t0:TERMINDENT b:block t1:TERMINATOR? DEDENT { return {block: b, raw: ws + t0 + b.raw + t1}; }
     / all:(_ statement)? {
         if(!all) return {block: new Nodes.Block([]).r('').p(line, column), raw: ''};
         var ws = all[0], s = all[1];
         return {block: Nodes.Block.wrap(s), raw: ws + s.raw};
       }
   parameter
-    = identifier
-    / contextVar
+    = Assignable
   parameterList
     = e:parameter es:(_ "," _ parameter)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
@@ -520,8 +526,10 @@ functionLiteral
 
 arrayLiteral
   // for now, array intialiser members are the same as function application arguments
-  = "[" ws0:_ args:argumentList ws1:_ "]" {
-      return new Nodes.ArrayInitialiser(args.list).r("[" + ws0 + args.raw + ws1 + "]").p(line, column);
+  = "[" ws0:_ args:argumentList? ws1:_ "]" {
+      var raw = "[" + ws0 + args.raw + ws1 + "]";
+      args = args ? args.list : [];
+      return new Nodes.ArrayInitialiser(args).r(raw).p(line, column);
     }
 
 objectLiteral
@@ -537,8 +545,11 @@ objectLiteral
       }
   objectLiteralMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:(functionLiteral / assignmentExpression) {
-      return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
-    }
+        return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
+      }
+	/ v:ObjectInitialiserKeys {
+        return {member: [v, v], raw: v.raw};
+      }
   ObjectInitialiserKeys
     = i:identifierName { return new Nodes.String(i).r(i).p(line, column); }
     / string
@@ -663,14 +674,17 @@ break = BREAK { return (new Nodes.Break).r('break').p(line, column); }
 
 
 undefined = UNDEFINED { return (new Nodes.Undefined).r('undefined').p(line, column); }
-null = NULL { return (new Nodes.Undefined).r('undefined').p(line, column); }
+null = NULL { return (new Nodes.Null).r('null').p(line, column); }
 
 
 unassignable = ("arguments" / "eval") !identifierPart
 Assignable
   = !unassignable i:identifier { return i; }
-  / memberExpression
+  / memberAccess
   / contextVar
+  / identifier
+  / arrayLiteral
+  / objectLiteral
 
 
 // identifiers

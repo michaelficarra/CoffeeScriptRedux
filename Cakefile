@@ -49,7 +49,7 @@ task 'build:parser', (options, cb) ->
   fs.readFile filename, (err, source) ->
     throw err if err
     parser = pegjs.buildParser source.toString(), trackLineAndColumn: yes
-    fs.writeFile (path.join 'lib', 'coffee-script', 'parser.js'), parser.toSource(), cb
+    fs.writeFile (path.join 'lib', 'coffee-script', 'parser.js'), "module.exports = #{parser.toSource()}", cb
 
 task 'test', (options, cb) ->
 

@@ -1,5 +1,5 @@
 {
-var Nodes = require("./lib/coffee-script/nodes"),
+var Nodes = require("./nodes"),
     inspect = function(o){ console.log(require('util').inspect(o, false, 9e9, true)); },
     constructorLookup =
       { ';': Nodes.SeqOp

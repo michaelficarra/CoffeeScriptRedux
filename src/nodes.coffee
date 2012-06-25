@@ -563,26 +563,22 @@ class @SeqOp extends @Node
   constructor: (@left, @right) ->
   toJSON: binOpToJSON
 
-# ShallowCopyArray :: Exprs -> ShallowCopyArray
-class @ShallowCopyArray extends @Node
-  className: 'ShallowCopyArray'
-  constructor: (@expr) ->
-  toJSON: unaryOpToJSON
-
 # SignedRightShiftOp :: Exprs -> Exprs -> SignedRightShiftOp
 class @SignedRightShiftOp extends @Node
   className: 'SignedRightShiftOp'
   constructor: (@left, @right) ->
   toJSON: binOpToJSON
 
-# Splice :: Slices -> Exprs -> Splice
-class @Splice extends @Node
-  className: 'Splice'
-  constructor: (@slice, @expr) ->
+# Slice :: Exprs -> bool -> Maybe Exprs -> Maybe Exprs -> Slice
+class @Slice extends @Node
+  className: 'Slice'
+  constructor: (@expr, @isInclusive, @left, @right) ->
   toJSON: ->
     nodeType: @className
-    slice: @slice.toJSON()
     expression: @expr.toJSON()
+    isInclusive: @isInclusive
+    left: @left?.toJSON()
+    right: @right?.toJSON()
 
 # Spread :: Exprs -> Spread
 class @Spread extends @Node
@@ -667,24 +663,6 @@ class @UnaryPlusOp extends @Node
   className: 'UnaryPlusOp'
   constructor: (@expr) ->
   toJSON: unaryOpToJSON
-
-# UnboundedLeftSlice :: Exprs -> Exprs -> UnboundedLeftSlice
-class @UnboundedLeftSlice extends @Node
-  className: 'UnboundedLeftSlice'
-  constructor: (@expr, @til) ->
-  toJSON: ->
-    nodeType: @className
-    expression: @expr.toJSON()
-    til: @til.toJSON()
-
-# UnboundedRightSlice :: Exprs -> Exprs -> UnboundedRightSlice
-class @UnboundedRightSlice extends @Node
-  className: 'UnboundedRightSlice'
-  constructor: (@expr, @from) ->
-  toJSON: ->
-    nodeType: @className
-    expression: @expr.toJSON()
-    from: @from.toJSON()
 
 # Undefined :: Undefined
 class @Undefined extends @Node

@@ -32,15 +32,6 @@ var Nodes = require("./nodes"),
       , '*': Nodes.MultiplyOp
       , '/': Nodes.DivideOp
       , '%': Nodes.RemOp
-      , '(': Nodes.FunctionApplication
-      , '.': Nodes.MemberAccessOp
-      , '?.': Nodes.SoakedMemberAccessOp
-      , '::': Nodes.ProtoMemberAccessOp
-      , '?::': Nodes.SoakedProtoMemberAccessOp
-      , '[': Nodes.DynamicMemberAccessOp
-      , '?[': Nodes.SoakedDynamicMemberAccessOp
-      , '::[': Nodes.DynamicProtoMemberAccessOp
-      , '?::[': Nodes.SoakedDynamicProtoMemberAccessOp
       },
     foldl = function(fn, memo, list){
       for(var i = 0, l = list.length; i < l; ++i)
@@ -66,6 +57,16 @@ var Nodes = require("./nodes"),
         }
         return new Nodes.ConcatOp(memo, s);
       }, init, es);
+    },
+    createMemberExpression = function(e, accesses){
+      return foldl(function(left, access){
+        var F = function(){};
+        F.prototype = access.op.prototype;
+        var o = new F;
+        // rather safely assumes access.op is returning non-Object
+        access.op.apply(o, [left].concat(access.operands));
+        return o.r(left.raw + access.raw).p(access.line, access.column);
+      }, e, accesses);
     },
     isValidRegExpFlags = function(flags) {
       if(!flags) return true;
@@ -357,17 +358,15 @@ callExpression
 newExpression
   = memberExpression
   / NEW ws0:__ e:memberAccess "(" ws1:_ args:(argumentList _)? ")" accesses:
-    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {raw: ws + a.raw, type: a.op, operand: a.operand}; }
-    / "(" _ a:(argumentList _)? ")" { return {raw: '', type: '(', operand: a ? a[0].list : []}; }
+    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {op: a.op, operands: a.operands, raw: ws + a.raw, line: a.line, column: a.column}; }
+    / "(" _ a:(argumentList _)? ")" {
+        return {op: Nodes.FunctionApplication, operands: [a ? a[0].list : []], raw: '(' + (a ? a[0].raw + a[1] : '') + ')', line: line, column: column};
+      }
     )* {
       var raw = 'new' + ws0 + e + '(' + ws1 + (args ? args[0].raw + args[1] : '') + ')';
       args = args ? args[0].list : [];
       e = new Nodes.NewOp(e, args).r(raw).p(line, column);
-      return foldl(function(left, op){
-        var raw = left.raw + op.raw;
-        var right = op.operand;
-        return new constructorLookup[op.type](left, right).r(raw).p(line, column)
-      }, e, accesses || []);
+      return createMemberExpression(e, accesses || []);
     }
   / NEW ws0:__ e:memberExpression ws1:__ args:secondaryArgumentList {
       var raw = 'new' + ws0 + e + ws1 + args.raw;
@@ -378,36 +377,37 @@ newExpression
     }
 memberExpression
   = e:primaryExpression accesses:
-    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {raw: ws + a.raw, type: a.op, operand: a.operand}; }
-    / "(" _ a:(argumentList _)? ")" { return {raw: '', type: '(', operand: a ? a[0].list : []}; }
+    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {op: a.op, operands: a.operands, raw: ws + a.raw, line: a.line, column: a.column}; }
+    / "(" _ a:(argumentList _)? ")" {
+        return {op: Nodes.FunctionApplication, operands: [a ? a[0].list : []], raw: '(' + (a ? a[0].raw + a[1] : '') + ')', line: line, column: column};
+      }
     )* {
-      return foldl(function(left, op){
-        var raw = left.raw + op.raw;
-        var right = op.operand;
-        return new constructorLookup[op.type](left, right).r(raw).p(line, column)
-      }, e, accesses || []);
+      return createMemberExpression(e, accesses || []);
     }
   memberAccess
-    = e:primaryExpression accesses:((_ / TERMINATOR) MemberAccessOps)+ {
-        return foldl(function(left, op){
-          var ws = op[0];
-          op = op[1];
-          var raw = left.raw + ws + op.raw;
-          var right = op.operand;
-          return new constructorLookup[op.op](left, right).r(raw).p(line, column)
-        }, e, accesses || []);
+    = e:primaryExpression accesses:
+      ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {op: a.op, operands: a.operands, raw: ws + a.raw, line: a.line, column: a.column}; }
+      )+ {
+        return createMemberExpression(e, accesses);
       }
   MemberNames
     = identifierName
   MemberAccessOps
-    = op:"." ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
-    / op:"?." ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
-    / op:"[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
-    / op:"?[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
-    / op:"::" ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
-    / op:"::[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
-    / op:"?::" ws:_ e:MemberNames { return {op: op, operand: e, raw: op + ws + e}; }
-    / op:"?::[" ws0:_ e:expression ws1:_ "]" { return {op: op, operand: e, raw: op + ws0 + e + ws1 + ']'}; }
+    = "." ws:_ e:MemberNames { return {op: Nodes.MemberAccessOp, operands: [e], raw: '.' + ws + e, line: line, column: column}; }
+    / "?." ws:_ e:MemberNames { return {op: Nodes.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column}; }
+    / "[" ws0:_ e:expression ws1:_ "]" { return {op: Nodes.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column}; }
+    / "?[" ws0:_ e:expression ws1:_ "]" { return {op: Nodes.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column}; }
+    / "::" ws:_ e:MemberNames { return {op: Nodes.ProtoMemberAccessOp, operands: [e], raw: '::' + ws + e, line: line, column: column}; }
+    / "::[" ws0:_ e:expression ws1:_ "]" { return {op: Nodes.DynamicProtoMemberAccessOp, operands: [e], raw: '::[' + ws0 + e + ws1 + ']', line: line, column: column}; }
+    / "?::" ws:_ e:MemberNames { return {op: Nodes.SoakedProtoMemberAccessOp, operands: [e], raw: '?::' + ws + e, line: line, column: column}; }
+    / "?::[" ws0:_ e:expression ws1:_ "]" { return {op: Nodes.SoakedDynamicProtoMemberAccessOp, operands: [e], raw: '?::[' + ws0 + e + ws1 + ']', line: line, column: column}; }
+    / "[" ws0:_ maybeLeft:(assignmentExpression _)? ".." exclusive:"."? ws1:_ maybeRight:(assignmentExpression _)? "]" {
+        var left = maybeLeft ? maybeLeft[0] : null,
+            right = maybeRight ? maybeRight[0] : null;
+        var raw = '[' + ws0 + (left ? left.raw + maybeLeft[1] : '') + '..' + exclusive +
+          ws1 + (right ? right.raw + maybeRight[1] : '') + ']';
+        return {op: Nodes.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column};
+      }
 primaryExpression
   = Numbers
   / bool

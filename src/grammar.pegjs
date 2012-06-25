@@ -98,12 +98,13 @@ TERMINDENT = t:TERMINATOR i:INDENT {
 
 program
   = leader:(_ "\n")* b:(_ toplevelBlock)? {
+      var block;
       leader = leader.map(function(s){ return s.join(''); }).join('');
       if(b) {
-        var block = b[1];
+        block = b[1];
         return new Nodes.Program(block).r(leader + b[0] + block.raw).p(line, column);
       } else {
-        return new Nodes.Program(new Nodes.Block([]).r('').p(line, column)).r(leader).p(line, column);
+        return new Nodes.Program(null).r(leader).p(line, column);
       }
     }
 
@@ -159,57 +160,57 @@ seqExpression
       var raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
       return new Nodes.SeqOp(left, right[3]).r(raw).p(line, column);
     }
-// TODO: clean up these postfix control flow operators!
 postfixControlFlowOp
-  = all:((IF / UNLESS) _ assignmentExpression) { return [all[0], all]; }
-  / all:((WHILE / UNTIL) _ assignmentExpression) { return [all[0], all]; }
-  / all:(FOR _ Assignable _ ("," _ Assignable _)? IN _ assignmentExpression (_ BY _ assignmentExpression)? (_ WHEN _ assignmentExpression)?) { return ['for-in', all]; }
-  / all:(FOR _ (OWN _)? Assignable _ ("," _ Assignable _)? OF _ assignmentExpression (_ WHEN _ assignmentExpression)?) { return ['for-of', all]; }
+  = kw:(IF / UNLESS) ws:_ e:assignmentExpression { return {type: kw, cond: e, raw: kw + ws + e.raw}; }
+  / kw:(WHILE / UNTIL) ws:_ e:assignmentExpression { return {type: kw, cond: e, raw: kw + ws + e.raw}; }
+  / FOR ws0:_ val:Assignable ws1:_ maybeKey:("," _ Assignable _)? IN ws2:_ list:assignmentExpression maybeStep:(_ BY _ assignmentExpression)? maybeFilter:(_ WHEN _ assignmentExpression)? {
+      var key = maybeKey ? maybeKey[2] : null,
+          step = maybeStep ? maybeStep[3] : new Nodes.Int(1).r('1').g(),
+          filter = maybeFilter ? maybeFilter[3] : null;
+      return 0,
+        { type: 'for-in'
+        , val: val, key: key, list: list, step: step, filter: filter
+        , raw: 'for' + ws0 + val.raw + ws1 + (key ? maybeKey[0] + maybeKey[1] + key.raw + maybeKey[3] : '') +
+          'in' + ws2 + list.raw + (step ? maybeStep[0] + 'by' + maybeStep[2] + step.raw : '') +
+          (filter ? maybeFilter[0] + 'when' + maybeFilter[2] + filter.raw : '')
+        };
+    }
+  / FOR ws0:_ maybeOwn:(OWN _)? key:Assignable ws1:_ maybeVal:("," _ Assignable _)? OF ws2:_ obj:assignmentExpression maybeFilter:(_ WHEN _ assignmentExpression)? {
+      var own = !!maybeOwn,
+          val = maybeVal ? maybeVal[2] : null,
+          filter = maybeFilter ? maybeFilter[3] : null;
+      return 0,
+        { type: 'for-of'
+        , val: val, key: key, list: list, step: step, filter: filter
+        , raw: 'for' + ws0 + (own ? 'own' + maybeOwn[1] : '') + key.raw + ws1 +
+          (val ? maybeVal[0] + maybeVal[1] + val.raw + maybeVal[3] : '') + 'of' + ws2 + obj.raw +
+          (filter ? maybeFilter[0] + 'when' + maybeFilter[2] + filter.raw : '')
+        };
+    }
 postfixControlFlowExpression
   = expr:assignmentExpression postfixes:(_ postfixControlFlowOp)* {
       return foldl(function(expr, postfixContainer){
-        var raw, cond, list, obj, own, key, val, filter, step,
+        var raw, constructor,
             ws = postfixContainer[0],
-            indicator = postfixContainer[1][0],
-            postfix = postfixContainer[1][1];
+            postfix = postfixContainer[1],
+            indicator = postfix.type;
         switch(indicator){
           case 'if':
           case 'unless':
-            cond = postfix[2];
-            raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
-            var constructor = (indicator == 'unless') ? Nodes.NegatedConditional : Nodes.Conditional;
-            return new constructor(cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
+            raw = expr.raw + ws + postfix.raw;
+            constructor = (indicator == 'unless') ? Nodes.NegatedConditional : Nodes.Conditional;
+            return new constructor(postfix.cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
           case 'while':
           case 'until':
-            cond = postfix[2];
-            raw = expr.raw + ws + postfix[0] + postfix[1] + cond.raw;
-            var constructor = (indicator == 'until') ? Nodes.NegatedWhile : Nodes.While;
-            return new constructor(cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
+            raw = expr.raw + ws + postfix.raw;
+            constructor = (indicator == 'until') ? Nodes.NegatedWhile : Nodes.While;
+            return new constructor(postfix.cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
           case 'for-in':
-            list = postfix[7];
-            val = postfix[2];
-            key = postfix[4] ? postfix[4][2] : null;
-            step = postfix[8] ? postfix[8][3] : null;
-            filter = postfix[9] ? postfix[9][3] : null;
-            raw = expr.raw + ws + 'for' + postfix[1] + postfix[2].raw + postfix[3] +
-              (key ? postfix[4][0] + postfix[4][1] + key.raw + postfix[4][3] : '') +
-              'in' + postfix[6] + list.raw +
-              (step ? postfix[8][0] + 'by' + postfix[8][2] + step.raw : '');
-              (filter ? postfix[9][0] + 'when' + postfix[9][2] + filter.raw : '');
-            step = new Nodes.Int(step || 1).r(step || '1').g();
-            return new Nodes.ForIn(val, key, list, step, filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
+            raw = expr.raw + ws + postfix.raw;
+            return new Nodes.ForIn(postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
           case 'for-of':
-            obj = postfix[8];
-            key = postfix[3]
-            val = postfix[5] ? postfix[5][2] : null;
-            own = !!postfix[2];
-            filter = postfix[9] ? postfix[9][3] : null;
-            raw = expr.raw + ws + 'for' + postfix[1] +
-              (own ? 'own' + postfix[2][1] : '') + postfix[3].raw + postfix[4] +
-              (val ? postfix[5][0] + postfix[5][1] + val.raw + postfix[5][3] : '') +
-              'of' + postfix[7] + obj.raw +
-              (filter ? postfix[9][0] + 'when' + postfix[9][2] + filter.raw : '');
-            return new Nodes.ForOf(own, key, val, obj, filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
+            raw = expr.raw + ws + postfix.raw;
+            return new Nodes.ForOf(postfix.own, postfix.key, postfix.val, postfix.obj, postfix.filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
         }
       }, expr, postfixes)
     }
@@ -444,8 +445,7 @@ conditional
         return {block: block, raw: ws0 + 'then' + ws1 + s.raw};
       }
     / ws:_ THEN {
-        var block = new Nodes.Block([]).r('').p(line, column);
-        return {block: block, raw: ws + 'then'};
+        return {block: null, raw: ws + 'then'};
       }
   elseClause = ws0:_ term:TERMINATOR? ws1:_ ELSE b:elseBody { return {block: b.block, raw: ws0 + term + ws1 + 'else' + b.raw}; }
   elseBody = functionBody
@@ -482,8 +482,7 @@ class
         return {block: block, raw: ws0 + t + ws1 + s.raw};
       }
     / all:(_ THEN)? {
-        var block = new Nodes.Block([]).r('').p(line, column);
-        return {block: block, raw: all ? all[0] + all[1] : ''};
+        return {block: null, raw: all ? all[0] + all[1] : ''};
       }
   classBlock
     = s:classStatement ss:(_ TERMINATOR _ classStatement)* term:TERMINATOR? {
@@ -562,7 +561,7 @@ switch
 
 functionLiteral
   = params:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody? {
-      if(!body) body = {block: new Nodes.Block([]).r('').p(line, column), raw: ''};
+      if(!body) body = {block: null, raw: ''};
       var raw =
         (params ? params[0] + params[1] + params[2].raw + params[3] + params[4] + params[5] : '') +
         arrow + body.raw;

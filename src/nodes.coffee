@@ -106,7 +106,7 @@ class @Break extends @Node
   constructor: ->
   toJSON: statementToJSON
 
-# class @:: Maybe Assignable -> Maybe Exprs -> Block -> Class
+# class @:: Maybe Assignable -> Maybe Exprs -> Maybe Block -> Class
 class @Class extends @Node
   className: 'Class'
   constructor: (@nameAssignment, @parent, @block) ->
@@ -125,7 +125,7 @@ class @Class extends @Node
     nameAssignment: @nameAssignment?.toJSON()
     name: @name
     parent: @parent?.toJSON()
-    block: @block.toJSON()
+    block: @block?.toJSON()
 
 # ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
 class @ClassProtoAssignOp extends @Node
@@ -150,13 +150,13 @@ class @ConcatOp extends @Node
   constructor: (@left, @right) ->
   toJSON: binOpToJSON
 
-# Conditional :: Exprs -> Block -> Maybe Block -> Conditional
+# Conditional :: Exprs -> Maybe Block -> Maybe Block -> Conditional
 Conditional = class @Conditional extends @Node
   className: 'Conditional'
   constructor: (@condition, @block, @elseBlock) ->
   toJSON: ->
     nodeType: @className
-    block: @block.toJSON()
+    block: @block?.toJSON()
     elseBlock: @elseBlock?.toJSON()
 
 # NegatedConditional :: Exprs -> Block -> Maybe Block -> NegatedConditional
@@ -292,14 +292,14 @@ class @ForOf extends @Node
     filterExpression: @filterExpr.toJSON()
     block: @block.toJSON()
 
-# Function :: [Parameters] -> Block -> Function
+# Function :: [Parameters] -> Maybe Block -> Function
 class @Function extends @Node
   className: 'Function'
   constructor: (@parameters, @block) ->
   toJSON: ->
     nodeType: @className
     parameters: (p.toJSON() for p in @parameters)
-    block: @block.toJSON()
+    block: @block?.toJSON()
 
 # FunctionApplication :: Exprs -> [Arguments] -> FunctionApplication
 FunctionApplication = class @FunctionApplication extends @Node
@@ -519,13 +519,13 @@ class @PostIncrementOp extends @Node
   constructor: (@expr) ->
   toJSON: unaryOpToJSON
 
-# Program :: Block -> Program
+# Program :: Maybe Block -> Program
 class @Program extends @Node
   className: 'Program'
   constructor: (@block) ->
   toJSON: ->
     nodeType: @className
-    block: @block.toJSON()
+    block: @block?.toJSON()
 
 # RegExp :: string -> [string] -> RegExp
 class @RegExp extends @Node

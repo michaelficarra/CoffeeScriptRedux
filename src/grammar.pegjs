@@ -775,11 +775,11 @@ Assignable
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
   namedDestructuringMemberList
-    = e:objectLiteralMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ objectLiteralMember)* {
+    = e:namedDestructuringMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ namedDestructuringMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
         return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
       }
-  namesDestructuringMember
+  namedDestructuringMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:Assignable {
         return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
       }

@@ -133,16 +133,16 @@ statement
 // TODO: rename?
 expressionworthy
   = functionLiteral
-  / "++" _ functionLiteral
-  / "--" _ functionLiteral
-  / "+" _ functionLiteral
-  / "-" _ functionLiteral
-  / ("!" / NOT) _ functionLiteral
-  / "~" _ functionLiteral
-  / DO _ functionLiteral
-  / TYPEOF _ functionLiteral
-  / DELETE _ functionLiteral
-  / NEW _ functionLiteral
+  / "++" ws:_ fn:functionLiteral { return new Nodes.PrefixIncrementOp(e).r('++' + ws + fn.raw).p(line, column); }
+  / "--" ws:_ fn:functionLiteral { return new Nodes.PrefixDecrementOp(e).r('--' + ws + fn.raw).p(line, column); }
+  / "+" ws:_ fn:functionLiteral { return new Nodes.UnaryPlusOp(e).r('+' + ws + fn.raw).p(line, column); }
+  / "-" ws:_ fn:functionLiteral { return new Nodes.UnaryNegateOp(e).r('-' + ws + fn.raw).p(line, column); }
+  / o:("!" / NOT) ws:_ fn:functionLiteral { return new Nodes.LogicalNotOp(e).r(o + ws + fn.raw).p(line, column); }
+  / "~" ws:_ fn:functionLiteral { return new Nodes.BitNotOp(e).r('~' + ws + fn.raw).p(line, column); }
+  / DO ws:_ fn:functionLiteral { return new Nodes.DoOp(e).r('do' + ws + fn.raw).p(line, column); }
+  / TYPEOF ws:_ fn:functionLiteral { return new Nodes.TypeofOp(e).r('typeof' + ws + fn.raw).p(line, column); }
+  / DELETE ws:_ fn:functionLiteral { return new Nodes.DeleteOp(e).r('delete' + ws + fn.raw).p(line, column); }
+  / NEW ws:_ fn:functionLiteral { return new Nodes.NewOp(fn, []).r('new' + ws + fn.raw).p(line, column); }
   / conditional
   / while
   / loop
@@ -152,6 +152,7 @@ expressionworthy
   / switch
   / implicitObjectLiteral
 expression = expressionworthy / seqExpression
+// secondaryExpression forbids anything lower precedence han assignmentExpression
 secondaryExpression = expressionworthy / assignmentExpression
 
 // begin expression waterfall
@@ -314,13 +315,13 @@ prefixExpression
   = postfixExpression
   / "++" ws:_ e:prefixExpression { return new Nodes.PreIncrementOp(e).r('++' + ws + e.raw).p(line, column); }
   / "--" ws:_ e:prefixExpression { return new Nodes.PreDecrementOp(e).r('--' + ws + e.raw).p(line, column); }
-  / "+" e:prefixExpression { return new Nodes.UnaryPlusOp(e).r('-' + e.raw).p(line, column); }
+  / "+" e:prefixExpression { return new Nodes.UnaryPlusOp(e).r('+' + e.raw).p(line, column); }
   / "-" e:prefixExpression { return new Nodes.UnaryNegateOp(e).r('-' + e.raw).p(line, column); }
   / o:("!" / NOT) ws:_ e:prefixExpression { return new Nodes.LogicalNotOp(e).r(o + ws + e.raw).p(line, column); }
-  / "~" _ prefixExpression
-  / DO ws:_ e:prefixExpression { return new Nodes.DoOp(e).r('-' + ws + e.raw).p(line, column); }
-  / TYPEOF _ prefixExpression
-  / DELETE _ prefixExpression
+  / "~" _ prefixExpression { return new Nodes.BitNotOp(e).r('~' + ws + e.raw).p(line, column); }
+  / DO ws:_ e:prefixExpression { return new Nodes.DoOp(e).r('do' + ws + e.raw).p(line, column); }
+  / TYPEOF ws:_ e:prefixExpression { return new Nodes.TypeofOp(e).r('typeof' + ws + e.raw).p(line, column); }
+  / DELETE ws:_ e:prefixExpression { return new Nodes.DeleteOp(e).r('delete' + ws + e.raw).p(line, column); }
 postfixExpression
   = expr:callExpression ops:("?" / "[..]" / "++" / "--")* {
       return foldl(function(expr, op){

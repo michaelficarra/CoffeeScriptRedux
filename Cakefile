@@ -73,7 +73,7 @@ task 'test', (options, cb) ->
   global.eq      = (a, b, msg) -> ok egal(a, b), msg ? "#{inspect a} === #{inspect b}"
   global.arrayEq = (a, b, msg) -> ok arrayEgal(a,b), msg ? "#{inspect a} === #{inspect b}"
 
-  # Run every test in the `test` folder, recording failures.
+  # Run every test in the `test` directory, recording failures.
   fs.readdir 'test', (err, files) ->
     throw err if err
     # TODO: CPS

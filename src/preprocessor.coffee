@@ -5,6 +5,8 @@ StringScanner = require 'cjs-string-scanner'
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
 
+# TODO: better comments
+
 class @Preprocessor extends EventEmitter
 
   ws = '\\t\\x0B\\f \\xA0\\u1680\\u180E\\u2000-\\u200A\\u202F\\u205F\\u3000\\uFEFF'
@@ -106,26 +108,26 @@ class @Preprocessor extends EventEmitter
               @context.observe INDENT
               @p INDENT
 
+          tok = null
           switch @context.peek()
-            when '#{'
-              # safe things, but not closing brace
-              @scan /[^\n'"\\\/#`[({}]+/
-              if tok = @scan /\}/ then @context.observe tok
             when '['
               # safe things, but not closing bracket
               @scan /[^\n'"\\\/#`[({\]]+/
-              if tok = @scan /\]/ then @context.observe tok
+              tok = @scan /\]/
             when '('
               # safe things, but not closing paren
               @scan /[^\n'"\\\/#`[({)]+/
-              if tok = @scan /\)/ then @context.observe tok
-            when '{'
+              tok = @scan /\)/
+            when '#{', '{'
               # safe things, but not closing brace
               @scan /[^\n'"\\\/#`[({}]+/
-              if tok = @scan /\}/ then @context.observe tok
+              tok = @scan /\}/
             else
               # scan safe characters (anything that doesn't *introduce* context)
               @scan /[^\n'"\\\/#`[({]+/
+          if tok
+            @context.observe tok
+            continue
 
           if tok = @scan /"""|'''|\/\/\/|###|["'/`[({\\]/
             @context.observe tok

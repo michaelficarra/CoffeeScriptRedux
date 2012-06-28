@@ -133,15 +133,15 @@ statement
 // TODO: rename?
 expressionworthy
   = functionLiteral
-  / "++" ws:_ fn:functionLiteral { return new Nodes.PrefixIncrementOp(e).r('++' + ws + fn.raw).p(line, column); }
-  / "--" ws:_ fn:functionLiteral { return new Nodes.PrefixDecrementOp(e).r('--' + ws + fn.raw).p(line, column); }
-  / "+" ws:_ fn:functionLiteral { return new Nodes.UnaryPlusOp(e).r('+' + ws + fn.raw).p(line, column); }
-  / "-" ws:_ fn:functionLiteral { return new Nodes.UnaryNegateOp(e).r('-' + ws + fn.raw).p(line, column); }
-  / o:("!" / NOT) ws:_ fn:functionLiteral { return new Nodes.LogicalNotOp(e).r(o + ws + fn.raw).p(line, column); }
-  / "~" ws:_ fn:functionLiteral { return new Nodes.BitNotOp(e).r('~' + ws + fn.raw).p(line, column); }
-  / DO ws:_ fn:functionLiteral { return new Nodes.DoOp(e).r('do' + ws + fn.raw).p(line, column); }
-  / TYPEOF ws:_ fn:functionLiteral { return new Nodes.TypeofOp(e).r('typeof' + ws + fn.raw).p(line, column); }
-  / DELETE ws:_ fn:functionLiteral { return new Nodes.DeleteOp(e).r('delete' + ws + fn.raw).p(line, column); }
+  / "++" ws:_ fn:functionLiteral { return new Nodes.PrefixIncrementOp(fn).r('++' + ws + fn.raw).p(line, column); }
+  / "--" ws:_ fn:functionLiteral { return new Nodes.PrefixDecrementOp(fn).r('--' + ws + fn.raw).p(line, column); }
+  / "+" ws:_ fn:functionLiteral { return new Nodes.UnaryPlusOp(fn).r('+' + ws + fn.raw).p(line, column); }
+  / "-" ws:_ fn:functionLiteral { return new Nodes.UnaryNegateOp(fn).r('-' + ws + fn.raw).p(line, column); }
+  / o:("!" / NOT) ws:_ fn:functionLiteral { return new Nodes.LogicalNotOp(fn).r(o + ws + fn.raw).p(line, column); }
+  / "~" ws:_ fn:functionLiteral { return new Nodes.BitNotOp(fn).r('~' + ws + fn.raw).p(line, column); }
+  / DO ws:_ fn:functionLiteral { return new Nodes.DoOp(fn).r('do' + ws + fn.raw).p(line, column); }
+  / TYPEOF ws:_ fn:functionLiteral { return new Nodes.TypeofOp(fn).r('typeof' + ws + fn.raw).p(line, column); }
+  / DELETE ws:_ fn:functionLiteral { return new Nodes.DeleteOp(fn).r('delete' + ws + fn.raw).p(line, column); }
   / NEW ws:_ fn:functionLiteral { return new Nodes.NewOp(fn, []).r('new' + ws + fn.raw).p(line, column); }
   / conditional
   / while
@@ -740,11 +740,13 @@ regexp
 
 
 throw
-  = THROW ws:_ e:(functionLiteral / assignmentExpression) {
+  = THROW ws:_ e:secondaryExpression {
       return new Nodes.Throw(e).r('throw' + ws + e.raw).p(line, column);
     }
 return
-  = RETURN ws:_ e:(functionLiteral / assignmentExpression) {
+  = RETURN maybeExpression:(__ secondaryExpression)? {
+      var ws = maybeExpression ? maybeExpression[0] : '',
+          e = maybeExpression ? maybeExpression[1] : (new Nodes.Undefined).r('').g();
       return new Nodes.Return(e).r('return' + ws + e.raw).p(line, column);
     }
 continue = CONTINUE { return (new Nodes.Continue).r('continue').p(line, column); }
@@ -858,7 +860,7 @@ YES = w:"yes" !identifierPart { return w; }
 
 JSKeywords
   = ("true" / "false" / "null" / "this" / "new" / "delete" / "typeof" / "in" /
-  "instanceof" "return" / "throw" / "break" / "continue" / "debugger" / "if" /
+  "instanceof" / "return" / "throw" / "break" / "continue" / "debugger" / "if" /
   "else" / "switch" / "for" / "while" / "do" / "try" / "catch" / "finally" /
   "class" / "extends" / "super") !identifierPart
 

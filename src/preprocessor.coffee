@@ -66,7 +66,7 @@ class @Preprocessor extends EventEmitter
     while @ss.rest().length
       switch @context.peek()
         when null, INDENT, '#{', '[', '(', '{'
-          if 0 is @ss.pointer() or @scan /// (?:[#{ws}]* \n)+ ///
+          if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
 
             @p '\n' while @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n) ///
 
@@ -108,23 +108,23 @@ class @Preprocessor extends EventEmitter
               @context.observe INDENT
               @p INDENT
 
-          tok = null
-          switch @context.peek()
+          tok = switch @context.peek()
             when '['
               # safe things, but not closing bracket
               @scan /[^\n'"\\\/#`[({\]]+/
-              tok = @scan /\]/
+              @scan /\]/
             when '('
               # safe things, but not closing paren
               @scan /[^\n'"\\\/#`[({)]+/
-              tok = @scan /\)/
+              @scan /\)/
             when '#{', '{'
               # safe things, but not closing brace
               @scan /[^\n'"\\\/#`[({}]+/
-              tok = @scan /\}/
+              @scan /\}/
             else
               # scan safe characters (anything that doesn't *introduce* context)
               @scan /[^\n'"\\\/#`[({]+/
+              null
           if tok
             @context.observe tok
             continue

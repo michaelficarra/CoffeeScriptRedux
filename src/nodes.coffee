@@ -31,9 +31,9 @@ class @Node
     this
 
 
-# AddOp :: Exprs -> Exprs -> AddOp
-class @AddOp extends @Node
-  className: 'AddOp'
+# PlusOp :: Exprs -> Exprs -> PlusOp
+class @PlusOp extends @Node
+  className: 'PlusOp'
   constructor: (@left, @right) ->
   toJSON: binOpToJSON
 

@@ -27,7 +27,7 @@ var Nodes = require("./nodes"),
       , '<<': Nodes.LeftShiftOp
       , '>>': Nodes.SignedRightShiftOp
       , '>>>': Nodes.UnsignedRightShiftOp
-      , '+': Nodes.AddOp
+      , '+': Nodes.PlusOp
       , '-': Nodes.SubtractOp
       , '*': Nodes.MultiplyOp
       , '/': Nodes.DivideOp

@@ -86,12 +86,13 @@ start = program
 // TODO: clean this up, it is very disorganised and messy
 
 
-TERMINATOR = necessary:"\n" superfluous:(_ "\n")* {
+TERMINATOR = necessary:TERM superfluous:(_ TERM)* {
     return necessary + superfluous.map(function(s){ return s[0] + s[1]; }).join('');
   }
 
 INDENT = ws:__ "\uEFEF" { return ws; }
 DEDENT = ws:_ "\uEFFE" { return ws; }
+TERM   = [\n\uEFFF] { return '\n'; }
 
 TERMINDENT = t:TERMINATOR i:INDENT {
     return t + i;
@@ -129,6 +130,16 @@ statement
   / continue
   / break
   / throw
+expression = expressionworthy / seqExpression
+
+secondaryStatement
+  = secondaryExpression
+  / return
+  / continue
+  / break
+  / throw
+// secondaryExpression forbids anything lower precedence than assignmentExpression
+secondaryExpression = expressionworthy / assignmentExpression
 
 // TODO: rename?
 expressionworthy
@@ -151,9 +162,6 @@ expressionworthy
   / class
   / switch
   / implicitObjectLiteral
-expression = expressionworthy / seqExpression
-// secondaryExpression forbids anything lower precedence han assignmentExpression
-secondaryExpression = expressionworthy / assignmentExpression
 
 // begin expression waterfall
 seqExpression
@@ -190,7 +198,7 @@ postfixControlFlowOp
         };
     }
 postfixControlFlowExpression
-  = expr:assignmentExpression postfixes:(_ postfixControlFlowOp)* {
+  = expr:secondaryStatement postfixes:(_ postfixControlFlowOp)* {
       return foldl(function(expr, postfixContainer){
         var raw, constructor,
             ws = postfixContainer[0],

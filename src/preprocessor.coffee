@@ -12,6 +12,7 @@ class @Preprocessor extends EventEmitter
   ws = '\\t\\x0B\\f \\xA0\\u1680\\u180E\\u2000-\\u200A\\u202F\\u205F\\u3000\\uFEFF'
   INDENT = '\uEFEF'
   DEDENT = '\uEFFE'
+  TERM   = '\uEFFF'
 
   constructor: ->
     # `base` is either `null` or a regexp that matches the base indentation
@@ -68,7 +69,7 @@ class @Preprocessor extends EventEmitter
         when null, INDENT, '#{', '[', '(', '{'
           if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
 
-            @p '\n' while @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n) ///
+            @p "\n" while @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n) ///
 
             # we might require more input to determine indentation
             return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
@@ -95,7 +96,7 @@ class @Preprocessor extends EventEmitter
                 delta = level - newLevel
                 while delta--
                   @context.observe DEDENT
-                  @p "#{DEDENT}\n"
+                  @p "#{DEDENT}#{TERM}"
               # unchanged indentation level
               else if @ss.check /// (?:#{@indent}){#{level}} [^#{ws}] ///
                 @scan /// (?:#{@indent}){#{level}} ///
@@ -131,9 +132,7 @@ class @Preprocessor extends EventEmitter
 
           if tok = @scan /"""|'''|\/\/\/|###|["'/`[({\\]/
             @context.observe tok
-          else if @ss.check /// [#{ws}]* \# ///
-            @scan /// [#{ws}]* ///
-            @ss.scan /#/
+          else if @ss.scan /// [#{ws}]* \# ///
             @context.observe '#'
 
         when '\\'
@@ -206,7 +205,7 @@ class @Preprocessor extends EventEmitter
       @scan /// [#{ws}\n]* $ ///
       while @context.length and INDENT is @context.peek()
         @context.observe DEDENT
-        @p "#{DEDENT}\n"
+        @p "#{DEDENT}#{TERM}"
       if @context.length
         # TODO: store offsets of tokens when inserted and report position of unclosed starting token
         throw new Error 'Unclosed ' + (inspect @context.peek()) + ' at EOF'

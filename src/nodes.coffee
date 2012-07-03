@@ -1,79 +1,92 @@
-exports = this
-
-
-binOpToJSON = ->
-  nodeType: @className
-  left: @left.toJSON()
-  right: @right.toJSON()
-
-unaryOpToJSON = ->
-  nodeType: @className
-  expression: @expr.toJSON()
-
-assignOpToJSON = ->
-  nodeType: @className
-  assignee: @assignee.toJSON()
-  expression: @expr.toJSON()
-
-statementToJSON = -> nodeType: @className
-
-primitiveToJSON = ->
-  nodeType: @className
-  data: @data
+YES = -> yes
+NO = -> no
+any = (list, fn) ->
+  for e in list
+    return yes if fn e
+  no
 
 
 class @Node
   generated: no
+  toJSON: -> nodeType: @className
   r: (@raw) -> this
   p: (@line, @column) -> this
   g: ->
     @generated = yes
     this
 
+class AssignOp extends @Node
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: YES
+  toJSON: ->
+    nodeType: @className
+    assignee: @assignee.toJSON()
+    expression: @expr.toJSON()
 
-# PlusOp :: Exprs -> Exprs -> PlusOp
-class @PlusOp extends @Node
-  className: 'PlusOp'
-  constructor: (@left, @right) ->
-  toJSON: binOpToJSON
+class BinOp extends @Node
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: ->
+    @left.mayHaveSideEffects() or @right.mayHaveSideEffects()
+  toJSON: ->
+    nodeType: @className
+    left: @left.toJSON()
+    right: @right.toJSON()
+
+class Primitive extends @Node
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: NO
+  toJSON: ->
+    nodeType: @className
+    data: @data
+
+# things that are *structurally* similar to statements
+class Statement extends @Node
+  constructor: -> # jashkenas/coffee-script#2359
+
+# things that are *structurally* similar to unary operators
+class UnaryOp extends @Node
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: ->
+    # Note: CoffeeScript willfully ignores the existence of `valueOf`
+    @expr.mayHaveSideEffects()
+  toJSON: ->
+    nodeType: @className
+    expression: @expr.toJSON()
+
 
 # ArrayInitialiser :: [ArrayInitialiserMembers] -> ArrayInitialiser
 class @ArrayInitialiser extends @Node
   className: 'ArrayInitialiser'
-  constructor: (@exprs) ->
+  constructor: (@members) ->
+  mayHaveSideEffects: -> any @members, (m) -> m.mayHaveSideEffects()
   toJSON: ->
     nodeType: @className
-    expressions: (e.toJSON() for e in @exprs)
+    members: (m.toJSON() for m in @members)
 
 # AssignOp :: Assignables -> Exprs -> AssignOp
-class @AssignOp extends @Node
+class @AssignOp extends AssignOp
   className: 'AssignOp'
   constructor: (@assignee, @expr) ->
-  toJSON: assignOpToJSON
 
 # BitAndOp :: Exprs -> Exprs -> BitAndOp
-class @BitAndOp extends @Node
+class @BitAndOp extends BinOp
   className: 'BitAndOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # BitNotOp :: Exprs -> BitNotOp
-class @BitNotOp extends @Node
+class @BitNotOp extends UnaryOp
   className: 'BitNotOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # BitOrOp :: Exprs -> Exprs -> BitOrOp
-class @BitOrOp extends @Node
+class @BitOrOp extends BinOp
   className: 'BitOrOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # BitXorOp :: Exprs -> Exprs -> BitXorOp
-class @BitXorOp extends @Node
+class @BitXorOp extends BinOp
   className: 'BitXorOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # Block :: [Statement] -> Block
 class @Block extends @Node
@@ -81,30 +94,31 @@ class @Block extends @Node
   className: 'Block'
   constructor: (@statements) ->
   @wrap = (s) -> new Block([s]).r(s.raw).p(s.line, s.column)
+  mayHaveSideEffects: -> any @statements, (s) -> s.mayHaveSideEffects()
   toJSON: ->
     nodeType: @className
     statements: (s.toJSON() for s in @statements)
 
 # Bool :: bool -> Bool
-class @Bool extends @Node
+Bool = class @Bool extends Primitive
   className: 'Bool'
   constructor: (@data) ->
-  toJSON: primitiveToJSON
 
 # BoundFunction :: [Parameters] -> Block -> BoundFunction
 class @BoundFunction extends @Node
   className: 'BoundFunction'
   constructor: (@parameters, @block) ->
+  mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
     parameters: (p.toJSON() for p in @parameters)
     block: @block.toJSON()
 
 # Break :: Break
-class @Break extends @Node
+class @Break extends Statement
   className: 'Break'
-  constructor: ->
-  toJSON: statementToJSON
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: NO # TODO: I'm not even sure if this question is well-formed
 
 # class @:: Maybe Assignable -> Maybe Exprs -> Maybe Block -> Class
 class @Class extends @Node
@@ -120,6 +134,7 @@ class @Class extends @Node
             @nameAssignment.memberName
           else null
       else null
+  mayHaveSideEffects: YES # TODO: actually test
   toJSON: ->
     nodeType: @className
     nameAssignment: @nameAssignment?.toJSON()
@@ -128,148 +143,127 @@ class @Class extends @Node
     block: @block?.toJSON()
 
 # ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
-class @ClassProtoAssignOp extends @Node
+class @ClassProtoAssignOp extends AssignOp
   className: 'ClassProtoAssignOp'
   constructor: (@assignee, @expr) ->
-  toJSON: assignOpToJSON
 
 # CompoundAssignOp :: CompoundAssignableOps -> Assignables -> Exprs -> CompoundAssignOp
 class @CompoundAssignOp extends @Node
   className: 'CompoundAssignOp'
   constructor: (@op, @assignee, @expr) ->
+  mayHaveSideEffects: YES
   toJSON: ->
     nodeType: @className
     op: @op::className
     assignee: @assignee.toJSON()
     expression: @expr.toJSON()
 
-# a tree of ConcatOp represents interpolation
+# Note: A tree of ConcatOp represents interpolation
 # ConcatOp :: Exprs -> Exprs -> ConcatOp
-class @ConcatOp extends @Node
+class @ConcatOp extends BinOp
   className: 'ConcatOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # Conditional :: Exprs -> Maybe Block -> Maybe Block -> Conditional
-Conditional = class @Conditional extends @Node
+class @Conditional extends @Node
   className: 'Conditional'
+  mayHaveSideEffects: ->
+    # TODO: only check each respective block if the condition would allow execution to get there
+    !!(@condition.mayHaveSideEffects() or @block?.mayHaveSideEffects() or @elseBlock?.mayHaveSideEffects())
   constructor: (@condition, @block, @elseBlock) ->
   toJSON: ->
     nodeType: @className
     block: @block?.toJSON()
     elseBlock: @elseBlock?.toJSON()
 
+# Note: This only represents the original syntactic specification as an
+# "unless". The node should be treated in all other ways as a Conditional.
 # NegatedConditional :: Exprs -> Block -> Maybe Block -> NegatedConditional
-class @NegatedConditional extends @Node
-  className: 'NegatedConditional'
+class @NegatedConditional extends @Conditional
   constructor: (@condition, @block, @elseBlock) ->
-  toJSON: Conditional::toJSON
 
 # Continue :: Continue
-class @Continue extends @Node
+class @Continue extends Statement
   className: 'Continue'
-  constructor: ->
-  toJSON: statementToJSON
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: NO # TODO: I'm not even sure if this question is well-formed
 
 # DeleteOp :: MemberAccessOps -> DeleteOp
-class @DeleteOp extends @Node
+class @DeleteOp extends UnaryOp
   className: 'DeleteOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
+  mayHaveSideEffects: YES
 
 # DivideOp :: Exprs -> Exprs -> DivideOp
-class @DivideOp extends @Node
+class @DivideOp extends BinOp
   className: 'DivideOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # DoOp :: Exprs -> DoOp
-class @DoOp extends @Node
+class @DoOp extends UnaryOp
   className: 'DoOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
+  mayHaveSideEffects: YES
 
 # DynamicMemberAccessOp :: Exprs -> Exprs -> DynamicMemberAccessOp
-DynamicMemberAccessOp = class @DynamicMemberAccessOp extends @Node
+class @DynamicMemberAccessOp extends @Node
   className: 'DynamicMemberAccessOp'
   constructor: (@expr, @indexingExpr) ->
+  mayHaveSideEffects: ->
+    # Technically, this is a lie. It should be YES, but CoffeeScript is
+    # willfully ignorant of the existence of getters/setters.
+    @expr.mayHaveSideEffects() or @indexingExpr.mayHaveSideEffects()
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
     indexingExpression: @indexingExpr.toJSON()
 
 # DynamicProtoMemberAccessOp :: Exprs -> Exprs -> DynamicProtoMemberAccessOp
-class @DynamicProtoMemberAccessOp extends @Node
+class @DynamicProtoMemberAccessOp extends @DynamicMemberAccessOp
   className: 'DynamicProtoMemberAccessOp'
   constructor: (@expr, @indexingExpr) ->
-  toJSON: DynamicMemberAccessOp::toJSON
 
 # SoakedDynamicMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
-class @SoakedDynamicMemberAccessOp extends @Node
+class @SoakedDynamicMemberAccessOp extends @DynamicMemberAccessOp
   className: 'SoakedDynamicMemberAccessOp'
   constructor: (@expr, @indexingExpr) ->
-  toJSON: DynamicMemberAccessOp::toJSON
 
-# we don't currently support this, but for consistency we should
 # SoakedDynamicProtoMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicProtoMemberAccessOp
-class @SoakedDynamicProtoMemberAccessOp extends @Node
+class @SoakedDynamicProtoMemberAccessOp extends @DynamicMemberAccessOp
   className: 'SoakedDynamicProtoMemberAccessOp'
   constructor: (@expr, @indexingExpr) ->
-  toJSON: DynamicMemberAccessOp::toJSON
 
 # EQOp :: Exprs -> Exprs -> EQOp
-class @EQOp extends @Node
+class @EQOp extends BinOp
   className: 'EQOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
-
-# ExclusiveRange :: Exprs -> Exprs -> ExclusiveRange
-class @ExclusiveRange extends @Node
-  className: 'ExclusiveRange'
-  constructor: (@from, @til) ->
-  toJSON: ->
-    nodeType: @className
-    from: @from.toJSON()
-    til: @til.toJSON()
-
-# ExclusiveSlice :: Exprs -> Exprs -> Exprs -> ExclusiveSlice
-class @ExclusiveSlice extends @Node
-  className: 'ExclusiveSlice'
-  constructor: (@expr, @from, @til) ->
-  toJSON: ->
-    nodeType: @className
-    expression: @expr.toJSON()
-    from: @from.toJSON()
-    til: @til.toJSON()
 
 # ExistsAssignOp :: Assignables -> Exprs -> ExistsAssignOp
-class @ExistsAssignOp extends @Node
+class @ExistsAssignOp extends AssignOp
   className: 'ExistsAssignOp'
   constructor: (@assignee, @expr) ->
-  toJSON: assignOpToJSON
 
 # ExistsOp :: Exprs -> Exprs -> ExistsOp
-class @ExistsOp extends @Node
+class @ExistsOp extends BinOp
   className: 'ExistsOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
+  # TODO: override BinOp::mayHaveSideEffects, respecting short-circuiting behaviour
 
 # ExtendsOp :: Exprs -> Exprs -> ExtendsOp
-class @ExtendsOp extends @Node
+class @ExtendsOp extends BinOp
   className: 'ExtendsOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # Float :: float -> Float
-class @Float extends @Node
+class @Float extends Primitive
   className: 'Float'
   constructor: (@data) ->
-  toJSON: primitiveToJSON
 
 # ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Block -> ForIn
 class @ForIn extends @Node
   className: 'ForIn'
   constructor: (@valAssignee, @keyAssignee, @expr, @step, @filterExpr, @block) ->
+  mayHaveSideEffects: YES # TODO: actual logic
   toJSON: ->
     nodeType: @className
     valAssignee: @valAssignee.toJSON()
@@ -283,6 +277,7 @@ class @ForIn extends @Node
 class @ForOf extends @Node
   className: 'ForOf'
   constructor: (@isOwn, @keyAssignee, @valAssignee, @expr, @filterExpr, @block) ->
+  mayHaveSideEffects: YES # TODO: actual logic
   toJSON: ->
     nodeType: @className
     isOwn: @isOwn
@@ -296,37 +291,36 @@ class @ForOf extends @Node
 class @Function extends @Node
   className: 'Function'
   constructor: (@parameters, @block) ->
+  mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
     parameters: (p.toJSON() for p in @parameters)
     block: @block?.toJSON()
 
 # FunctionApplication :: Exprs -> [Arguments] -> FunctionApplication
-FunctionApplication = class @FunctionApplication extends @Node
+class @FunctionApplication extends @Node
   className: 'FunctionApplication'
   constructor: (@function, @arguments) ->
+  mayHaveSideEffects: YES
   toJSON: ->
     nodeType: @className
     function: @function.toJSON()
     arguments: (a.toJSON() for a in @arguments)
 
 # SoakedFunctionApplication :: Exprs -> [Arguments] -> SoakedFunctionApplication
-class @SoakedFunctionApplication extends @Node
+class @SoakedFunctionApplication extends @FunctionApplication
   className: 'SoakedFunctionApplication'
   constructor: (@function, @arguments) ->
-  toJSON: FunctionApplication::toJSON
 
 # GTEOp :: Exprs -> Exprs -> GTEOp
-class @GTEOp extends @Node
+class @GTEOp extends BinOp
   className: 'GTEOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # GTOp :: Exprs -> Exprs -> GTOp
-class @GTOp extends @Node
+class @GTOp extends BinOp
   className: 'GTOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # HeregExp :: Exprs -> [string] -> HeregExp
 class @HeregExp extends @Node
@@ -335,197 +329,189 @@ class @HeregExp extends @Node
     @flags = {}
     for flag in ['g', 'i', 'm', 'y']
       @flags[flag] = flag in flags
+  mayHaveSideEffects: YES # TODO: actual logic
   toJSON: ->
     nodeType: @className
     expression: @expr
     flags: @flags
 
 # Identifier :: string -> Identifier
-class @Identifier extends @Node
+class @Identifier extends Primitive
   className: 'Identifier'
   constructor: (@data) ->
-  toJSON: primitiveToJSON
 
 # InOp :: Exprs -> Exprs -> InOp
-class @InOp extends @Node
+class @InOp extends BinOp
   className: 'InOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
-
-# InclusiveRange :: Exprs -> Exprs -> InclusiveRange
-class @InclusiveRange extends @Node
-  className: 'InclusiveRange'
-  constructor: (@from, @to) ->
-  toJSON: ->
-    nodeType: @className
-    from: @from.toJSON()
-    to: @to.toJSON()
-
-# InclusiveSlice :: Exprs -> Exprs -> Exprs -> InclusiveSlice
-class @InclusiveSlice extends @Node
-  className: 'InclusiveSlice'
-  constructor: (@expr, @from, @to) ->
-  toJSON: ->
-    nodeType: @className
-    expression: @expression.toJSON()
-    from: @from.toJSON()
-    to: @to.toJSON()
 
 # InstanceofOp :: Exprs -> Exprs -> InstanceofOp
-class @InstanceofOp extends @Node
+class @InstanceofOp extends BinOp
   className: 'InstanceofOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # Int :: float -> Int
-class @Int extends @Node
+class @Int extends Primitive
   className: 'Int'
   constructor: (@data) ->
-  toJSON: primitiveToJSON
 
 # JavaScript :: string -> JavaScript
-class @JavaScript extends @Node
+class @JavaScript extends Primitive
   className: 'JavaScript'
+  mayHaveSideEffects: YES
   constructor: (@data) ->
-  toJSON: primitiveToJSON
 
 # LTEOp :: Exprs -> Exprs -> LTEOp
-class @LTEOp extends @Node
+class @LTEOp extends BinOp
   className: 'LTEOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # LTOp :: Exprs -> Exprs -> LTOp
-class @LTOp extends @Node
+class @LTOp extends BinOp
   className: 'LTOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # LeftShiftOp :: Exprs -> Exprs -> LeftShiftOp
-class @LeftShiftOp extends @Node
+class @LeftShiftOp extends BinOp
   className: 'LeftShiftOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # LogicalAndOp :: Exprs -> Exprs -> LogicalAndOp
-class @LogicalAndOp extends @Node
+class @LogicalAndOp extends BinOp
   className: 'LogicalAndOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
+  # TODO: override BinOp::mayHaveSideEffects, respecting short-circuiting behaviour
 
 # LogicalNotOp :: Exprs -> LogicalNotOp
-class @LogicalNotOp extends @Node
+class @LogicalNotOp extends UnaryOp
   className: 'LogicalNotOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # LogicalOrOp :: Exprs -> Exprs -> LogicalOrOp
-class @LogicalOrOp extends @Node
+class @LogicalOrOp extends BinOp
   className: 'LogicalOrOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
+  # TODO: override BinOp::mayHaveSideEffects, respecting short-circuiting behaviour
 
 # MemberAccessOp :: Exprs -> MemberNames -> MemberAccessOp
-MemberAccessOp = class @MemberAccessOp extends @Node
+class @MemberAccessOp extends @Node
   className: 'MemberAccessOp'
   constructor: (@expr, @memberName) ->
+  mayHaveSideEffects: ->
+    # Technically, this is a lie. It should be YES, but CoffeeScript is
+    # willfully ignorant of the existence of getters/setters.
+    @expr.mayHaveSideEffects()
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
     memberName: @memberName
 
 # ProtoMemberAccessOp :: Exprs -> MemberNames -> ProtoMemberAccessOp
-class @ProtoMemberAccessOp extends @Node
+class @ProtoMemberAccessOp extends @MemberAccessOp
   className: 'ProtoMemberAccessOp'
   constructor: (@expr, @memberName) ->
-  toJSON: MemberAccessOp::toJSON
 
 # SoakedMemberAccessOp :: Exprs -> MemberNames -> SoakedMemberAccessOp
-class @SoakedMemberAccessOp extends @Node
+class @SoakedMemberAccessOp extends @MemberAccessOp
   className: 'SoakedMemberAccessOp'
   constructor: (@expr, @memberName) ->
-  toJSON: MemberAccessOp::toJSON
 
-# we don't currently support this, but for consistency we should
 # SoakedProtoMemberAccessOp :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
-class @SoakedProtoMemberAccessOp extends @Node
+class @SoakedProtoMemberAccessOp extends @MemberAccessOp
   className: 'SoakedProtoMemberAccessOp'
   constructor: (@expr, @memberName) ->
-  toJSON: MemberAccessOp::toJSON
 
 # MultiplyOp :: Exprs -> Exprs -> MultiplyOp
-class @MultiplyOp extends @Node
+class @MultiplyOp extends BinOp
   className: 'MultiplyOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # NEQOp :: Exprs -> Exprs -> NEQOp
-class @NEQOp extends @Node
+class @NEQOp extends BinOp
   className: 'NEQOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # NewOp :: Exprs -> [Arguments] -> NewOp
 class @NewOp extends @Node
   className: 'NewOp'
   constructor: (@ctor, @arguments) ->
+  mayHaveSideEffects: YES
   toJSON: ->
     nodeType: @className
     constructor: @ctor.toJSON()
     arguments: (a.toJSON() for a in @arguments)
 
 # Null :: Null
-class @Null extends @Node
+class @Null extends Statement
   className: 'Null'
-  constructor: ->
-  toJSON: statementToJSON
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: NO
 
 # ObjectInitialiser :: [(ObjectInitialiserKeys, Exprs)] -> ObjectInitialiser
 class @ObjectInitialiser extends @Node
   className: 'ObjectInitialiser'
   constructor: (@members) ->
+  mayHaveSideEffects: ->
+    any @members, ([key, expr]) ->
+      key.mayHaveSideEffects() or expr.mayHaveSideEffects()
   toJSON: ->
     nodeType: @className
     members: for [key, expr] in @members
       [key.toJSON(), expr.toJSON()]
 
 # OfOp :: Exprs -> Exprs -> OfOp
-class @OfOp extends @Node
+class @OfOp extends BinOp
   className: 'OfOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
+
+# PlusOp :: Exprs -> Exprs -> PlusOp
+class @PlusOp extends BinOp
+  className: 'PlusOp'
+  constructor: (@left, @right) ->
 
 # PreDecrementOp :: Exprs -> PreDecrementOp
-class @PreDecrementOp extends @Node
+class @PreDecrementOp extends UnaryOp
   className: 'PreDecrementOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
+  mayHaveSideEffects: YES
 
 # PreIncrementOp :: Exprs -> PreIncrementOp
-class @PreIncrementOp extends @Node
+class @PreIncrementOp extends UnaryOp
   className: 'PreIncrementOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
+  mayHaveSideEffects: YES
 
 # PostDecrementOp :: Exprs -> PostDecrementOp
-class @PostDecrementOp extends @Node
+class @PostDecrementOp extends UnaryOp
   className: 'PostDecrementOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
+  mayHaveSideEffects: YES
 
 # PostIncrementOp :: Exprs -> PostIncrementOp
-class @PostIncrementOp extends @Node
+class @PostIncrementOp extends UnaryOp
   className: 'PostIncrementOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
+  mayHaveSideEffects: YES
 
 # Program :: Maybe Block -> Program
 class @Program extends @Node
   className: 'Program'
   constructor: (@block) ->
+  mayHaveSideEffects: -> !!@block?.mayHaveSideEffects()
   toJSON: ->
     nodeType: @className
     block: @block?.toJSON()
+
+# Range :: bool -> Exprs -> Exprs -> Range
+class @Range extends @Node
+  className: 'Range'
+  constructor: (@isInclusive, @left, @right) ->
+  mayHaveSideEffects: BinOp::mayHaveSideEffects
+  toJSON: ->
+    nodeType: @className
+    isInclusive: @isInclusive
+    left: @left.toJSON()
+    right: @right.toJSON()
 
 # RegExp :: string -> [string] -> RegExp
 class @RegExp extends @Node
@@ -534,45 +520,44 @@ class @RegExp extends @Node
     @flags = {}
     for flag in ['g', 'i', 'm', 'y']
       @flags[flag] = flag in flags
+  mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
     data: @data
     flags: @flags
 
 # RemOp :: Exprs -> Exprs -> RemOp
-class @RemOp extends @Node
+class @RemOp extends BinOp
   className: 'RemOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # Rest :: Exprs -> Rest
-class @Rest extends @Node
+class @Rest extends UnaryOp
   className: 'Rest'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # Return :: Exprs -> Return
-class @Return extends @Node
+class @Return extends UnaryOp
   className: 'Return'
+  mayHaveSideEffects: YES # TODO: ...?
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # SeqOp :: Exprs -> Exprs -> SeqOp
-class @SeqOp extends @Node
+class @SeqOp extends BinOp
   className: 'SeqOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # SignedRightShiftOp :: Exprs -> Exprs -> SignedRightShiftOp
-class @SignedRightShiftOp extends @Node
+class @SignedRightShiftOp extends BinOp
   className: 'SignedRightShiftOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # Slice :: Exprs -> bool -> Maybe Exprs -> Maybe Exprs -> Slice
 class @Slice extends @Node
   className: 'Slice'
   constructor: (@expr, @isInclusive, @left, @right) ->
+  mayHaveSideEffects: ->
+    !!(@expr.mayHaveSideEffects() or @left?.mayHaveSideEffects() or @right?.mayHaveSideEffects())
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
@@ -581,27 +566,25 @@ class @Slice extends @Node
     right: @right?.toJSON()
 
 # Spread :: Exprs -> Spread
-class @Spread extends @Node
+class @Spread extends UnaryOp
   className: 'Spread'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # String :: string -> String
-class @String extends @Node
+class @String extends Primitive
   className: 'String'
   constructor: (@data) ->
-  toJSON: primitiveToJSON
 
 # SubtractOp :: Exprs -> Exprs -> SubtractOp
-class @SubtractOp extends @Node
+class @SubtractOp extends BinOp
   className: 'SubtractOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
 # Super :: [Arguments] -> Super
 class @Super extends @Node
   className: 'Super'
   constructor: (@arguments) ->
+  mayHaveSideEffects: YES
   toJSON: ->
     nodeType: @className
     arguments: (a.toJSON() for a in @arguments)
@@ -610,6 +593,7 @@ class @Super extends @Node
 class @Switch extends @Node
   className: 'Switch'
   constructor: (@expr, @cases, @elseBlock) ->
+  mayHaveSideEffects: YES # TODO: actual logic
   toJSON: ->
     nodeType: @className
     expression: @expr?.toJSON()
@@ -618,21 +602,22 @@ class @Switch extends @Node
     elseBlock: @elseBlock?.toJSON()
 
 # This :: This
-class @This extends @Node
+class @This extends Statement
   className: 'This'
-  constructor: ->
-  toJSON: statementToJSON
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: NO
 
 # Throw :: Exprs -> Throw
-class @Throw extends @Node
+class @Throw extends UnaryOp
   className: 'Throw'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
+  mayHaveSideEffects: YES # TODO: ...?
 
 # Try :: Block -> Maybe Assignable -> Maybe Block -> Maybe Block -> Try
 class @Try extends @Node
   className: 'Try'
   constructor: (@block, @catchAssignee, @catchBlock, @finallyBlock) ->
+  mayHaveSideEffects: YES # TODO: actual logic
   toJSON: ->
     nodeType: @className
     block: @block.toJSON()
@@ -641,60 +626,56 @@ class @Try extends @Node
     finallyBlock: @finallyBlock?.toJSON()
 
 # TypeofOp :: Exprs -> TypeofOp
-class @TypeofOp extends @Node
+class @TypeofOp extends UnaryOp
   className: 'TypeofOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # UnaryExistsOp :: Exprs -> UnaryExistsOp
-class @UnaryExistsOp extends @Node
+class @UnaryExistsOp extends UnaryOp
   className: 'UnaryExistsOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # UnaryNegateOp :: Exprs -> UnaryNegateOp
-class @UnaryNegateOp extends @Node
+class @UnaryNegateOp extends UnaryOp
   className: 'UnaryNegateOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # UnaryPlusOp :: Exprs -> UnaryPlusOp
-class @UnaryPlusOp extends @Node
+class @UnaryPlusOp extends UnaryOp
   className: 'UnaryPlusOp'
   constructor: (@expr) ->
-  toJSON: unaryOpToJSON
 
 # Undefined :: Undefined
-class @Undefined extends @Node
+class @Undefined extends Statement
   className: 'Undefined'
-  constructor: ->
-  toJSON: statementToJSON
+  constructor: -> # jashkenas/coffee-script#2359
+  mayHaveSideEffects: NO
 
 # UnsignedRightShiftOp :: Exprs -> Exprs -> UnsignedRightShiftOp
-class @UnsignedRightShiftOp extends @Node
+class @UnsignedRightShiftOp extends BinOp
   className: 'UnsignedRightShiftOp'
   constructor: (@left, @right) ->
-  toJSON: binOpToJSON
 
-# While :: Exprs -> Block -> While
-While = class @While extends @Node
+# While :: Exprs -> Maybe Block -> While
+class @While extends @Node
   className: 'While'
   constructor: (@condition, @block) ->
+  mayHaveSideEffects: ->
+    @condition.mayHaveSideEffects()
   toJSON: ->
     nodeType: @className
     condition: @condition.toJSON()
-    block: @block.toJSON()
+    block: @block?.toJSON()
 
+# Note: This only represents the original syntactic specification as an
+# "until". The node should be treated in all other ways as a While.
 # NegatedWhile :: Exprs -> Block -> NegatedWhile
-class @NegatedWhile extends @Node
-  className: 'NegatedWhile'
+class @NegatedWhile extends @While
   constructor: (@condition, @block) ->
-  toJSON: While::toJSON
 
-# Loop :: Block -> Loop
-class @Loop extends @Node
-  className: 'Loop'
+# Note: This only represents the original syntactic specification as a "loop".
+# The node should be treated in all other ways as a While.
+# Loop :: Maybe Block -> Loop
+class @Loop extends @While
   constructor: (@block) ->
-  toJSON: ->
-    nodeType: @className
-    block: @block.toJSON()
+    @condition = (new Bool true).g()

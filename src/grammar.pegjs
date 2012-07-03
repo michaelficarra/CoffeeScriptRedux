@@ -38,7 +38,6 @@ var Nodes = require("./nodes"),
         memo = fn(memo, list[i]);
       return memo;
     },
-    // TODO: change this to produce a list, and fold into a concatOp at optimisation phase
     createInterpolation = function(es){
       var init = new Nodes.String('').g().p(es[0].line, es[0].column);
       return foldl(function(memo, s){
@@ -83,11 +82,12 @@ var Nodes = require("./nodes"),
 start = program
 
 // TODO: DRY everything!
-// TODO: clean this up, it is very disorganised and messy
+// TODO: clean up
+// TODO: this is JS; equality comparisons should have literals on left if possible
 
 
-TERMINATOR = necessary:TERM superfluous:(_ TERM)* {
-    return necessary + superfluous.map(function(s){ return s[0] + s[1]; }).join('');
+TERMINATOR = ws:_ necessary:TERM superfluous:(_ TERM)* {
+    return ws + necessary + superfluous.map(function(s){ return s[0] + s[1]; }).join('');
   }
 
 INDENT = ws:__ "\uEFEF" { return ws; }
@@ -200,7 +200,7 @@ postfixControlFlowOp
 postfixControlFlowExpression
   = expr:secondaryStatement postfixes:(_ postfixControlFlowOp)* {
       return foldl(function(expr, postfixContainer){
-        var raw, constructor,
+        var raw, constructor, cond,
             ws = postfixContainer[0],
             postfix = postfixContainer[1],
             indicator = postfix.type;
@@ -209,12 +209,14 @@ postfixControlFlowExpression
           case 'unless':
             raw = expr.raw + ws + postfix.raw;
             constructor = (indicator == 'unless') ? Nodes.NegatedConditional : Nodes.Conditional;
-            return new constructor(postfix.cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
+            cond = (indicator == 'unless') ? new Nodes.LogicalNotOp(postfix.cond).g() : postfix.cond;
+            return new constructor(cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
           case 'while':
           case 'until':
             raw = expr.raw + ws + postfix.raw;
             constructor = (indicator == 'until') ? Nodes.NegatedWhile : Nodes.While;
-            return new constructor(postfix.cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
+            cond = (indicator == 'unless') ? new Nodes.LogicalNotOp(postfix.cond).g() : postfix.cond;
+            return new constructor(cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
           case 'for-in':
             raw = expr.raw + ws + postfix.raw;
             return new Nodes.ForIn(postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
@@ -444,6 +446,7 @@ conditional
   = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression body:conditionalBody elseClause:elseClause? {
       var raw = kw + ws0 + cond.raw + body.raw + (elseClause ? elseClause.raw : '');
       var constructor = kw == 'unless' ? Nodes.NegatedConditional : Nodes.Conditional;
+      if(kw == 'unless') cond = new Nodes.LogicalNotOp(cond).g();
       var elseBlock = elseClause ? elseClause.block : null;
       return new constructor(cond, body.block, elseBlock).r(raw).p(line, column);
     }
@@ -464,6 +467,7 @@ while
   = kw:(WHILE / UNTIL) ws:_ cond:assignmentExpression body:whileBody {
       var raw = kw + ws + cond.raw + body.raw;
       var constructor = kw == 'until' ? Nodes.NegatedWhile : Nodes.While;
+      if(kw == 'until') cond = new Nodes.LogicalNotOp(cond).g();
       return new constructor(cond, body.block).r(raw).p(line, column);
     }
   whileBody = conditionalBody
@@ -652,7 +656,7 @@ Numbers
   / "0o" os:octalDigit+ { return new Nodes.Int(parseInt(os.join(''), 8)).r("0o" + os).p(line, column); }
   / "0x" hs:hexDigit+ { return new Nodes.Int(parseInt(hs.join(''), 16)).r("0x" + hs).p(line, column); }
   / base:decimal e:[eE] sign:[+-]? exponent:decimal {
-      var raw = base + e + sign + exponent
+      var raw = base.raw + e + sign + exponent.raw;
       return new Nodes.Float(parseFloat(raw, 10)).r(raw).p(line, column);
     }
   / decimal

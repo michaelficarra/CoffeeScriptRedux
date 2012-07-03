@@ -91,15 +91,17 @@ TERMINATOR = ws:_ necessary:TERM superfluous:(_ TERM)* {
   }
 
 INDENT = ws:__ "\uEFEF" { return ws; }
-DEDENT = ws:_ "\uEFFE" { return ws; }
-TERM   = [\n\uEFFF] { return '\n'; }
+DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws; }
+TERM
+  = "\r"? "\n" { return '\n'; }
+  / "\uEFFF" { return ''; }
 
 TERMINDENT = t:TERMINATOR i:INDENT {
     return t + i;
   }
 
 program
-  = leader:(_ "\n")* b:(_ toplevelBlock)? {
+  = leader:(_ TERM)* b:(_ toplevelBlock)? {
       var block;
       leader = leader.map(function(s){ return s.join(''); }).join('');
       if(b) {
@@ -233,7 +235,7 @@ assignmentExpression
   assignmentOp
     = left:Assignable ws0:_ "=" !"=" ws1:_ right:
       ( e:secondaryExpression { return {raw: e.raw, expr: e} }
-      / t0:TERMINDENT e:secondaryExpression t1:TERMINATOR? d:DEDENT { return {raw: t0 + e.raw + t1 + d, expr: e} }
+      / t:TERMINDENT e:secondaryExpression d:DEDENT { return {raw: t + e.raw + d, expr: e} }
       ) {
         var raw = left.raw + ws0 + '=' + ws1 + right.raw;
         return new Nodes.AssignOp(left, right.expr).r(raw).p(line, column);
@@ -451,7 +453,7 @@ conditional
       return new constructor(cond, body.block, elseBlock).r(raw).p(line, column);
     }
   conditionalBody
-    = ws:_ t:TERMINDENT b:block DEDENT { return {block: b, raw: t + b.raw}; }
+    = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b, raw: t + b.raw + d}; }
     / ws0:_ THEN ws1:_ s:statement {
         var block = Nodes.Block.wrap(s);
         return {block: block, raw: ws0 + 'then' + ws1 + s.raw};
@@ -489,7 +491,7 @@ class
       return new Nodes.Class(name, parent, body.block).r(raw).p(line, column);
     }
   classBody
-    = ws:_ t:TERMINDENT b:classBlock DEDENT { return {block: b, raw: ws + t + b.raw}; }
+    = ws:_ t:TERMINDENT b:classBlock d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }
     / ws0:_ t:THEN ws1:_ s:classStatement {
         var block = Nodes.Block.wrap(s);
         return {block: block, raw: ws0 + t + ws1 + s.raw};
@@ -543,7 +545,7 @@ switch
       return new Nodes.Switch(e || null, body.cases, body['else'] || null).r(raw).p(line, column);
     }
   switchBody
-    = ws:_ t:TERMINDENT b:switchBlock DEDENT { return {cases: b.cases, 'else': b['else'], raw: ws + t + b.raw}; }
+    = ws:_ t:TERMINDENT b:switchBlock d:DEDENT { return {cases: b.cases, 'else': b['else'], raw: ws + t + b.raw + d}; }
     / ws0:_ t:THEN ws1:_ w:when { return {cases: [[w.conditions, w.block]], raw: ws0 + t + ws1 + w.raw}; }
     / ws:_ THEN { return {cases: [], raw: ws + 'then'}; }
   switchBlock
@@ -588,7 +590,7 @@ functionLiteral
       return new constructor(params, body.block).r(raw).p(line, column);
     }
   functionBody
-    = ws:_ t0:TERMINDENT b:block t1:TERMINATOR? DEDENT { return {block: b, raw: ws + t0 + b.raw + t1}; }
+    = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }
     / ws:_ s:statement {
         return {block: Nodes.Block.wrap(s), raw: ws + s.raw};
       }
@@ -602,24 +604,38 @@ functionLiteral
 
 
 arrayLiteral
-  // for now, array intialiser members are the same as function application arguments
-  = "[" ws0:_ args:argumentList? ws1:_ "]" {
-      var raw = "[" + ws0 + args.raw + ws1 + "]";
-      args = args ? args.list : [];
-      return new Nodes.ArrayInitialiser(args).r(raw).p(line, column);
+  = "[" ws0:_ members:arrayLiteralBody t:TERMINATOR? ws1:_ "]" {
+      var raw = "[" + ws0 + members.raw + t + ws1 + "]";
+      members = members.list;
+      return new Nodes.ArrayInitialiser(members).r(raw).p(line, column);
     }
+  arrayLiteralBody
+    = t:TERMINDENT members:arrayLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
+    / members:arrayLiteralMemberList? { return members ? members : {list: [], raw: ''}; }
+  arrayLiteralMemberList
+    = e:expression ws:_ es:(arrayLiteralMemberSeparator _ expression _)* trail:","? {
+        var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
+        return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
+      }
+  arrayLiteralMemberSeparator
+    = t:TERMINATOR ws:_ c:","? { return t + ws + c; }
+    / "," t:TERMINATOR? { return ',' + t; }
+    // TODO: fix this:
+    // d:DEDENT "," t:TERMINDENT { return d + ',' + t; }
+
 
 objectLiteral
-  = "{" ws:(TERMINATOR / _) members:(objectLiteralMemberList _)? t:TERMINATOR? "}" {
-    var raw = "{" + ws + (members ? members[0].raw + members[1] : '') + t + "}";
-    members = members ? members[0].list : [];
+  = "{" ws0:_ members:objectLiteralMemberList? t:TERMINATOR? ws1:_ "}" {
+    var raw = "{" + ws0 + (members ? members.raw : '') + t + ws1 + "}";
+    members = members ? members.list : [];
     return new Nodes.ObjectInitialiser(members).r(raw).p(line, column);
   }
   objectLiteralMemberList
-    = e:objectLiteralMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ objectLiteralMember)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
-        return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
+    = e:objectLiteralMember es:(objectLiteralMemberSeparator objectLiteralMember)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1].raw; }).join('');
+        return {list: [e.member].concat(es.map(function(e){ return e[1].member; })), raw: raw};
       }
+  objectLiteralMemberSeparator = arrayLiteralMemberSeparator
   objectLiteralMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
         return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
@@ -724,8 +740,8 @@ interpolation
 // TODO: raw
 regexp
   = "///" es:
-    ( [ \n]+ { return [new Nodes.String('').g().p(line, column)]; }
-    / s:[^\\/#[]+ { return [new Nodes.String(s.join('')).g().p(line, column)]; }
+    ( [ \r\n]+ { return [new Nodes.String('').g().p(line, column)]; }
+    / s:[^\\/#[ \r\n]+ { return [new Nodes.String(s.join('')).g().p(line, column)]; }
     / hereregexpData
     )+ "///" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
@@ -825,7 +841,7 @@ identifierPart
 _ = ws:whitespace* { return ws.join(''); }
 __ = ws:whitespace+ { return ws.join(''); }
 
-whitespace = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]
+whitespace = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000] / "\\" "\r"? "\n" { return ''; }
 
 
 // keywords
@@ -878,7 +894,7 @@ JSKeywords
 
 UnusedJSKeywords
   = ("case" / "default" / "function" / "var" / "void" / "with" / "const" /
-  "let" / "enum" / "export" / "import" / "native" "implements" / "interface" /
+  "let" / "enum" / "export" / "import" / "native" / "implements" / "interface" /
   "package" / "private" / "protected" / "public" / "static" / "yield") !identifierPart
 
 CSKeywords

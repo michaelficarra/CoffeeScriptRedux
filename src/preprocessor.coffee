@@ -6,6 +6,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
 
 # TODO: better comments
+# TODO: support win32-style line endings
 
 class @Preprocessor extends EventEmitter
 
@@ -64,7 +65,7 @@ class @Preprocessor extends EventEmitter
   processInput = (isEnd) -> (data) ->
     @ss.concat data unless isEnd
 
-    while @ss.rest().length
+    while @ss.rest().length > 0
       switch @context.peek()
         when null, INDENT, '#{', '[', '(', '{'
           if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
@@ -101,7 +102,7 @@ class @Preprocessor extends EventEmitter
               else if @ss.check /// (?:#{@indent}){#{level}} [^#{ws}] ///
                 @scan /// (?:#{@indent}){#{level}} ///
               else
-                # TODO: show expected indentation, also line number
+                # TODO: show line number and expected indentation
                 throw new Error "invalid indentation"
             else if @ss.check /// [#{ws}]+ [^#{ws}#] ///
               # first indentation
@@ -136,7 +137,8 @@ class @Preprocessor extends EventEmitter
             @context.observe '#'
 
         when '\\'
-          if (@ss.scan /\n/) or (@scan /./) then @context.observe 'end-\\'
+          if (@scan /[\s\S]/) then @context.observe 'end-\\'
+          # TODO: somehow prevent indent tokens from being inserted after these newlines
         when '"""'
           @scan /(?:[^"#\\]+|""?(?!")|#(?!{)|\\.)+/
           @ss.scan /\\\n/

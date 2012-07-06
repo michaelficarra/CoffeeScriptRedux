@@ -887,10 +887,10 @@ WHILE = w:"while" !identifierPart { return w; }
 YES = w:"yes" !identifierPart { return w; }
 
 JSKeywords
-  = ("true" / "false" / "null" / "this" / "new" / "delete" / "typeof" / "in" /
-  "instanceof" / "return" / "throw" / "break" / "continue" / "debugger" / "if" /
-  "else" / "switch" / "for" / "while" / "do" / "try" / "catch" / "finally" /
-  "class" / "extends" / "super") !identifierPart
+  = ("true" / "false" / "null" / "this" / "new" / "delete" / "typeof" /
+  "instanceof" / "in" / "return" / "throw" / "break" / "continue" / "debugger"
+  / "if" / "else" / "switch" / "for" / "while" / "do" / "try" / "catch" /
+  "finally" / "class" / "extends" / "super") !identifierPart
 
 UnusedJSKeywords
   = ("case" / "default" / "function" / "var" / "void" / "with" / "const" /
@@ -898,8 +898,8 @@ UnusedJSKeywords
   "package" / "private" / "protected" / "public" / "static" / "yield") !identifierPart
 
 CSKeywords
-  = ("undefined" / "then" / "unless" / "until" / "loop" / "of" / "by" / "when" /
-  "and" / "or" / "is" / "isnt" / "not" / "yes" / "no" / "on" / "off") !identifierPart
+  = ("undefined" / "then" / "unless" / "until" / "loop" / "off" / "by" / "when" /
+  "and" / "or" / "isnt" / "is" / "not" / "yes" / "no" / "on" / "of") !identifierPart
 
 reserved
   = JSKeywords

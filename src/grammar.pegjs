@@ -248,16 +248,16 @@ assignmentExpression
         return new Nodes.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(line, column);
       }
 logicalOrExpression
-  = left:logicalAndExpression right:(_ ("||" / OR) !"=" _ (functionLiteral / logicalOrExpression))? {
+  = left:logicalAndExpression right:(_ ("||" / OR) !"=" INDENT? _ (functionLiteral / logicalOrExpression))? {
       if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-      return new Nodes.LogicalOrOp(left, right[4]).r(raw).p(line, column);
+      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+      return new Nodes.LogicalOrOp(left, right[5]).r(raw).p(line, column);
     }
 logicalAndExpression
-  = left:bitwiseOrExpression right:(_ ("&&" / AND) !"=" _ (functionLiteral / logicalAndExpression))? {
+  = left:bitwiseOrExpression right:(_ ("&&" / AND) !"=" INDENT? _ (functionLiteral / logicalAndExpression))? {
       if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-      return new Nodes.LogicalAndOp(left, right[4]).r(raw).p(line, column);
+      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+      return new Nodes.LogicalOrOp(left, right[5]).r(raw).p(line, column);
     }
 bitwiseOrExpression
   = left:bitwiseXorExpression right:(_ "|" !"=" _ (functionLiteral / bitwiseOrExpression))? {

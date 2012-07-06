@@ -12,18 +12,29 @@ class @Optimiser
 down = up = yes
 
 defaultRules = [
-  # dead code removal
-  [{down, up}, [Block], ->
+  ## dead code removal
+  [{down, up}, [Block], (inScope, ancestors) ->
     newNode = Block.wrap do ->
       canDropLast = ancestors[0]?.className is 'Program'
       blockSize = block.statements.length
       for s, i in block.statements
         isLast = i + 1 is blockSize
-        continue unless s.mayHaveSideEffects() or (isLast and not canDropLast)
+        continue unless (s.mayHaveSideEffects inScope) or (isLast and not canDropLast)
         s
     newNode.r(@raw).p @line, @column
   ]
-  # TODO: conditionals and whiles with falsey conditions
+  [{down}, [While], (inScope) ->
+    if @condition.isFalsey()
+      # while (falsey without side effects) -> nothing
+      # while (falsey with side effects) -> the condition
+      return if @condition.mayHaveSideEffects inScope then @condition else (new Null).g()
+    if @condition.isTruthy()
+      # while (truthy without side effects) -> loop
+      unless @condition.mayHaveSideEffects inScope
+        return new Loop @block
+    this
+  ]
+  # TODO: conditionals with truthy/falsey conditions
   # for-in over empty list
   [{down}, [ForIn], ->
     return this unless @expr.className is 'ArrayInitialiser' and @expr.members.length is 0
@@ -34,7 +45,8 @@ defaultRules = [
     return this unless @expr.className is 'ObjectInitialiser' and @expr.isOwn and @expr.members.length is 0
     (new ArrayInitialiser []).g().r(@raw).p @line, @column
   ]
-  # coffeescript-naught: DoOp -> FunctionApplication
+  # DoOp -> FunctionApplication
+  # TODO: move this to compiler internals
   [{down}, [DoOp], ->
     args = []
     if @expr.className is 'Function'
@@ -42,14 +54,12 @@ defaultRules = [
         for param in @expr.parameters
           switch param.className
             when 'AssignOp' then param.expr
-            when  'Identifier', 'MemberExpression' then param
+            when 'Identifier', 'MemberAccessOp' then param
+            else (new Undefined).g()
     (new FunctionApplication @expr, args).g().p @line, @column
   ]
-  # TODO: while (truthy without side effects) -> loop
-  # TODO: while (falsey without side effects) -> nothing
-  # TODO: while (falsey with side effects) -> the condition
   # LogicalNotOp applied to a literal or !!
-  [{up}, [LogicalNotOp], (ancestors) ->
+  [{up}, [LogicalNotOp], ->
     newNode = switch @expr.className
       when 'Int', 'Float', 'String', 'Bool' then (new Bool !@expr.data).g()
       when 'Function', 'BoundFunction' then (new Bool false).g()
@@ -64,4 +74,5 @@ defaultRules = [
     return this if newNode is this
     newNode.r(@raw).p @line, @column
   ]
+  # TODO: typeof on any literal
 ]

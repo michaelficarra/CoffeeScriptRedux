@@ -1,34 +1,14 @@
-# TODO: put all these helpers somewhere
-YES = -> yes
-NO = -> no
-any = (list, fn) ->
-  for e in list
-    return yes if fn e
-  no
-foldl = (memo, list, fn) ->
-  for i in list
-    memo = fn memo, i
-  memo
-map = (list, fn) -> fn e for e in list
-concat = (list) -> [].concat list...
-concatMap = (list, fn) -> concat map list, fn
-intersect = (listA, listB) -> a for a in listA when a in listB
-difference = (listA, listB) -> a for a in listA when a not in listB
-nub = (list) ->
-  result = []
-  result.push i for i in list when i not in result
-  result
-union = (listA, listB) -> listA.concat (b for b in (nub listB) when b not in listA)
+{YES, NO, any, foldl, map, concatMap, difference, union} = require './helpers'
 
 # these are the identifiers that need to be declared when the given value is
 # being used as the target of an assignment
-beingDeclared = (param, list = []) ->
-  switch param.className
-    when 'Identifier' then [param]
-    when 'AssignOp' then beingDeclared param.assignee
-    when 'ArrayInitialiser' then concatMap param.members, beingDeclared
-    when 'ObjectInitialiser' then concatMap param.vals(), beingDeclared
-    else []
+beingDeclared = (assignment) ->
+  switch assignment.className
+    when 'Identifier' then [assignment]
+    when 'AssignOp' then beingDeclared assignment.assignee
+    when 'ArrayInitialiser' then concatMap assignment.members, beingDeclared
+    when 'ObjectInitialiser' then concatMap assignment.vals(), beingDeclared
+    else throw new Error "beingDeclared: Non-exhaustive patterns in case: #{assignment.className}"
 
 # TODO: DRY `walk` methods
 # TODO: change `walk` to act more like a fold? it's more generic than a map
@@ -40,8 +20,20 @@ class @Node
   isTruthy: NO
   isFalsey: NO
   childNodes: [] # children's names; in evaluation order where applicable
-  envEnrichments: -> [] # environment enrichments that occur when this node is evaluated
-  walk: (fn, inScope, ancestry = []) ->
+  envEnrichments: -> # environment enrichments that occur when this node is evaluated
+    concatMap @childNodes, (child) -> @[child].envEnrichments()
+  mayHaveSideEffects: (inScope) ->
+    any @childNodes, (child) -> child?.mayHaveSideEffects inScope
+  #fmap: (memo, fn) ->
+  #  memo = fn memo, this
+  #  for child in @childNodes
+  #    memo = @[child].fmap memo, fn
+  #  memo
+  #fmap: (memo, fn) ->
+  #  for child in @childNodes
+  #    memo = @[child].fmap memo, fn
+  #  fn memo, this
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     for childName in @childNodes
@@ -69,8 +61,6 @@ class AssignOp extends @Node
 class BinOp extends @Node
   constructor: -> # jashkenas/coffee-script#2359
   childNodes: ['left', 'right']
-  mayHaveSideEffects: (inScope) ->
-    (@left.mayHaveSideEffects inScope) or @right.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     left: @left.toJSON()
@@ -91,9 +81,6 @@ class Statement extends @Node
 class UnaryOp extends @Node
   constructor: -> # jashkenas/coffee-script#2359
   childNodes: ['expr']
-  mayHaveSideEffects: (inScope) ->
-    # Note: CoffeeScript willfully ignores the existence of `valueOf`
-    @expr.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
@@ -103,7 +90,7 @@ class UnaryOp extends @Node
 class @ArrayInitialiser extends @Node
   className: 'ArrayInitialiser'
   constructor: (@members) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     @members = for member in @members
@@ -112,8 +99,8 @@ class @ArrayInitialiser extends @Node
       member
     this
   isTruthy: YES
-  mayHaveSideEffects: (inScope) ->
-    any @members, (m) => m.mayHaveSideEffects inScope
+  envEnrichments: -> concatMap @members, (member) -> member.envEnrichments()
+  mayHaveSideEffects: (inScope) -> any @members, (m) -> m.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     members: (m.toJSON() for m in @members)
@@ -124,6 +111,7 @@ class @AssignOp extends AssignOp
   constructor: (@assignee, @expr) ->
   isTruthy: -> @expr.isTruthy()
   isFalsey: -> @expr.isFalsey()
+  envEnrichments: -> beingDeclared @assignee
 
 # BitAndOp :: Exprs -> Exprs -> BitAndOp
 class @BitAndOp extends BinOp
@@ -149,7 +137,7 @@ class @BitXorOp extends BinOp
 Block = class @Block extends @Node
   className: 'Block'
   constructor: (@statements) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     @statements = for statement in @statements
@@ -161,7 +149,7 @@ Block = class @Block extends @Node
   # TODO: isTruthy and isFalsey must check the last expression and also any
   # early returns, no matter how deeply nested in conditionals
   mayHaveSideEffects: (inScope) ->
-    any @statements, (s) => s.mayHaveSideEffects inScope
+    any @statements, (s) -> s.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     statements: (s.toJSON() for s in @statements)
@@ -196,7 +184,8 @@ class @Class extends @Node
   childNodes: ['parent', 'block']
   isTruthy: YES
   mayHaveSideEffects: (inScope) ->
-    any [@nameAssignment, @parent, @block], (v) => v.mayHaveSideEffects inScope
+    (super inScope) or
+    @nameAssignment? and any (beingDeclared @nameAssignment), (v) -> v in inScope
   toJSON: ->
     nodeType: @className
     nameAssignment: @nameAssignment?.toJSON()
@@ -239,8 +228,8 @@ class @Conditional extends @Node
   mayHaveSideEffects: (inScope) ->
     # TODO: only check each respective block if the condition would allow execution to get there
     !!((@condition.mayHaveSideEffects inScope) or
-    (@block?.mayHaveSideEffects inScope) or
-    (@elseBlock?.mayHaveSideEffects inScope))
+    (not @condition.isFalsey() and @block?.mayHaveSideEffects inScope) or
+    (not @condition.isTruthy() and @elseBlock?.mayHaveSideEffects inScope))
   constructor: (@condition, @block, @elseBlock) ->
   toJSON: ->
     nodeType: @className
@@ -289,10 +278,6 @@ class @DynamicMemberAccessOp extends @Node
   className: 'DynamicMemberAccessOp'
   constructor: (@expr, @indexingExpr) ->
   childNodes: ['expr', 'indexingExpr']
-  mayHaveSideEffects: (inScope) ->
-    # Technically, this is a lie. It should be YES, but CoffeeScript is
-    # willfully ignorant of the existence of getters/setters.
-    (@expr.mayHaveSideEffects inScope) or (@indexingExpr.mayHaveSideEffects inScope)
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
@@ -377,7 +362,7 @@ class @ForOf extends @Node
 class @Function extends @Node
   className: 'Function'
   constructor: (@parameters, @block) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     @parameters = for param in @parameters
@@ -402,7 +387,7 @@ class @BoundFunction extends @Function
 class @FunctionApplication extends @Node
   className: 'FunctionApplication'
   constructor: (@function, @arguments) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     continue while @function isnt (@function = (fn.call @function, inScope, ancestry).walk fn, inScope, ancestry)
@@ -446,7 +431,6 @@ class @HeregExp extends @Node
       @flags[flag] = flag in flags
   childNodes: ['expr']
   isTruthy: YES
-  mayHaveSideEffects: (inScope) -> @expr.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     expression: @expr
@@ -523,10 +507,6 @@ class @MemberAccessOp extends @Node
   className: 'MemberAccessOp'
   constructor: (@expr, @memberName) ->
   childNodes: ['expr']
-  mayHaveSideEffects: (inScope) ->
-    # Technically, this is a lie. It should be YES, but CoffeeScript is
-    # willfully ignorant of the existence of getters/setters.
-    @expr.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
@@ -561,7 +541,7 @@ class @NEQOp extends BinOp
 class @NewOp extends @Node
   className: 'NewOp'
   constructor: (@ctor, @arguments) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     continue while @ctor isnt (@ctor = (fn.call @ctor, inScope, ancestry).walk fn, inScope, ancestry)
@@ -588,7 +568,7 @@ class @Null extends Statement
 class @ObjectInitialiser extends @Node
   className: 'ObjectInitialiser'
   constructor: (@members) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     @members = for [key, val] in @members
@@ -648,11 +628,11 @@ class @Program extends @Node
   childNodes: ['block']
   isTruthy: -> !!@block?.isTruthy()
   isFalsey: -> !!@block?.isFalsey()
-  mayHaveSideEffects: (inScope) -> !!@block?.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     block: @block?.toJSON()
 
+# TODO: Range extends BinOp
 # Range :: bool -> Exprs -> Exprs -> Range
 class @Range extends @Node
   className: 'Range'
@@ -713,10 +693,6 @@ class @Slice extends @Node
   constructor: (@expr, @isInclusive, @left, @right) ->
   childNodes: ['expr', 'left', 'right']
   isTruthy: YES
-  mayHaveSideEffects: (inScope) ->
-    !!((@expr.mayHaveSideEffects inScope) or
-    (@left?.mayHaveSideEffects inScope) or
-    (@right?.mayHaveSideEffects inScope))
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
@@ -745,7 +721,7 @@ class @SubtractOp extends BinOp
 class @Super extends @Node
   className: 'Super'
   constructor: (@arguments) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     @arguments = for arg in @arguments
@@ -762,7 +738,7 @@ class @Super extends @Node
 class @Switch extends @Node
   className: 'Switch'
   constructor: (@expr, @cases, @elseBlock) ->
-  walk: (fn, inScope, ancestry = []) ->
+  walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
     ancestry.push this
     if @expr?
@@ -797,14 +773,12 @@ class @This extends Statement
 class @Throw extends UnaryOp
   className: 'Throw'
   constructor: (@expr) ->
-  mayHaveSideEffects: YES # TODO: ...?
 
 # Try :: Block -> Maybe Assignable -> Maybe Block -> Maybe Block -> Try
 class @Try extends @Node
   className: 'Try'
   constructor: (@block, @catchAssignee, @catchBlock, @finallyBlock) ->
   childNodes: ['block', 'catchBlock', 'finallyBlock']
-  mayHaveSideEffects: YES # TODO: actual logic
   toJSON: ->
     nodeType: @className
     block: @block.toJSON()
@@ -852,8 +826,8 @@ class @While extends @Node
   childNodes: ['condition', 'block']
   isTruthy: YES
   mayHaveSideEffects: (inScope) ->
-    # TODO: only check the block if the condition would allow execution to get there
-    (@condition.mayHaveSideEffects inScope) or @block.mayHaveSideEffects inScope
+    (@condition.mayHaveSideEffects inScope) or
+    (not @condition.falsey() and @block.mayHaveSideEffects inScope)
   toJSON: ->
     nodeType: @className
     condition: @condition.toJSON()

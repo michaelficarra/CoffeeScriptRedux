@@ -1,19 +1,25 @@
 class @Optimiser
   constructor: ->
     @rules = {}
-    for [directions, applicableCtors, handler] in defaultRules
-      @addRule directions, ctor.className, handler for ctor in applicableCtors
+    for [applicableCtors, handler] in defaultRules
+      @addRule ctor.className, handler for ctor in applicableCtors
 
-  addRule: (directions, ctor, handler) ->
-    for own dir of directions
-      ((@rules[dir] ?= {})[ctor] ?= []).push handler
+  addRule: (ctor, handler) ->
+    (@rules[ctor] ?= []).push handler
     return
 
-down = up = yes
+  optimise: (ast) ->
+    rules = @rules
+    ast.walk (inScope, ancestry) ->
+      # not a fold for efficiency's sake
+      memo = this
+      for rule in rules[@className] ? []
+        memo = rule.call memo, inScope, ancestry
+      memo
 
 defaultRules = [
-  ## dead code removal
-  [{down, up}, [Block], (inScope, ancestors) ->
+  # dead code removal
+  [[Block], (inScope, ancestors) ->
     newNode = Block.wrap do ->
       canDropLast = ancestors[0]?.className is 'Program'
       blockSize = block.statements.length
@@ -23,7 +29,7 @@ defaultRules = [
         s
     newNode.r(@raw).p @line, @column
   ]
-  [{down}, [While], (inScope) ->
+  [[While], (inScope) ->
     if @condition.isFalsey()
       # while (falsey without side effects) -> nothing
       # while (falsey with side effects) -> the condition
@@ -36,18 +42,18 @@ defaultRules = [
   ]
   # TODO: conditionals with truthy/falsey conditions
   # for-in over empty list
-  [{down}, [ForIn], ->
+  [[ForIn], ->
     return this unless @expr.className is 'ArrayInitialiser' and @expr.members.length is 0
     (new ArrayInitialiser []).g().r(@raw).p @line, @column
   ]
   # for-own-of over empty object
-  [{down}, [ForOf], ->
+  [[ForOf], ->
     return this unless @expr.className is 'ObjectInitialiser' and @expr.isOwn and @expr.members.length is 0
     (new ArrayInitialiser []).g().r(@raw).p @line, @column
   ]
   # DoOp -> FunctionApplication
   # TODO: move this to compiler internals
-  [{down}, [DoOp], ->
+  [[DoOp], ->
     args = []
     if @expr.className is 'Function'
       args = do ->
@@ -59,7 +65,7 @@ defaultRules = [
     (new FunctionApplication @expr, args).g().p @line, @column
   ]
   # LogicalNotOp applied to a literal or !!
-  [{up}, [LogicalNotOp], ->
+  [[LogicalNotOp], ->
     newNode = switch @expr.className
       when 'Int', 'Float', 'String', 'Bool' then (new Bool !@expr.data).g()
       when 'Function', 'BoundFunction' then (new Bool false).g()

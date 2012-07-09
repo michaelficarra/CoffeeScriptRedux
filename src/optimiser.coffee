@@ -1,8 +1,11 @@
+for name, node of require './nodes'
+  global[if name of global then "CS#{name}" else name] = node
+
 class @Optimiser
   constructor: ->
     @rules = {}
     for [applicableCtors, handler] in defaultRules
-      @addRule ctor.className, handler for ctor in applicableCtors
+      @addRule ctor::className, handler for ctor in applicableCtors
 
   addRule: (ctor, handler) ->
     (@rules[ctor] ?= []).push handler
@@ -20,20 +23,26 @@ class @Optimiser
 defaultRules = [
   # dead code removal
   [[Block], (inScope, ancestors) ->
-    newNode = Block.wrap do ->
+    newNode = new Block do =>
       canDropLast = ancestors[0]?.className is 'Program'
-      blockSize = block.statements.length
-      for s, i in block.statements
-        isLast = i + 1 is blockSize
-        continue unless (s.mayHaveSideEffects inScope) or (isLast and not canDropLast)
+      for s, i in @statements
+        continue unless (s.mayHaveSideEffects inScope) and (canDropLast or i + 1 isnt @statements.length)
         s
-    newNode.r(@raw).p @line, @column
+    if newNode.statements.length is @statements.length then this
+    else newNode.r(@raw).p @line, @column
+  ]
+  [[SeqOp], (inScope, ancestors) ->
+    return @right unless @left.mayHaveSideEffects inScope
+    this
   ]
   [[While], (inScope) ->
     if @condition.isFalsey()
-      # while (falsey without side effects) -> nothing
-      # while (falsey with side effects) -> the condition
-      return if @condition.mayHaveSideEffects inScope then @condition else (new Null).g()
+      return if @condition.mayHaveSideEffects inScope
+        # while (falsey with side effects) -> the condition
+        @condition
+      else
+        # while (falsey without side effects) -> nothing
+        (new Null).g()
     if @condition.isTruthy()
       # while (truthy without side effects) -> loop
       unless @condition.mayHaveSideEffects inScope
@@ -56,12 +65,11 @@ defaultRules = [
   [[DoOp], ->
     args = []
     if @expr.className is 'Function'
-      args = do ->
-        for param in @expr.parameters
-          switch param.className
-            when 'AssignOp' then param.expr
-            when 'Identifier', 'MemberAccessOp' then param
-            else (new Undefined).g()
+      args = for param in @expr.parameters
+        switch param.className
+          when 'AssignOp' then param.expr
+          when 'Identifier', 'MemberAccessOp' then param
+          else (new Undefined).g()
     (new FunctionApplication @expr, args).g().p @line, @column
   ]
   # LogicalNotOp applied to a literal or !!

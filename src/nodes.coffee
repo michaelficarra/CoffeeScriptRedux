@@ -21,9 +21,9 @@ class @Node
   isFalsey: NO
   childNodes: [] # children's names; in evaluation order where applicable
   envEnrichments: -> # environment enrichments that occur when this node is evaluated
-    concatMap @childNodes, (child) -> @[child].envEnrichments()
+    concatMap @childNodes, (child) => @[child]?.envEnrichments()
   mayHaveSideEffects: (inScope) ->
-    any @childNodes, (child) -> child?.mayHaveSideEffects inScope
+    any @childNodes, (child) => @[child]?.mayHaveSideEffects inScope
   #fmap: (memo, fn) ->
   #  memo = fn memo, this
   #  for child in @childNodes
@@ -38,9 +38,10 @@ class @Node
     ancestry.push this
     for childName in @childNodes
       child = @[childName]
-      continue while child isnt (child = (fn.call child, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, child.envEnrichments()
-      @[childName] = child
+      if child?
+        continue while child isnt (child = (fn.call child, inScope, ancestry).walk fn, inScope, ancestry)
+        inScope = union inScope, child?.envEnrichments()
+        @[childName] = child
     this
   r: (@raw) -> this
   p: (@line, @column) -> this
@@ -99,7 +100,7 @@ class @ArrayInitialiser extends @Node
       member
     this
   isTruthy: YES
-  envEnrichments: -> concatMap @members, (member) -> member.envEnrichments()
+  envEnrichments: -> concatMap @members, (m) -> m.envEnrichments()
   mayHaveSideEffects: (inScope) -> any @members, (m) -> m.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
@@ -270,7 +271,7 @@ class @DoOp extends UnaryOp
     newScope = difference inScope, concatMap @expr.parameters, beingDeclared
     args = for p in @expr.parameters
       if p.className is 'AssignOp' then p.expr else p
-    return yes if any args, (a) => a.mayHaveSideEffects newScope
+    return yes if any args, (a) -> a.mayHaveSideEffects newScope
     @expr.mayHaveSideEffects newScope
 
 # DynamicMemberAccessOp :: Exprs -> Exprs -> DynamicMemberAccessOp
@@ -400,7 +401,7 @@ class @FunctionApplication extends @Node
   mayHaveSideEffects: (inScope) ->
     return yes unless @function.className in ['Function', 'BoundFunction']
     newScope = difference inScope, concatMap @function.parameters, beingDeclared
-    return yes if any @arguments, (a) => a.mayHaveSideEffects newScope
+    return yes if any @arguments, (a) -> a.mayHaveSideEffects newScope
     @function.block.mayHaveSideEffects newScope
   toJSON: ->
     nodeType: @className

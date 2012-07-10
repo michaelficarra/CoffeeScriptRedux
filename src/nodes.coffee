@@ -35,7 +35,7 @@ class @Node
   #  fn memo, this
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     for childName in @childNodes
       child = @[childName]
       if child?
@@ -53,7 +53,8 @@ class AssignOp extends @Node
   constructor: -> # jashkenas/coffee-script#2359
   childNodes: ['expr']
   mayHaveSideEffects: (inScope) ->
-    (@expr.mayHaveSideEffects inScope) or any (beingDeclared @assignee), (v) -> v in inScope
+    #(@expr.mayHaveSideEffects inScope) or any (beingDeclared @assignee), (v) -> v in inScope
+    (@expr.mayHaveSideEffects inScope) or (beingDeclared @assignee).length
   toJSON: ->
     nodeType: @className
     assignee: @assignee.toJSON()
@@ -93,7 +94,7 @@ class @ArrayInitialiser extends @Node
   constructor: (@members) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     @members = for member in @members
       continue while member isnt (member = (fn.call member, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, member.envEnrichments()
@@ -140,7 +141,7 @@ Block = class @Block extends @Node
   constructor: (@statements) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     @statements = for statement in @statements
       continue while statement isnt (statement = (fn.call statement, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, statement.envEnrichments()
@@ -365,7 +366,7 @@ class @Function extends @Node
   constructor: (@parameters, @block) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     @parameters = for param in @parameters
       continue while param isnt (param = (fn.call param, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, param.envEnrichments()
@@ -390,7 +391,7 @@ class @FunctionApplication extends @Node
   constructor: (@function, @arguments) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     continue while @function isnt (@function = (fn.call @function, inScope, ancestry).walk fn, inScope, ancestry)
     inScope = union inScope, @function.envEnrichments()
     @arguments = for arg in @arguments
@@ -544,7 +545,7 @@ class @NewOp extends @Node
   constructor: (@ctor, @arguments) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     continue while @ctor isnt (@ctor = (fn.call @ctor, inScope, ancestry).walk fn, inScope, ancestry)
     inScope = union inScope, @ctor.envEnrichments()
     @arguments = for arg in @arguments
@@ -571,7 +572,7 @@ class @ObjectInitialiser extends @Node
   constructor: (@members) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     @members = for [key, val] in @members
       continue while val isnt (val = (fn.call val, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, val.envEnrichments()
@@ -724,7 +725,7 @@ class @Super extends @Node
   constructor: (@arguments) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     @arguments = for arg in @arguments
       continue while arg isnt (arg = (fn.call arg, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, arg.envEnrichments()
@@ -741,7 +742,7 @@ class @Switch extends @Node
   constructor: (@expr, @cases, @elseBlock) ->
   walk: (fn, inScope = [], ancestry = []) ->
     # TODO: cycle test
-    ancestry.push this
+    ancestry = [this, ancestry...]
     if @expr?
       continue while @expr isnt (@expr = (fn.call @expr, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, @expr.envEnrichments()
@@ -828,7 +829,7 @@ class @While extends @Node
   isTruthy: YES
   mayHaveSideEffects: (inScope) ->
     (@condition.mayHaveSideEffects inScope) or
-    (not @condition.falsey() and @block.mayHaveSideEffects inScope)
+    (not @condition.isFalsey() and @block.mayHaveSideEffects inScope)
   toJSON: ->
     nodeType: @className
     condition: @condition.toJSON()

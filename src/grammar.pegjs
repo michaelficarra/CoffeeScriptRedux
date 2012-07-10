@@ -217,7 +217,7 @@ postfixControlFlowExpression
           case 'until':
             raw = expr.raw + ws + postfix.raw;
             constructor = (indicator == 'until') ? Nodes.NegatedWhile : Nodes.While;
-            cond = (indicator == 'unless') ? new Nodes.LogicalNotOp(postfix.cond).g() : postfix.cond;
+            cond = (indicator == 'until') ? new Nodes.LogicalNotOp(postfix.cond).g() : postfix.cond;
             return new constructor(cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
           case 'for-in':
             raw = expr.raw + ws + postfix.raw;

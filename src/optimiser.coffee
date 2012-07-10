@@ -26,7 +26,7 @@ defaultRules = [
     newNode = new Block do =>
       canDropLast = ancestors[0]?.className is 'Program'
       for s, i in @statements
-        continue unless (s.mayHaveSideEffects inScope) and (canDropLast or i + 1 isnt @statements.length)
+        continue if (not s.mayHaveSideEffects inScope) and (canDropLast or i + 1 isnt @statements.length)
         s
     if newNode.statements.length is @statements.length then this
     else newNode.r(@raw).p @line, @column
@@ -46,7 +46,8 @@ defaultRules = [
     if @condition.isTruthy()
       # while (truthy without side effects) -> loop
       unless @condition.mayHaveSideEffects inScope
-        return new Loop @block
+        return this if this instanceof Loop
+        return (new Loop @block).g().r(@raw).p @line, @column
     this
   ]
   # TODO: conditionals with truthy/falsey conditions

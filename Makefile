@@ -1,17 +1,15 @@
-default: buildAndTest
+default: all
 
 SRC = $(shell find src -name "*.coffee" -type f | sort)
-LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js)
+LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js) lib/coffee-script/parser.js
 TESTS = $(shell find test -name "*.coffee" -type f | sort)
 
 COFFEE = node_modules/coffee-script/bin/coffee
 PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
 MOCHA = node_modules/mocha/bin/mocha --compilers coffee:coffee-script -u tdd
 
-buildAndTest: build test
-all: build
-
-build: $(LIB) lib/coffee-script/parser.js
+all: $(LIB)
+build: all
 
 lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
 	echo -n "module.exports = " > lib/coffee-script/parser.js

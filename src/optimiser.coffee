@@ -19,16 +19,15 @@ class @Optimiser
             [s.left, s.right]
           else [s]
       return this unless changed
-      newNode = switch newNode.statements.length
+      switch newNode.statements.length
         when 0
           if canDropLast then newNode else (new Undefined).g()
         when 1 then newNode.statements[0]
         else newNode
-      newNode.r(@raw).p @line, @column
     ]
     [[SeqOp], (inScope) ->
       return this if (@right.instanceof Identifier) and @right.data is 'eval'
-      return @right.r(@raw).p @line, @column unless @left.mayHaveSideEffects inScope
+      return @right unless @left.mayHaveSideEffects inScope
       this
     ]
     [[While], (inScope) ->
@@ -44,7 +43,7 @@ class @Optimiser
         unless @condition.mayHaveSideEffects inScope
           return (new Undefined).g() unless @block?
           return this if this instanceof Loop
-          return (new Loop @block).g().r(@raw).p @line, @column
+          return (new Loop @block).g()
       this
     ]
     [[Conditional], (inScope) ->
@@ -62,12 +61,12 @@ class @Optimiser
     # for-in over empty list
     [[ForIn], ->
       return this unless (@expr.instanceof ArrayInitialiser) and @expr.members.length is 0
-      (new ArrayInitialiser []).g().r(@raw).p @line, @column
+      (new ArrayInitialiser []).g()
     ]
     # for-own-of over empty object
     [[ForOf], ->
       return this unless (@expr.instanceof ObjectInitialiser) and @expr.isOwn and @expr.members.length is 0
-      (new ArrayInitialiser []).g().r(@raw).p @line, @column
+      (new ArrayInitialiser []).g()
     ]
     # DoOp -> FunctionApplication
     # TODO: move this to compiler internals
@@ -83,7 +82,7 @@ class @Optimiser
     #]
     # LogicalNotOp applied to a literal or !!
     [[LogicalNotOp], ->
-      newNode = switch @expr.className
+      switch @expr.className
         when Int::className, Float::className, String::className, Bool::className
           (new Bool !@expr.data).g()
         when Function::className, BoundFunction::className then (new Bool false).g()
@@ -95,8 +94,6 @@ class @Optimiser
           if @expr.expr.instanceof LogicalNotOp then @expr.expr
           else this
         else this
-      return this if newNode is this
-      newNode.r(@raw).p @line, @column
     ]
     # typeof on any literal
     [[TypeofOp], ->

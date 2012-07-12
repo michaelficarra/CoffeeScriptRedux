@@ -47,7 +47,7 @@ beingDeclared = (assignment) ->
   instanceof: (ctors...) ->
     # not a fold for efficiency's sake
     for ctor in ctors
-      return yes if @instanceof ctor
+      return yes if this.className is ctor::className
     no
   r: (@raw) -> this
   p: (@line, @column) -> this

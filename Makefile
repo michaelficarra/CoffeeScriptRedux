@@ -1,39 +1,40 @@
-default: all
-
-# TODO: get somebody with some Makefile experience to help with this shit
+default: buildAndTest
 
 SRC = $(shell find src -name "*.coffee" -type f | sort)
-LIB = $(shell find lib -name "*.js" -type f | sort)
+LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js)
 TESTS = $(shell find test -name "*.coffee" -type f | sort)
 
 COFFEE = node_modules/coffee-script/bin/coffee
 PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
 MOCHA = node_modules/mocha/bin/mocha --compilers coffee:coffee-script -u tdd
 
-all: build test
+buildAndTest: build test
+all: build
 
-build: parser $(SRC) lib/coffee-script
-	$(COFFEE) -o lib/coffee-script/ -c src/
+build: $(LIB) lib/coffee-script/parser.js
 
-parser: src/grammar.pegjs lib/coffee-script
+lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
 	echo -n "module.exports = " > lib/coffee-script/parser.js
 	$(PEGJS) < src/grammar.pegjs >> lib/coffee-script/parser.js
+
+lib/coffee-script/%.js: src/%.coffee lib/coffee-script
+	$(COFFEE) -sc < "$(@:lib/coffee-script/%.js=src/%.coffee)" > "$@"
 
 lib/coffee-script:
 	mkdir -p lib/coffee-script/
 
-test: $(LIB) $(TEST)
+test: $(LIB) $(TESTS)
 	$(MOCHA) -R spec
 
 install: $(LIB)
 	npm install -g .
 
-coverage: build
+coverage: $(LIB)
 	@which jscoverage || (echo "install node-jscoverage"; exit 1)
 	rm -rf instrumented
 	jscoverage -v lib instrumented
 	$(MOCHA) -R dot
-	$(MOCHA) -r instrumented/coffee-script/preprocessor -r instrumented/coffee-script/nodes -r instrumented/coffee-script/optimiser -R html-cov > coverage.html
+	$(MOCHA) $(LIB:lib/%.js=-r instrumented/%) -r instrumented/coffee-script/parser -R html-cov > coverage.html
 	@xdg-open coverage.html &> /dev/null
 
 clean:

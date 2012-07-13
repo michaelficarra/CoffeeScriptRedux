@@ -6,7 +6,7 @@ class @Optimiser
 
   defaultRules = [
     # dead code removal
-    [[Block], (inScope, ancestors) ->
+    [Block, (inScope, ancestors) ->
       canDropLast = ancestors[0]?.instanceof Program, Class
       changed = no
       newNode = new Block concat do =>
@@ -25,12 +25,12 @@ class @Optimiser
         when 1 then newNode.statements[0]
         else newNode
     ]
-    [[SeqOp], (inScope) ->
+    [SeqOp, (inScope) ->
       return this if (@right.instanceof Identifier) and @right.data is 'eval'
       return @right unless @left.mayHaveSideEffects inScope
       this
     ]
-    [[While], (inScope) ->
+    [While, (inScope) ->
       if @condition.isFalsey()
         return if @condition.mayHaveSideEffects inScope
           # while (falsey with side effects) -> the condition
@@ -46,7 +46,7 @@ class @Optimiser
           return (new Loop @block).g()
       this
     ]
-    [[Conditional], (inScope) ->
+    [Conditional, (inScope) ->
       if @condition.isFalsey()
         block = @elseBlock
       else if @condition.isTruthy()
@@ -59,18 +59,18 @@ class @Optimiser
       block
     ]
     # for-in over empty list
-    [[ForIn], ->
+    [ForIn, ->
       return this unless (@expr.instanceof ArrayInitialiser) and @expr.members.length is 0
       (new ArrayInitialiser []).g()
     ]
     # for-own-of over empty object
-    [[ForOf], ->
+    [ForOf, ->
       return this unless (@expr.instanceof ObjectInitialiser) and @expr.isOwn and @expr.members.length is 0
       (new ArrayInitialiser []).g()
     ]
     # DoOp -> FunctionApplication
     # TODO: move this to compiler internals
-    #[[DoOp], ->
+    #[DoOp, ->
     #  args = []
     #  if @expr.className is 'Function'
     #    args = for param in @expr.parameters
@@ -81,7 +81,7 @@ class @Optimiser
     #  (new FunctionApplication @expr, args).g().p @line, @column
     #]
     # LogicalNotOp applied to a literal or !!
-    [[LogicalNotOp], ->
+    [LogicalNotOp, ->
       switch @expr.className
         when Int::className, Float::className, String::className, Bool::className
           (new Bool !@expr.data).g()
@@ -96,7 +96,7 @@ class @Optimiser
         else this
     ]
     # typeof on any literal
-    [[TypeofOp], ->
+    [TypeofOp, ->
       switch @expr.className
         when Int::className, Float::className, UnaryNegateOp::className, UnaryPlusOp::className
           (new String 'number').g()
@@ -110,8 +110,7 @@ class @Optimiser
 
   constructor: ->
     @rules = {}
-    for [applicableCtors, handler] in defaultRules
-      @addRule ctor::className, handler for ctor in applicableCtors
+    @addRule ctor::className, handler for [ctor, handler] in defaultRules
 
   addRule: (ctor, handler) ->
     (@rules[ctor] ?= []).push handler

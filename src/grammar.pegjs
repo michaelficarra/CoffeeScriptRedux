@@ -536,10 +536,10 @@ switch
     }
   switchBody
     = ws:_ t:TERMINDENT b:switchBlock d:DEDENT { return {cases: b.cases, 'else': b['else'], raw: ws + t + b.raw + d}; }
-    / ws0:_ t:THEN ws1:_ w:when { return {cases: [[w.conditions, w.block]], raw: ws0 + t + ws1 + w.raw}; }
+    / ws0:_ t:THEN ws1:_ c:case { return {cases: [[c.conditions, c.block]], raw: ws0 + t + ws1 + c.raw}; }
     / ws:_ THEN { return {cases: [], raw: ws + 'then'}; }
   switchBlock
-    = w:when ws:(_ TERMINATOR _ when)* elseClause:(_ TERMINATOR _ elseClause)? term:TERMINATOR? {
+    = w:case ws:(_ TERMINATOR _ case)* elseClause:(_ TERMINATOR _ elseClause)? term:TERMINATOR? {
         var raw = w.raw + ws.map(function(w){ return w[0] + w[1] + w[2] + w[3].raw; }).join('') +
           (elseClause ? elseClause[0] + elseClause[1] + elseClause[2] + elseClause[3].raw : '') + term;
         var cases = [[w.conditions, w.block]].concat(ws.map(function(w){
@@ -547,21 +547,21 @@ switch
         }));
         return {cases: cases, 'else': elseClause ? elseClause[3].block : null, raw: raw};
       }
-  when
-    = WHEN ws:_ conditions:whenConditions body:whenBody {
-      return 0,
-      { conditions: conditions.list
-      , block: body.block
-      , raw: 'when' + ws + conditions.raw + body.raw
-      };
-    }
-  whenCondition = assignmentExpression
-  whenConditions
-    = c:whenCondition cs:(_ "," _ whenCondition)* {
+  case
+    = WHEN ws:_ conditions:caseConditions body:caseBody {
+        return 0,
+        { conditions: conditions.list
+        , block: body.block
+        , raw: 'when' + ws + conditions.raw + body.raw
+        };
+      }
+  caseCondition = assignmentExpression
+  caseConditions
+    = c:caseCondition cs:(_ "," _ caseCondition)* {
         var raw = c.raw + cs.map(function(c){ return c[0] + c[1] + c[2] + c[3].raw; }).join('');
         return {list: [c].concat(cs.map(function(c){ return c[3]; })), raw: raw};
       }
-  whenBody = conditionalBody
+  caseBody = conditionalBody
 
 
 functionLiteral

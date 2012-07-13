@@ -1,4 +1,4 @@
-{YES, NO, any, foldl, map, concatMap, difference, nub, union} = require './helpers'
+{YES, NO, any, foldl, map, concat, concatMap, difference, nub, union} = require './helpers'
 
 # these are the identifiers that need to be declared when the given value is
 # being used as the target of an assignment
@@ -43,6 +43,7 @@ beingDeclared = (assignment) ->
         continue while child isnt (child = (fn.call child, inScope, ancestry).walk fn, inScope, ancestry)
         inScope = union inScope, child?.envEnrichments()
         @[childName] = child
+      child
     this
   instanceof: (ctors...) ->
     # not a fold for efficiency's sake
@@ -765,6 +766,7 @@ class UnaryOp extends @Node
       conds = for cond in conds
         continue while cond isnt (cond = (fn.call cond, inScope, ancestry).walk fn, inScope, ancestry)
         inScope = union inScope, cond.envEnrichments()
+        cond
       continue while block isnt (block = (fn.call block, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, block.envEnrichments()
       [conds, block]
@@ -774,15 +776,15 @@ class UnaryOp extends @Node
   # TODO: isTruthy/isFalsey: all blocks are truthy/falsey
   envEnrichments: ->
     otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-    nub concatMap [@expr, @elseBlock, otherExprs...], (e) -> e.envEnrichments()
+    nub concatMap [@expr, @elseBlock, otherExprs...], (e) -> if e? then e.envEnrichments() else []
   mayHaveSideEffects: (inScope) ->
     otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-    any [@expr, @elseBlock, otherExprs...], (e) -> e.mayHaveSideEffects inScope
+    any [@expr, @elseBlock, otherExprs...], (e) -> e?.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     expression: @expr?.toJSON()
-    cases: for [exprs, block] in @cases
-      [e.toJSON() for e in exprs, block.toJSON()]
+    cases: for [conds, block] in @cases
+      [c.toJSON() for c in conds, block.toJSON()]
     elseBlock: @elseBlock?.toJSON()
 
 # This :: This

@@ -7,6 +7,8 @@ class @Optimiser
   defaultRules = [
     # dead code removal
     [Block, (inScope, ancestors) ->
+      # TODO: really, I need some `usedAsExpression` predicate, and this would
+      # be true when `this.usedAsExpression ancestors` says false
       canDropLast = ancestors[0]?.instanceof Program, Class
       changed = no
       newNode = new Block concat do =>

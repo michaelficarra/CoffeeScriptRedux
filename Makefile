@@ -1,4 +1,4 @@
-default: buildAndTest
+default: build-and-test
 
 SRC = $(shell find src -name "*.coffee" -type f | sort)
 LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js)
@@ -8,7 +8,7 @@ COFFEE = node_modules/coffee-script/bin/coffee
 PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
 MOCHA = node_modules/mocha/bin/mocha --compilers coffee:coffee-script -u tdd
 
-buildAndTest: build test
+build-and-test: build test
 all: build
 
 build: $(LIB) lib/coffee-script/parser.js

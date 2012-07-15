@@ -1,7 +1,35 @@
 suite 'Optimisations', ->
 
-  test 'do not optimise away indirect eval', (done) ->
-    parse '(0; eval) 1', (ast) =>
-      ast = optimise ast
-      eq SeqOp::className, ast?.block?.statements?[0]?.function?.className
-      do done
+  # by definition, anything that is optimised away will not be detectable at
+  # runtime, so we will have to do tests on the AST structure
+
+  suite 'Non-optimisations', ->
+
+    test 'do not optimise away indirect eval', ->
+      do -> (1; eval) 'var thisShouldBeInTheGlobalScope = 0'
+      eq 'number', typeof thisShouldBeInTheGlobalScope
+      delete global.thisShouldBeInTheGlobalScope
+
+    test 'do not optimise away declarations in conditionals', ->
+      if 0 then a = 0
+      ok not a
+      if 1 then 0 else b = 0
+      ok not b
+
+    test 'do not optimise away declarations in while loops', ->
+      while 0 then a = 0
+      ok not a
+
+    test 'do not optimise away declarations in for-in loops', ->
+      for a in [] then b = 0
+      ok not a
+      ok not b
+
+    test 'do not optimise away declarations in for-of loops', ->
+      for own a of {} then b = 0
+      ok not a
+      ok not b
+
+    test 'do not optimise away declarations in logical not ops', ->
+      not (a = 0)
+      ok not a

@@ -11,4 +11,7 @@ suite 'Parser', ->
   test 'empty program', (done) -> @shouldParse '', done
   test 'simple number', (done) -> @shouldParse '0', done
 
-  test 'simple number', (done) -> @shouldNotParse '0+', done
+  test 'simple error', (done) -> @shouldNotParse '0+', done
+
+  test 'deeply nested expressions', (done) ->
+    @shouldParse '(((((((((((((((((((((((((0)))))))))))))))))))))))))', done

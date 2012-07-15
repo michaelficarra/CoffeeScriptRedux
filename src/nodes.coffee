@@ -154,7 +154,7 @@ class UnaryOp extends @Node
       inScope = union inScope, statement.envEnrichments()
       statement
     this
-  @wrap = (s) -> new Block([s]).r(s.raw).p(s.line, s.column)
+  @wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
   # TODO: isTruthy and isFalsey must check the last expression and also any
   # early returns, no matter how deeply nested in conditionals
   envEnrichments: -> nub concatMap @statements, (s) -> s.envEnrichments()

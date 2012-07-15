@@ -7,10 +7,12 @@
     return yes if fn e
   no
 
-@foldl = (memo, list, fn) ->
+@foldl = foldl = (memo, list, fn) ->
   for i in list
     memo = fn memo, i
   memo
+
+@foldl1 = (list, fn) -> foldl list[0], list[1..], fn
 
 @map = map = (list, fn) -> fn e for e in list
 

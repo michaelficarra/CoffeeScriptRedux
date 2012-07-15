@@ -8,7 +8,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 # TODO: better comments
 # TODO: support win32-style line endings
 
-class @Preprocessor extends EventEmitter
+@Preprocessor = class Preprocessor extends EventEmitter
 
   ws = '\\t\\x0B\\f \\xA0\\u1680\\u180E\\u2000-\\u200A\\u202F\\u205F\\u3000\\uFEFF'
   INDENT = '\uEFEF'
@@ -218,3 +218,10 @@ class @Preprocessor extends EventEmitter
 
   processData: processInput no
   processEnd: processInput yes
+  @processSync = (input) ->
+    pre = new Preprocessor
+    output = ''
+    pre.emit = (type, data) -> output += data if type is 'data'
+    pre.processData input
+    do pre.processEnd
+    output

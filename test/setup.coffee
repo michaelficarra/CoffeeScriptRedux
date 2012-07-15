@@ -27,15 +27,6 @@ global.Parser = require "../#{libDir}/coffee-script/parser"
 {Optimiser: global.Optimiser} = require "../#{libDir}/coffee-script/optimiser"
 {Preprocessor} = require "../#{libDir}/coffee-script/preprocessor"
 
-global.parse = (input, cb) ->
-  preprocessed = ''
-  preprocessor = new Preprocessor
-  preprocessor.on 'data', (data) -> preprocessed = "#{preprocessed}#{data}"
-  preprocessor.on 'end', ->
-    cb Parser.parse preprocessed
-  preprocessor.processData input
-  do preprocessor.processEnd
-  null
-
+global.parse = (input) -> Parser.parse Preprocessor.processSync input
 optimiser = new Optimiser
 global.optimise = (ast) -> optimiser.optimise ast

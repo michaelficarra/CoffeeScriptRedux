@@ -1,17 +1,14 @@
 suite 'Parser', ->
 
   setup ->
-    @shouldParse = (input, done) ->
-      doesNotThrow -> parse input, -> do done
-    @shouldNotParse = (input, done) ->
-      throws -> parse input, ->
-      do done
+    @shouldParse = (input) -> doesNotThrow -> parse input
+    @shouldNotParse = (input) -> throws -> parse input
 
 
-  test 'empty program', (done) -> @shouldParse '', done
-  test 'simple number', (done) -> @shouldParse '0', done
+  test 'empty program', -> @shouldParse ''
+  test 'simple number', -> @shouldParse '0'
 
-  test 'simple error', (done) -> @shouldNotParse '0+', done
+  test 'simple error', -> @shouldNotParse '0+'
 
-  test 'deeply nested expressions', (done) ->
-    @shouldParse '(((((((((((((((((((((((((0)))))))))))))))))))))))))', done
+  test 'deeply nested expressions', ->
+    @shouldParse '(((((((((((((((((((((((((0)))))))))))))))))))))))))'

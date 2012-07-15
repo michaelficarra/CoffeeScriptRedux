@@ -12,11 +12,11 @@ all: $(LIB)
 build: all
 
 lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
-	echo -n "module.exports = " > lib/coffee-script/parser.js
-	$(PEGJS) < src/grammar.pegjs >> lib/coffee-script/parser.js
+	echo -n "module.exports = " > $@
+	$(PEGJS) < $< >> $@
 
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script
-	$(COFFEE) -sc < "$(@:lib/coffee-script/%.js=src/%.coffee)" > "$@"
+	$(COFFEE) -sc < $< > $@
 
 lib/coffee-script:
 	mkdir -p lib/coffee-script/

@@ -12,11 +12,11 @@ all: $(LIB)
 build: all
 
 lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
-	echo -n "module.exports = " > lib/coffee-script/parser.js
-	$(PEGJS) < src/grammar.pegjs >> lib/coffee-script/parser.js
+	echo -n "module.exports = " > "$@"
+	$(PEGJS) < "$<" >> "$@"
 
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script
-	$(COFFEE) -sc < "$(@:lib/coffee-script/%.js=src/%.coffee)" > "$@"
+	$(COFFEE) -sc < "$<" > "$@"
 
 lib/coffee-script:
 	mkdir -p lib/coffee-script/
@@ -32,7 +32,7 @@ coverage: $(LIB)
 	rm -rf instrumented
 	jscoverage -v lib instrumented
 	$(MOCHA) -R dot
-	$(MOCHA) $(LIB:lib/%.js=-r instrumented/%) -r instrumented/coffee-script/parser -R html-cov > coverage.html
+	$(MOCHA) $(LIB:lib/%.js=-r instrumented/%) -R html-cov > coverage.html
 	@xdg-open coverage.html &> /dev/null
 
 clean:

@@ -6,14 +6,15 @@ declarationsFor = (vars) ->
   foldl (new Undefined).g(), vars, (expr, v) ->
     (new AssignOp v, expr).g()
 
+# TODO: better comments
+# TODO: make sure I can't split any of these rules into sets of smaller rules
+
 class @Optimiser
 
   defaultRules = [
     # dead code removal
     [Block, (inScope, ancestors) ->
-      # TODO: really, I need some `usedAsExpression` predicate, and this would
-      # be true when `this.usedAsExpression ancestors` says false
-      canDropLast = ancestors[0]?.instanceof Program, Class
+      canDropLast = not @usedAsExpression ancestors
       stmts = concat do =>
         for s, i in @statements then switch
           when (not s.mayHaveSideEffects inScope) and (canDropLast or i + 1 isnt @statements.length)
@@ -27,12 +28,17 @@ class @Optimiser
         else foldl1 stmts, (expr, s) ->
           new SeqOp expr, s
     ]
-    [SeqOp, (inScope) ->
-      return this if @left.mayHaveSideEffects inScope
-      if (@right.instanceof Identifier) and @right.data is 'eval'
+    [SeqOp, (inScope, ancestors) ->
+      if @left.mayHaveSideEffects inScope
+        if @right.mayHaveSideEffects() or @usedAsExpression ancestors then this else @left
+      else if (@right.instanceof Identifier) and @right.data is 'eval'
         return this if (@left.instanceof Int) and @left.data is 0
         return new SeqOp (new Int 0).g(), @right
-      @right
+      else @right
+    ]
+    [AssignOp, ->
+      return this unless @expr.instanceof SeqOp
+      new SeqOp @expr.left, new AssignOp @assignee, @expr.right
     ]
     [While, (inScope) ->
       if @condition.isFalsey()
@@ -69,14 +75,16 @@ class @Optimiser
       block
     ]
     # for-in over empty list
-    [ForIn, ->
+    [ForIn, (inScope, ancestors) ->
       return this unless (@expr.instanceof ArrayInitialiser) and @expr.members.length is 0
-      new SeqOp (declarationsFor @envEnrichments()), (new ArrayInitialiser []).g()
+      retVal = if @usedAsExpression ancestors then new ArrayInitialiser [] else new Undefined
+      new SeqOp (declarationsFor @envEnrichments()), retVal.g()
     ]
     # for-own-of over empty object
     [ForOf, ->
       return this unless (@expr.instanceof ObjectInitialiser) and @expr.isOwn and @expr.members.length is 0
-      new SeqOp (declarationsFor @envEnrichments()), (new ArrayInitialiser []).g()
+      retVal = if @usedAsExpression ancestors then new ArrayInitialiser [] else new Undefined
+      new SeqOp (declarationsFor @envEnrichments()), retVal.g()
     ]
     # DoOp -> FunctionApplication
     # TODO: move this to compiler internals
@@ -91,6 +99,7 @@ class @Optimiser
     #  (new FunctionApplication @expr, args).g().p @line, @column
     #]
     # LogicalNotOp applied to a literal or !!
+    [ExistsOp, -> if @left.instanceof Null, Undefined then @right else this]
     [LogicalNotOp, ->
       switch @expr.className
         when Int::className, Float::className, String::className, Bool::className
@@ -120,7 +129,9 @@ class @Optimiser
 
   constructor: ->
     @rules = {}
-    @addRule ctor::className, handler for [ctor, handler] in defaultRules
+    for [ctors..., handler] in defaultRules
+      for ctor in ctors
+        @addRule ctor::className, handler
 
   addRule: (ctor, handler) ->
     (@rules[ctor] ?= []).push handler

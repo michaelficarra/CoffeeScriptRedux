@@ -13,7 +13,7 @@ beingDeclared = (assignment) ->
 # TODO: DRY `walk` methods
 # TODO: make use of Node::instanceof *everywhere*
 # TODO: sync instance prop names with those output by the toJSON methods, then lift toJSON to Node::toJSON
-
+# TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
 
 @Node = class Node
   generated: no
@@ -22,9 +22,24 @@ beingDeclared = (assignment) ->
   isFalsey: NO
   childNodes: [] # children's names; in evaluation order where applicable
   envEnrichments: -> # environment enrichments that occur when this node is evaluated
-    nub concatMap @childNodes, (child) => @[child]?.envEnrichments()
+    nub concatMap @childNodes, (child) => @[child]?.envEnrichments() ? []
   mayHaveSideEffects: (inScope) ->
     any @childNodes, (child) => @[child]?.mayHaveSideEffects inScope
+  usedAsExpression: (ancestors) -> switch
+    when !ancestors[0]? then yes
+    when ancestors[0].instanceof Program, Class then no
+    when not ancestors[0].usedAsExpression ancestors[1..] then no
+    when (ancestors[0].instanceof SeqOp) and ancestors[0].left is this then no
+    when (ancestors[0].instanceof Block) and
+    (ancestors[0].statements.indexOf this) isnt ancestors[0].statements.length - 1
+      no
+    when (ancestors[0].instanceof Function, BoundFunction) and
+    ancestors[0].body is this and
+    (ancestors[1]?.instanceof ClassProtoAssignOp) and
+    (ancestors[1].assignee instanceof String) and
+    ancestors[1].assignee.data is 'constructor'
+      no
+    else yes
   #fmap: (memo, fn) ->
   #  memo = fn memo, this
   #  for child in @childNodes
@@ -342,10 +357,10 @@ class UnaryOp extends @Node
   constructor: (@valAssignee, @keyAssignee, @expr, @step, @filterExpr, @block) ->
   childNodes: ['valAssignee', 'keyAssignee', 'expr', 'step', 'filterExpr', 'block']
   isTruthy: YES
-  envEnrichments: -> nub [
-    (super arguments...)
-    (beingDeclared @valAssignee)...
-    (beingDeclared @keyAssignee)...,
+  envEnrichments: -> nub concat [
+    super arguments...
+    beingDeclared @valAssignee
+    if @keyAssignee? then beingDeclared @keyAssignee else []
   ]
   toJSON: ->
     nodeType: @className
@@ -362,10 +377,10 @@ class UnaryOp extends @Node
   constructor: (@isOwn, @keyAssignee, @valAssignee, @expr, @filterExpr, @block) ->
   childNodes: ['keyAssignee', 'valAssignee', 'expr', 'filterExpr', 'block']
   isTruthy: YES
-  envEnrichments: -> nub [
-    (super arguments...)
-    (beingDeclared @valAssignee)...
-    (beingDeclared @keyAssignee)...,
+  envEnrichments: -> nub concat [
+    super arguments...
+    beingDeclared @keyAssignee
+    if @valAssignee? then beingDeclared @valAssignee else []
   ]
   toJSON: ->
     nodeType: @className

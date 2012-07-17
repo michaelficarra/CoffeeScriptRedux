@@ -38,6 +38,11 @@ var Nodes = require("./nodes"),
         memo = fn(memo, list[i]);
       return memo;
     },
+    //foldr = function(fn, memo, list){
+    //  for(var i = list.length; i--;)
+    //    memo = fn(memo, list[i]);
+    //  return memo;
+    //};
     createInterpolation = function(es){
       var init = new Nodes.String('').g().p(es[0].line, es[0].column);
       return foldl(function(memo, s){
@@ -234,38 +239,48 @@ assignmentExpression
     = "*" / "/" / "%" / "+" / "-" / "<<" / ">>" / ">>>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||" / "?"
   compoundAssignmentOp
     = all:(Assignable _ CompoundAssignmentOperators "=" _ secondaryExpression) {
-        var raw = all[0].raw + all[1] + all[2] + "=" + all[4] + all[5].raw;
+        var raw = all[0].raw + all[1] + all[2] + '=' + all[4] + all[5].raw;
         return new Nodes.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(line, column);
       }
 logicalOrExpression
-  = left:logicalAndExpression right:(_ ("||" / OR) !"=" INDENT? _ (functionLiteral / logicalOrExpression))? {
-      if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-      return new Nodes.LogicalOrOp(left, right[5]).r(raw).p(line, column);
+  = left:logicalAndExpression rights:(_ ("||" / OR) !"=" INDENT? _ (functionLiteral / logicalAndExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+        return new Nodes.LogicalOrOp(expr, right[5]).r(raw).p(line, column);
+      }, left, rights);
     }
 logicalAndExpression
-  = left:bitwiseOrExpression right:(_ ("&&" / AND) !"=" INDENT? _ (functionLiteral / logicalAndExpression))? {
-      if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-      return new Nodes.LogicalOrOp(left, right[5]).r(raw).p(line, column);
+  = left:bitwiseOrExpression rights:(_ ("&&" / AND) !"=" INDENT? _ (functionLiteral / bitwiseOrExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+        return new Nodes.LogicalAndOp(expr, right[5]).r(raw).p(line, column);
+      }, left, rights);
     }
 bitwiseOrExpression
-  = left:bitwiseXorExpression right:(_ "|" !"=" _ (functionLiteral / bitwiseOrExpression))? {
-      if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-      return new Nodes.BitOrOp(left, right[4]).r(raw).p(line, column);
+  = left:bitwiseXorExpression rights:(_ "|" !"=" _ (functionLiteral / bitwiseXorExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
+        return new Nodes.BitOrOp(expr, right[4]).r(raw).p(line, column);
+      }, left, rights);
     }
 bitwiseXorExpression
-  = left:bitwiseAndExpression right:(_ "^" !"=" _ (functionLiteral / bitwiseXorExpression))? {
-      if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-      return new Nodes.BitXorOp(left, right[4]).r(raw).p(line, column);
+  = left:bitwiseAndExpression rights:(_ "^" !"=" _ (functionLiteral / bitwiseAndExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
+        return new Nodes.BitXorOp(expr, right[4]).r(raw).p(line, column);
+      }, left, rights);
     }
 bitwiseAndExpression
-  = left:existentialExpression right:(_ "&" !"=" _ (functionLiteral / bitwiseAndExpression))? {
-      if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-      return new Nodes.BitAndOp(left, right[4]).r(raw).p(line, column);
+  = left:existentialExpression rights:(_ "&" !"=" _ (functionLiteral / existentialExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
+        return new Nodes.BitAndOp(expr, right[4]).r(raw).p(line, column);
+      }, left, rights);
     }
 existentialExpression
   = left:equalityExpression right:(_ "?" !"=" _ (functionLiteral / existentialExpression))? {
@@ -274,44 +289,59 @@ existentialExpression
       return new Nodes.ExistsOp(left, right[4]).r(raw).p(line, column);
     }
 equalityExpression
-  = left:relationalExpression right:(_ ("==" / IS / "!=" / ISNT) _ (functionLiteral / equalityExpression))? {
-      if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
-      return new constructorLookup[right[1]](left, right[3]).r(raw).p(line, column);
+  = left:relationalExpression rights:(_ ("==" / IS / "!=" / ISNT) _ (functionLiteral / relationalExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = expr.raw + right[0] + right[1] + right[2] + right[3].raw;
+        return new constructorLookup[right[1]](expr, right[3]).r(raw).p(line, column);
+      }, left, rights);
     }
 relationalExpression
-  = left:bitwiseShiftExpression right:(_ ("<=" / ">=" / "<" / ">" / EXTENDS / INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
-      if(!right) return left;
-      var op = constructorLookup[right[1]],
-          raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
-      return new op(left, right[3]).r(raw).p(line, column);
+  = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator _ (functionLiteral / bitwiseShiftExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = expr.raw + right[0] + right[1].raw + right[2] + right[3].raw;
+        return right[1](expr, right[3], raw, line, column);
+      }, left, rights);
     }
-  / left:bitwiseShiftExpression right:(_ NOT _ (INSTANCEOF / IN / OF) _ (functionLiteral / relationalExpression))? {
-      if(!right) return left;
-      var op = constructorLookup[right[3]],
-          raw = left.raw + right[0] + 'not' + right[2] + right[3] + right[4] + right[5].raw;
-      return new Nodes.LogicalNotOp(new op(left, right[5]).r(raw).p(line, column)).r(raw).g();
-    }
+  relationalExpressionOperator
+    = op:("<=" / ">=" / "<" / ">" / EXTENDS / INSTANCEOF / IN / OF) {
+        var fn = function(left, right, raw, line, column){
+          return new constructorLookup[op](left, right).r(raw).p(line, column);
+        };
+        fn.raw = op;
+        return fn;
+      }
+    / NOT ws:_ op:(INSTANCEOF / IN / OF) {
+        var fn = function(left, right, raw, line, column){
+          return new LogicalNotOp(new constructorLookup[op](left, right).r(raw).p(line, column)).r(raw).g();
+        };
+        fn.raw = 'not' + ws + op;
+        return fn;
+      }
 bitwiseShiftExpression
-  = left:additiveExpression right:(_ ("<<" / ">>>" / ">>") _ (functionLiteral / bitwiseShiftExpression))? {
-      if(!right) return left;
-      var op = constructorLookup[right[1]],
-          raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
-      return new op(left, right[3]).r(raw).p(line, column);
+  = left:additiveExpression rights:(_ ("<<" / ">>>" / ">>") !"=" _ (functionLiteral / additiveExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
+        return new constructorLookup[right[1]](expr, right[4]).r(raw).p(line, column);
+      }, left, rights);
     }
 additiveExpression
-  = left:multiplicativeExpression right:(_ ("+" ![+=] / "-" ![-=]) _ (functionLiteral / additiveExpression))? {
-      if(!right) return left;
-      var op = constructorLookup[right[1][0]],
-          raw = left.raw + right[0] + right[1][0] + right[2] + right[3].raw;
-      return new op(left, right[3]).r(raw).p(line, column);
+  = left:multiplicativeExpression rights:(_ ("+" ![+=] / "-" ![-=]) _ (functionLiteral / multiplicativeExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = expr.raw + right[0] + right[1][0] + right[2] + right[3].raw;
+        return new constructorLookup[right[1][0]](expr, right[3]).r(raw).p(line, column);
+      }, left, rights);
     }
 multiplicativeExpression
-  = left:prefixExpression right:(_ [*/%] !"=" _ (functionLiteral / multiplicativeExpression))? {
-      if(!right) return left;
-      var op = constructorLookup[right[1]],
-          raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-      return new op(left, right[4]).r(raw).p(line, column);
+  = left:prefixExpression rights:(_ [*/%] !"=" _ (functionLiteral / prefixExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
+        return new constructorLookup[right[1]](expr, right[4]).r(raw).p(line, column);
+      }, left, rights);
     }
 prefixExpression
   = postfixExpression

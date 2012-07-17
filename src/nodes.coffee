@@ -14,6 +14,7 @@ beingDeclared = (assignment) ->
 # TODO: make use of Node::instanceof *everywhere*
 # TODO: sync instance prop names with those output by the toJSON methods, then lift toJSON to Node::toJSON
 # TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
+# TODO: change type signatures of anything that says "Block" to recognise that Block is now in Exprs
 
 @Node = class Node
   generated: no
@@ -27,9 +28,10 @@ beingDeclared = (assignment) ->
     any @childNodes, (child) => @[child]?.mayHaveSideEffects inScope
   usedAsExpression: (ancestors) -> switch
     when !ancestors[0]? then yes
-    when ancestors[0].instanceof Program, Class then no
+    when ancestors[0].instanceof Program then no
+    when ancestors[0].instanceof Class then no
     when not ancestors[0].usedAsExpression ancestors[1..] then no
-    when (ancestors[0].instanceof SeqOp) and ancestors[0].left is this then no
+    when (ancestors[0].instanceof SeqOp) then this is ancestors[0].right
     when (ancestors[0].instanceof Block) and
     (ancestors[0].statements.indexOf this) isnt ancestors[0].statements.length - 1
       no
@@ -65,7 +67,8 @@ beingDeclared = (assignment) ->
     for ctor in ctors
       return yes if this.className is ctor::className
     no
-  r: (@raw) -> this
+  #r: (@raw) -> this
+  r: -> this
   p: (@line, @column) -> this
   g: ->
     @generated = yes
@@ -207,10 +210,12 @@ class UnaryOp extends @Node
       else null
   childNodes: ['parent', 'block']
   isTruthy: YES
-  envEnrichments: -> nub (beingDeclared @nameAssignment).concat (if name? then [name] else [])
+  envEnrichments: ->
+    declaredInName = if @nameAssignment? then beingDeclared @nameAssignment else []
+    nub declaredInName.concat (if name? then [name] else [])
   mayHaveSideEffects: (inScope) ->
-    (super arguments...) or
-    @nameAssignment? and any (beingDeclared @nameAssignment), (v) -> v in inScope
+    (@parent?.mayHaveSideEffects inScope) or
+    @nameAssignment? and (@name or (beingDeclared @nameAssignment).length > 0)
   toJSON: ->
     nodeType: @className
     nameAssignment: @nameAssignment?.toJSON()
@@ -402,7 +407,8 @@ class UnaryOp extends @Node
       continue while param isnt (param = (fn.call param, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, param.envEnrichments()
       param
-    continue while @block isnt (@block = (fn.call @block, inScope, ancestry).walk fn, inScope, ancestry)
+    if @block?
+      continue while @block isnt (@block = (fn.call @block, inScope, ancestry).walk fn, inScope, ancestry)
     this
   isTruthy: YES
   mayHaveSideEffects: NO

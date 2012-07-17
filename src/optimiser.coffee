@@ -13,6 +13,7 @@ class @Optimiser
 
   defaultRules = [
     # dead code removal
+    [Program, -> if @block.mayHaveSideEffects [] then this else new Program null]
     [Block, (inScope, ancestors) ->
       canDropLast = not @usedAsExpression ancestors
       stmts = concat do =>
@@ -34,7 +35,8 @@ class @Optimiser
       else if (@right.instanceof Identifier) and @right.data is 'eval'
         return this if (@left.instanceof Int) and @left.data is 0
         return new SeqOp (new Int 0).g(), @right
-      else @right
+      else
+        @right
     ]
     [AssignOp, ->
       return this unless @expr.instanceof SeqOp
@@ -100,6 +102,7 @@ class @Optimiser
     #]
     # LogicalNotOp applied to a literal or !!
     [ExistsOp, -> if @left.instanceof Null, Undefined then @right else this]
+    [UnaryExistsOp, -> if @expr.instanceof Null, Undefined then (new Bool false).g() else this]
     [LogicalNotOp, ->
       switch @expr.className
         when Int::className, Float::className, String::className, Bool::className

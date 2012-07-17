@@ -14,7 +14,6 @@ beingDeclared = (assignment) ->
 # TODO: make use of Node::instanceof *everywhere*
 # TODO: sync instance prop names with those output by the toJSON methods, then lift toJSON to Node::toJSON
 # TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
-# TODO: change type signatures of anything that says "Block" to recognise that Block is now in Exprs
 
 @Node = class Node
   generated: no
@@ -196,7 +195,7 @@ class UnaryOp extends @Node
   constructor: -> # jashkenas/coffee-script#2359
   mayHaveSideEffects: NO
 
-# class @:: Maybe Assignable -> Maybe Exprs -> Maybe Block -> Class
+# class @:: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
 @Class = class Class extends @Node
   className: 'Class'
   constructor: (@nameAssignment, @parent, @block) ->
@@ -247,7 +246,7 @@ class UnaryOp extends @Node
   className: 'ConcatOp'
   constructor: (@left, @right) ->
 
-# Conditional :: Exprs -> Maybe Block -> Maybe Block -> Conditional
+# Conditional :: Exprs -> Maybe Exprs -> Maybe Exprs -> Conditional
 @Conditional = class Conditional extends @Node
   className: 'Conditional'
   childNodes: ['condition', 'block', 'elseBlock']
@@ -271,7 +270,7 @@ class UnaryOp extends @Node
 
 # Note: This only represents the original syntactic specification as an
 # "unless". The node should be treated in all other ways as a Conditional.
-# NegatedConditional :: Exprs -> Block -> Maybe Block -> NegatedConditional
+# NegatedConditional :: Exprs -> Maybe Exprs -> Maybe Exprs -> NegatedConditional
 @NegatedConditional = class NegatedConditional extends @Conditional
   constructor: -> super arguments...
 
@@ -358,7 +357,7 @@ class UnaryOp extends @Node
   isTruthy: -> !!@data
   isFalsey: -> not @data
 
-# ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Block -> ForIn
+# ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
 @ForIn = class ForIn extends @Node
   className: 'ForIn'
   constructor: (@valAssignee, @keyAssignee, @expr, @step, @filterExpr, @block) ->
@@ -376,9 +375,9 @@ class UnaryOp extends @Node
     expression: @expr.toJSON()
     step: @step.toJSON()
     filterExpression: @filterExpr?.toJSON()
-    block: @block.toJSON()
+    block: @block?.toJSON()
 
-# ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Block -> ForOf
+# ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
 @ForOf = class ForOf extends @Node
   className: 'ForOf'
   constructor: (@isOwn, @keyAssignee, @valAssignee, @expr, @filterExpr, @block) ->
@@ -396,9 +395,9 @@ class UnaryOp extends @Node
     valAssignee: @valAssignee?.toJSON()
     expression: @expr.toJSON()
     filterExpression: @filterExpr?.toJSON()
-    block: @block.toJSON()
+    block: @block?.toJSON()
 
-# Function :: [Parameters] -> Maybe Block -> Function
+# Function :: [Parameters] -> Maybe Exprs -> Function
 @Function = class Function extends @Node
   className: 'Function'
   constructor: (@parameters, @block) ->
@@ -420,7 +419,7 @@ class UnaryOp extends @Node
     parameters: (p.toJSON() for p in @parameters)
     block: @block?.toJSON()
 
-# BoundFunction :: [Parameters] -> Block -> BoundFunction
+# BoundFunction :: [Parameters] -> Maybe Exprs -> BoundFunction
 @BoundFunction = class BoundFunction extends @Function
   className: 'BoundFunction'
   constructor: (@parameters, @block) ->
@@ -673,7 +672,7 @@ class UnaryOp extends @Node
   constructor: (@expr) ->
   mayHaveSideEffects: YES
 
-# Program :: Maybe Block -> Program
+# Program :: Maybe Exprs -> Program
 @Program = class Program extends @Node
   className: 'Program'
   constructor: (@block) ->
@@ -785,7 +784,7 @@ class UnaryOp extends @Node
     nodeType: @className
     arguments: (a.toJSON() for a in @arguments)
 
-# Switch :: Maybe Exprs -> [([Exprs], Block)] -> Maybe Block -> Switch
+# Switch :: Maybe Exprs -> [([Exprs], Exprs)] -> Maybe Exprs -> Switch
 @Switch = class Switch extends @Node
   className: 'Switch'
   constructor: (@expr, @cases, @elseBlock) ->
@@ -832,7 +831,7 @@ class UnaryOp extends @Node
   className: 'Throw'
   constructor: (@expr) ->
 
-# Try :: Block -> Maybe Assignable -> Maybe Block -> Maybe Block -> Try
+# Try :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
 @Try = class Try extends @Node
   className: 'Try'
   constructor: (@block, @catchAssignee, @catchBlock, @finallyBlock) ->
@@ -882,7 +881,7 @@ class UnaryOp extends @Node
   className: 'UnsignedRightShiftOp'
   constructor: (@left, @right) ->
 
-# While :: Exprs -> Maybe Block -> While
+# While :: Exprs -> Maybe Exprs -> While
 @While = class While extends @Node
   className: 'While'
   constructor: (@condition, @block) ->
@@ -898,13 +897,13 @@ class UnaryOp extends @Node
 
 # Note: This only represents the original syntactic specification as an
 # "until". The node should be treated in all other ways as a While.
-# NegatedWhile :: Exprs -> Maybe Block -> NegatedWhile
+# NegatedWhile :: Exprs -> Maybe Exprs -> NegatedWhile
 @NegatedWhile = class NegatedWhile extends @While
   constructor: -> super arguments...
 
 # Note: This only represents the original syntactic specification as a "loop".
 # The node should be treated in all other ways as a While.
-# Loop :: Maybe Block -> Loop
+# Loop :: Maybe Exprs -> Loop
 @Loop = class Loop extends @While
   constructor: (block) ->
     super (new Bool true).g(), block

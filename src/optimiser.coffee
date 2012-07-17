@@ -70,10 +70,9 @@ class @Optimiser
         removedBlock = @elseBlock
       else
         return this
-      block = Block.wrap block
-      block.statements.unshift declarationsFor removedBlock.envEnrichments() if removedBlock?
+      block = new SeqOp (declarationsFor removedBlock.envEnrichments()), block if removedBlock?
       if @condition.mayHaveSideEffects inScope
-        @condition.unshift block
+        block = new SeqOp @condition, block
       block
     ]
     # for-in over empty list

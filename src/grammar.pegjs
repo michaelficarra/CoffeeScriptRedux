@@ -207,19 +207,19 @@ postfixControlFlowExpression
             raw = expr.raw + ws + postfix.raw;
             constructor = (indicator == 'unless') ? Nodes.NegatedConditional : Nodes.Conditional;
             cond = (indicator == 'unless') ? new Nodes.LogicalNotOp(postfix.cond).g() : postfix.cond;
-            return new constructor(cond, Nodes.Block.wrap(expr), null).r(raw).p(line, column)
+            return new constructor(cond, expr, null).r(raw).p(line, column)
           case 'while':
           case 'until':
             raw = expr.raw + ws + postfix.raw;
             constructor = (indicator == 'until') ? Nodes.NegatedWhile : Nodes.While;
             cond = (indicator == 'until') ? new Nodes.LogicalNotOp(postfix.cond).g() : postfix.cond;
-            return new constructor(cond, Nodes.Block.wrap(expr)).r(raw).p(line, column)
+            return new constructor(cond, expr).r(raw).p(line, column)
           case 'for-in':
             raw = expr.raw + ws + postfix.raw;
-            return new Nodes.ForIn(postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
+            return new Nodes.ForIn(postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, expr).r(raw).p(line, column);
           case 'for-of':
             raw = expr.raw + ws + postfix.raw;
-            return new Nodes.ForOf(postfix.own, postfix.key, postfix.val, postfix.obj, postfix.filter, Nodes.Block.wrap(expr)).r(raw).p(line, column);
+            return new Nodes.ForOf(postfix.own, postfix.key, postfix.val, postfix.obj, postfix.filter, expr).r(raw).p(line, column);
         }
       }, expr, postfixes)
     }
@@ -475,8 +475,7 @@ conditional
   conditionalBody
     = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b, raw: t + b.raw + d}; }
     / ws0:_ THEN ws1:_ s:statement {
-        var block = Nodes.Block.wrap(s);
-        return {block: block, raw: ws0 + 'then' + ws1 + s.raw};
+        return {block: s, raw: ws0 + 'then' + ws1 + s.raw};
       }
     / ws:_ THEN {
         return {block: null, raw: ws + 'then'};
@@ -513,8 +512,7 @@ class
   classBody
     = ws:_ t:TERMINDENT b:classBlock d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }
     / ws0:_ t:THEN ws1:_ s:classStatement {
-        var block = Nodes.Block.wrap(s);
-        return {block: block, raw: ws0 + t + ws1 + s.raw};
+        return {block: s, raw: ws0 + t + ws1 + s.raw};
       }
     / all:(_ THEN)? {
         return {block: null, raw: all ? all[0] + all[1] : ''};
@@ -612,7 +610,7 @@ functionLiteral
   functionBody
     = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }
     / ws:_ s:statement {
-        return {block: Nodes.Block.wrap(s), raw: ws + s.raw};
+        return {block: s, raw: ws + s.raw};
       }
   parameter
     = Assignable

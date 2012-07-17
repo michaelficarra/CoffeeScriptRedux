@@ -693,7 +693,7 @@ Numbers
   / "0x" hs:hexDigit+ { return new Nodes.Int(parseInt(hs.join(''), 16)).r("0x" + hs).p(line, column); }
   / base:decimal e:[eE] sign:[+-]? exponent:decimal {
       var raw = base.raw + e + sign + exponent.raw;
-      return new Nodes.Float(parseFloat(raw, 10)).r(raw).p(line, column);
+      return new Nodes.Float(parseFloat('' + base.data + e + sign + exponent.data, 10)).r(raw).p(line, column);
     }
   / decimal
 

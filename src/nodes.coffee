@@ -28,9 +28,8 @@ beingDeclared = (assignment) ->
     any @childNodes, (child) => @[child]?.mayHaveSideEffects inScope
   usedAsExpression: (ancestors) -> switch
     when !ancestors[0]? then yes
-    when ancestors[0].instanceof Program then no
-    when ancestors[0].instanceof Class then no
-    when not ancestors[0].usedAsExpression ancestors[1..] then no
+    when ancestors[0].instanceof Program, Class then no
+    #when not ancestors[0].usedAsExpression ancestors[1..] then no
     when (ancestors[0].instanceof SeqOp) then this is ancestors[0].right
     when (ancestors[0].instanceof Block) and
     (ancestors[0].statements.indexOf this) isnt ancestors[0].statements.length - 1
@@ -52,7 +51,7 @@ beingDeclared = (assignment) ->
   #    memo = @[child].fmap memo, fn
   #  fn memo, this
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     for childName in @childNodes
       child = @[childName]
@@ -61,7 +60,8 @@ beingDeclared = (assignment) ->
         inScope = union inScope, child?.envEnrichments()
         @[childName] = child
       child
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   instanceof: (ctors...) ->
     # not a fold for efficiency's sake
     for ctor in ctors
@@ -118,13 +118,14 @@ class UnaryOp extends @Node
   className: 'ArrayInitialiser'
   constructor: (@members) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     @members = for member in @members
       continue while member isnt (member = (fn.call member, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, member.envEnrichments()
       member
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   isTruthy: YES
   envEnrichments: -> nub (concatMap @members, (m) -> m.envEnrichments())
   mayHaveSideEffects: (inScope) -> any @members, (m) -> m.mayHaveSideEffects inScope
@@ -165,13 +166,14 @@ class UnaryOp extends @Node
   className: 'Block'
   constructor: (@statements) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     @statements = for statement in @statements
       continue while statement isnt (statement = (fn.call statement, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, statement.envEnrichments()
       statement
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   @wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
   # TODO: isTruthy and isFalsey must check the last expression and also any
   # early returns, no matter how deeply nested in conditionals
@@ -401,7 +403,7 @@ class UnaryOp extends @Node
   className: 'Function'
   constructor: (@parameters, @block) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     @parameters = for param in @parameters
       continue while param isnt (param = (fn.call param, inScope, ancestry).walk fn, inScope, ancestry)
@@ -409,7 +411,8 @@ class UnaryOp extends @Node
       param
     if @block?
       continue while @block isnt (@block = (fn.call @block, inScope, ancestry).walk fn, inScope, ancestry)
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   isTruthy: YES
   mayHaveSideEffects: NO
   toJSON: ->
@@ -427,7 +430,7 @@ class UnaryOp extends @Node
   className: 'FunctionApplication'
   constructor: (@function, @arguments) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     continue while @function isnt (@function = (fn.call @function, inScope, ancestry).walk fn, inScope, ancestry)
     inScope = union inScope, @function.envEnrichments()
@@ -435,7 +438,8 @@ class UnaryOp extends @Node
       continue while arg isnt (arg = (fn.call arg, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, arg.envEnrichments()
       arg
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   envEnrichments: -> nub concatMap @arguments, (arg) -> arg.envEnrichments()
   mayHaveSideEffects: (inScope) ->
     return yes unless @function.instanceof Function, BoundFunction
@@ -480,6 +484,11 @@ class UnaryOp extends @Node
 @Identifier = class Identifier extends Primitive
   className: 'Identifier'
   constructor: (@data) ->
+
+# GenSym :: string -> string -> GenSym
+@GenSym = class GenSym extends @Identifier
+  className: 'GenSym'
+  constructor: (@data, @ns = '') ->
 
 # InOp :: Exprs -> Exprs -> InOp
 @InOp = class InOp extends BinOp
@@ -582,7 +591,7 @@ class UnaryOp extends @Node
   className: 'NewOp'
   constructor: (@ctor, @arguments) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     continue while @ctor isnt (@ctor = (fn.call @ctor, inScope, ancestry).walk fn, inScope, ancestry)
     inScope = union inScope, @ctor.envEnrichments()
@@ -590,7 +599,8 @@ class UnaryOp extends @Node
       continue while arg isnt (arg = (fn.call arg, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, arg.envEnrichments()
       arg
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   mayHaveSideEffects: YES
   toJSON: ->
     nodeType: @className
@@ -609,13 +619,14 @@ class UnaryOp extends @Node
   className: 'ObjectInitialiser'
   constructor: (@members) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     @members = for [key, val] in @members
       continue while val isnt (val = (fn.call val, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, val.envEnrichments()
       [key, val]
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   isTruthy: YES
   envEnrichments: -> nub concatMap @members, ([key, expr]) -> expr.envEnrichments()
   mayHaveSideEffects: (inScope) ->
@@ -760,13 +771,14 @@ class UnaryOp extends @Node
   className: 'Super'
   constructor: (@arguments) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     @arguments = for arg in @arguments
       continue while arg isnt (arg = (fn.call arg, inScope, ancestry).walk fn, inScope, ancestry)
       inScope = union inScope, arg.envEnrichments()
       arg
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   envEnrichments: -> nub concatMap @arguments, (a) -> a.envEnrichments()
   mayHaveSideEffects: YES
   toJSON: ->
@@ -778,7 +790,7 @@ class UnaryOp extends @Node
   className: 'Switch'
   constructor: (@expr, @cases, @elseBlock) ->
   walk: (fn, inScope = [], ancestry = []) ->
-    # TODO: cycle test
+    return this if this in ancestry
     ancestry = [this, ancestry...]
     if @expr?
       continue while @expr isnt (@expr = (fn.call @expr, inScope, ancestry).walk fn, inScope, ancestry)
@@ -793,7 +805,8 @@ class UnaryOp extends @Node
       [conds, block]
     if elseBlock?
       continue while @elseBlock isnt (@elseBlock = (fn.call @elseBlock, inScope, ancestry).walk fn, inScope, ancestry)
-    this
+    ancestry.shift()
+    fn.call this, inScope, ancestry
   # TODO: isTruthy/isFalsey: all blocks are truthy/falsey
   envEnrichments: ->
     otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)

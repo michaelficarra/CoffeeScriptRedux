@@ -13,7 +13,7 @@ class @Optimiser
 
   defaultRules = [
     # dead code removal
-    [Program, -> if @block.mayHaveSideEffects [] then this else new Program null]
+    [Program, -> if @block? and @block.mayHaveSideEffects [] then this else new Program null]
     [Block, (inScope, ancestors) ->
       canDropLast = not @usedAsExpression ancestors
       stmts = concat do =>

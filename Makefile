@@ -16,7 +16,7 @@ lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
 	$(PEGJS) < "$<" >> "$@"
 
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script
-	$(COFFEE) -sc < "$<" > "$@"
+	$(COFFEE) -bsc < "$<" > "$@"
 
 lib/coffee-script:
 	mkdir -p lib/coffee-script/

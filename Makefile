@@ -2,14 +2,26 @@ default: all
 
 SRC = $(shell find src -name "*.coffee" -type f | sort)
 LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js) lib/coffee-script/parser.js
+LIBMIN = $(LIB:lib/coffee-script/%.js=lib/coffee-script/%.min.js)
 TESTS = $(shell find test -name "*.coffee" -type f | sort)
 
+# TODO: use `node_modules/.bin/<binary>`
 COFFEE = node_modules/coffee-script/bin/coffee
 PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
 MOCHA = node_modules/mocha/bin/mocha --compilers coffee:coffee-script -u tdd
+MINIFIER = node_modules/uglify-js/bin/uglifyjs
 
 all: $(LIB)
 build: all
+parser: lib/coffee-script/parser.js
+minify: $(LIBMIN)
+# TODO: build-browser
+# TODO: test-browser
+# TODO: doc
+# TODO: bench
+
+lib/coffee-script:
+	mkdir -p lib/coffee-script/
 
 lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
 	echo -n "module.exports = " > "$@"
@@ -18,14 +30,14 @@ lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script
 	$(COFFEE) -bsc < "$<" > "$@"
 
-lib/coffee-script:
-	mkdir -p lib/coffee-script/
+lib/coffee-script/%.min.js: lib/coffee-script/%.js lib/coffee-script
+	$(MINIFIER) < "$<" > "$@"
+
+
+.PHONY: test coverage install loc clean
 
 test: $(LIB) $(TESTS)
 	$(MOCHA) -R spec
-
-install: $(LIB)
-	npm install -g .
 
 coverage: $(LIB)
 	@which jscoverage || (echo "install node-jscoverage"; exit 1)
@@ -35,9 +47,13 @@ coverage: $(LIB)
 	$(MOCHA) $(LIB:lib/%.js=-r instrumented/%) -R html-cov > coverage.html
 	@xdg-open coverage.html &> /dev/null
 
+install: $(LIB)
+	npm install -g .
+
+loc:
+	wc -l src/*
+
 clean:
 	rm -rf instrumented
 	rm -f coverage.html
 	rm -rf lib/*
-
-.PHONY: test coverage clean install

@@ -230,14 +230,14 @@ walk = do ->
     ancestry.shift()
     fn.call this, inScope, ancestry
 
-  (node, fn, inScope = [], ancestry = []) ->
+  (node, args...) ->
     handlers = {}
     handlers[CS[key]::className] = val for own key, val of walk_
     handler =
       if Object::hasOwnProperty.call handlers, node.className
         handlers[node.className]
       else walkDefault
-    handler.call node, fn, inScope, ancestry
+    handler.apply node, args
 
 
 # TODO: better comments

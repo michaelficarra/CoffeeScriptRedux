@@ -1,22 +1,16 @@
 {map, concat, concatMap, nub, union} = require './functional-helpers'
 
-# TODO: DRY `walk` methods
-# TODO: make use of Node::instanceof *everywhere*
 # TODO: sync instance prop names with those output by the toJSON methods, then lift toJSON to Node::toJSON
 # TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
 
 @Node = class Node
+  @fromJSON = -> # TODO: dispatch to appropriate constructor methods
   toJSON: -> nodeType: @className
   childNodes: [] # children's names; in evaluation order where applicable
-  #fmap: (memo, fn) ->
-  #  memo = fn memo, this
-  #  for child in @childNodes
-  #    memo = @[child].fmap memo, fn
-  #  memo
-  #fmap: (memo, fn) ->
-  #  for child in @childNodes
-  #    memo = @[child].fmap memo, fn
-  #  fn memo, this
+  fmap: (memo, fn) ->
+    for child in @childNodes
+      memo = @[child].fmap memo, fn
+    fn memo, this
   instanceof: (ctors...) ->
     # not a fold for efficiency's sake
     for ctor in ctors

@@ -23,6 +23,8 @@ global.arrayEq = (a, b, msg) -> ok arrayEgal(a,b), msg ? "#{inspect a} === #{ins
 
 
 libDir = if typeof _$jscoverage is 'undefined' then 'lib' else 'instrumented'
+global.CS = require "../#{libDir}/coffee-script/nodes"
+global.JS = require "../#{libDir}/coffee-script/js-nodes"
 global.Parser = require "../#{libDir}/coffee-script/parser"
 {Optimiser: global.Optimiser} = require "../#{libDir}/coffee-script/optimiser"
 {Preprocessor} = require "../#{libDir}/coffee-script/preprocessor"

@@ -37,7 +37,7 @@ coverage: $(LIB)
 
 clean:
 	rm -rf instrumented
-	rm coverage.html
+	rm -f coverage.html
 	rm -rf lib/*
 
 .PHONY: test coverage clean install

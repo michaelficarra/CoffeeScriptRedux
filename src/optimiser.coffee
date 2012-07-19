@@ -1,5 +1,5 @@
-{any, concat, concatMap, difference, foldl, foldl1} = require './functional-helpers'
-{beingDeclared, declarationsFor, usedAsExpression} = require './helpers'
+{any, concat, concatMap, difference, foldl, foldl1, union} = require './functional-helpers'
+{beingDeclared, declarationsFor, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 
 isTruthy_ = -> switch
@@ -24,6 +24,8 @@ isTruthy_ = -> switch
     @expr.instanceof CS.Int, CS.Float, CS.String, CS.UnaryPlusOp, CS.UnaryNegateOp, CS.LogicalNotOp
   else no
 
+isTruthy = (node) -> if node? then isTruthy_.call node else no
+
 isFalsey_ = -> switch
   when @instanceof CS.Null, CS.Undefined then yes
   when @instanceof CS.AssignOp then isFalsey @expr
@@ -43,51 +45,206 @@ isFalsey_ = -> switch
   when @instanceof CS.UnaryExistsOp then @expr.instanceof CS.Null, CS.Undefined
   else no
 
-# TODO: generate a mapping from Constructor::className to function with appropriate behaviour
+isFalsey = (node) -> if node? then isFalsey_.call node else no
+
 # TODO: make sure `inScope` is really necessary where we use it
-mayHaveSideEffects_ = (inScope) -> switch
-  when @instanceof CS.ClassProtoAssignOp, CS.Function, CS.BoundFunction, CS.Null, CS.RegExp, CS.This, CS.Undefined then no
-  when @instanceof CS.Break, CS.Continue, CS.DeleteOp, CS.NewOp, CS.PreDecrementOp, CS.PreIncrementOp, CS.PostDecrementOp, CS.PostIncrementOp, CS.Return, CS.Super then yes
-  when @instanceof CS.ArrayInitialiser then any @members, (m) -> mayHaveSideEffects m, inScope
-  when @instanceof CS.Block then any @statements, (s) -> mayHaveSideEffects s, inScope
-  when @instanceof CS.Class
+mayHaveSideEffects_ = [
+  [[
+    CS.ClassProtoAssignOp
+    CS.Function
+    CS.BoundFunction
+    CS.Null
+    CS.RegExp
+    CS.This
+    CS.Undefined
+  ], -> no]
+  [[
+    CS.Break
+    CS.Continue
+    CS.DeleteOp
+    CS.NewOp
+    CS.PreDecrementOp
+    CS.PreIncrementOp
+    CS.PostDecrementOp
+    CS.PostIncrementOp
+    CS.Return
+    CS.Super
+  ], -> yes]
+  [[CS.ArrayInitialiser], (inScope) -> any @members, (m) -> mayHaveSideEffects m, inScope]
+  [[CS.Block], (inScope) -> any @statements, (s) -> mayHaveSideEffects s, inScope]
+  [[CS.Class], (inScope) ->
     (mayHaveSideEffects @parent, inScope) or
     @nameAssignment? and (@name or (beingDeclared @nameAssignment).length > 0)
-  when @instanceof CS.Conditional
+  ]
+  [[CS.Conditional], (inScope) ->
     (mayHaveSideEffects @condition, inScope) or
     (not isFalsey @condition) and (mayHaveSideEffects @block, inScope) or
     (not isTruthy @condition) and mayHaveSideEffects @elseBlock, inScope
-  when @instanceof CS.DoOp then do =>
+  ]
+  [[CS.DoOp], (inScope) ->
     return yes unless @expr.instanceof CS.Function, CS.BoundFunction
     newScope = difference inScope, concatMap @expr.parameters, beingDeclared
     args = for p in @expr.parameters
       if p.instanceof CS.AssignOp then p.expr else p
     return yes if any args, (a) -> mayHaveSideEffects a, newScope
     mayHaveSideEffects @expr, newScope
-  when @instanceof CS.FunctionApplication then do =>
+  ]
+  [[CS.FunctionApplication], (inScope) ->
     return yes unless @function.instanceof CS.Function, CS.BoundFunction
     newScope = difference inScope, concatMap @function.parameters, beingDeclared
     return yes if any @arguments, (a) -> mayHaveSideEffects a, newScope
     mayHaveSideEffects @function.block, newScope
-  when @instanceof CS.ObjectInitialiser
+  ]
+  [[CS.ObjectInitialiser], (inScope) ->
     any @members, ([key, expr]) ->
       (mayHaveSideEffects key, inScope) or mayHaveSideEffects expr, inScope
-  when @instanceof CS.Switch then do =>
+  ]
+  [[CS.Switch], (inScope) ->
     otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
     any [@expr, @elseBlock, otherExprs...], (e) -> mayHaveSideEffects e, inScope
-  when @instanceof CS.While
+  ]
+  [[CS.While], (inScope) ->
     (mayHaveSideEffects @condition, inScope) or
     (not isFalsey @condition) and mayHaveSideEffects @block, inScope
-  # category: AssignOp
-  when @instanceof CS.AssignOp, CS.ClassProtoAssignOp, CS.CompoundAssignOp, CS.ExistsAssignOp
+  ]
+  [[ # category: AssignOp
+    CS.AssignOp
+    CS.ClassProtoAssignOp
+    CS.CompoundAssignOp
+    CS.ExistsAssignOp
+  ], (inScope) ->
     (mayHaveSideEffects @expr, inScope) or (beingDeclared @assignee).length
-  # category: Primitive
-  when @instanceof CS.Bool, CS.Float, CS.Identifier, CS.Int, CS.JavaScript, CS.String then no
-  else any @childNodes, (child) => mayHaveSideEffects @[child], inScope
+  ]
+  [[ # category: Primitive
+    CS.Bool
+    CS.Float
+    CS.Identifier
+    CS.Int
+    CS.JavaScript
+    CS.String
+  ], -> no]
+]
 
-isTruthy = (node) -> if node? then  isTruthy_.call node else no
-isFalsey = (node) -> if node? then isFalsey_.call node else no
-mayHaveSideEffects = (node, inScope) -> if node? then mayHaveSideEffects_.call node, inScope else no
+mayHaveSideEffects = do ->
+  handlers = {}
+  for [ctors, handler] in mayHaveSideEffects_
+    handlers[ctor::className] = handler for ctor in ctors
+  (node, inScope) ->
+    return no unless node?
+    if Object::hasOwnProperty.call handlers, node.className
+      handlers[node.className].call node, inScope
+    else any node.childNodes, (child) -> mayHaveSideEffects node[child], inScope
+
+walk = do ->
+
+  # TODO: DRY this!
+  walk_ =
+    ArrayInitialiser: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      @members = for member in @members
+        continue while member isnt walk (member = fn.call member, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments member
+        member
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+    Block: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      @statements = for statement in @statements
+        continue while statement isnt walk (statement = fn.call statement, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments statement
+        statement
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+    Function: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      @parameters = for param in @parameters
+        continue while param isnt walk (param = fn.call param, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments param
+        param
+      if @block?
+        continue while @block isnt walk (@block = fn.call @block, inScope, ancestry), fn, inScope, ancestry
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+    FunctionApplication: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      continue while @function isnt walk (@function = fn.call @function, inScope, ancestry), fn, inScope, ancestry
+      inScope = union inScope, envEnrichments @function
+      @arguments = for arg in @arguments
+        continue while arg isnt walk (arg = fn.call arg, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments arg
+        arg
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+    NewOp: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      continue while @ctor isnt walk (@ctor = fn.call @ctor, inScope, ancestry), fn, inScope, ancestry
+      inScope = union inScope, envEnrichments @ctor
+      @arguments = for arg in @arguments
+        continue while arg isnt walk (arg = fn.call arg, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments arg
+        arg
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+    ObjectInitialiser: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      @members = for [key, val] in @members
+        continue while val isnt walk (val = fn.call val, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments val
+        [key, val]
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+    Super: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      @arguments = for arg in @arguments
+        continue while arg isnt walk (arg = fn.call arg, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments arg
+        arg
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+    Switch: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      if @expr?
+        continue while @expr isnt walk (@expr = fn.call @expr, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments @expr
+      @cases = for [conds, block] in @cases
+        conds = for cond in conds
+          continue while cond isnt walk (cond = fn.call cond, inScope, ancestry), fn, inScope, ancestry
+          inScope = union inScope, envEnrichments cond
+          cond
+        continue while block isnt walk (block = fn.call block, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments block
+        [conds, block]
+      if elseBlock?
+        continue while @elseBlock isnt walk (@elseBlock = fn.call @elseBlock, inScope, ancestry), fn, inScope, ancestry
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+
+  (node, fn, inScope = [], ancestry = []) ->
+    handlers = {}
+    handlers[CS[key]::className] = val for own key, val of walk_
+    if Object::hasOwnProperty.call handlers, node.className
+      handlers[node.className].call node, fn, inScope, ancestry
+    else
+      return node if node in ancestry
+      ancestry = [node, ancestry...]
+      for childName in node.childNodes
+        child = node[childName]
+        if child?
+          continue while child isnt walk (child = fn.call child, inScope, ancestry), fn, inScope, ancestry
+          inScope = union inScope, envEnrichments child
+          node[childName] = child
+        child
+      ancestry.shift()
+      fn.call node, inScope, ancestry
+
 
 # TODO: better comments
 # TODO: make sure I can't split any of these rules into sets of smaller rules
@@ -242,7 +399,7 @@ class @Optimiser
 
   optimise: (ast) ->
     rules = @rules
-    ast.walk (inScope, ancestry) ->
+    walk ast, (inScope, ancestry) ->
       # not a fold for efficiency's sake
       memo = this
       for rule in rules[@className] ? []

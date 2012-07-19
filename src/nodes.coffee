@@ -1,5 +1,4 @@
 {map, concat, concatMap, nub, union} = require './functional-helpers'
-{beingDeclared} = require './helpers'
 
 YES = -> yes
 NO = -> no
@@ -10,11 +9,8 @@ NO = -> no
 # TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
 
 @Node = class Node
-  generated: no
   toJSON: -> nodeType: @className
   childNodes: [] # children's names; in evaluation order where applicable
-  envEnrichments: -> # environment enrichments that occur when this node is evaluated
-    nub concatMap @childNodes, (child) => @[child]?.envEnrichments() ? []
   #fmap: (memo, fn) ->
   #  memo = fn memo, this
   #  for child in @childNodes
@@ -24,18 +20,6 @@ NO = -> no
   #  for child in @childNodes
   #    memo = @[child].fmap memo, fn
   #  fn memo, this
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    for childName in @childNodes
-      child = @[childName]
-      if child?
-        continue while child isnt (child = (fn.call child, inScope, ancestry).walk fn, inScope, ancestry)
-        inScope = union inScope, child?.envEnrichments()
-        @[childName] = child
-      child
-    ancestry.shift()
-    fn.call this, inScope, ancestry
   instanceof: (ctors...) ->
     # not a fold for efficiency's sake
     for ctor in ctors
@@ -44,6 +28,7 @@ NO = -> no
   #r: (@raw) -> this
   r: -> this
   p: (@line, @column) -> this
+  generated: no
   g: ->
     @generated = yes
     this
@@ -88,16 +73,6 @@ class UnaryOp extends @Node
 @ArrayInitialiser = class ArrayInitialiser extends @Node
   className: 'ArrayInitialiser'
   constructor: (@members) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    @members = for member in @members
-      continue while member isnt (member = (fn.call member, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, member.envEnrichments()
-      member
-    ancestry.shift()
-    fn.call this, inScope, ancestry
-  envEnrichments: -> nub (concatMap @members, (m) -> m.envEnrichments())
   toJSON: ->
     nodeType: @className
     members: (m.toJSON() for m in @members)
@@ -106,7 +81,6 @@ class UnaryOp extends @Node
 @AssignOp = class AssignOp extends AssignOp
   className: 'AssignOp'
   constructor: (@assignee, @expr) ->
-  envEnrichments: -> nub beingDeclared @assignee
 
 # BitAndOp :: Exprs -> Exprs -> BitAndOp
 @BitAndOp = class BitAndOp extends BinOp
@@ -132,17 +106,7 @@ class UnaryOp extends @Node
 @Block = class Block extends @Node
   className: 'Block'
   constructor: (@statements) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    @statements = for statement in @statements
-      continue while statement isnt (statement = (fn.call statement, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, statement.envEnrichments()
-      statement
-    ancestry.shift()
-    fn.call this, inScope, ancestry
   @wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
-  envEnrichments: -> nub concatMap @statements, (s) -> s.envEnrichments()
   toJSON: ->
     nodeType: @className
     statements: (s.toJSON() for s in @statements)
@@ -172,9 +136,6 @@ class UnaryOp extends @Node
           else null
       else null
   childNodes: ['parent', 'block']
-  envEnrichments: ->
-    declaredInName = if @nameAssignment? then beingDeclared @nameAssignment else []
-    nub declaredInName.concat (if name? then [name] else [])
   toJSON: ->
     nodeType: @className
     nameAssignment: @nameAssignment?.toJSON()
@@ -296,11 +257,6 @@ class UnaryOp extends @Node
   className: 'ForIn'
   constructor: (@valAssignee, @keyAssignee, @expr, @step, @filterExpr, @block) ->
   childNodes: ['valAssignee', 'keyAssignee', 'expr', 'step', 'filterExpr', 'block']
-  envEnrichments: -> nub concat [
-    super arguments...
-    beingDeclared @valAssignee
-    if @keyAssignee? then beingDeclared @keyAssignee else []
-  ]
   toJSON: ->
     nodeType: @className
     valAssignee: @valAssignee.toJSON()
@@ -315,11 +271,6 @@ class UnaryOp extends @Node
   className: 'ForOf'
   constructor: (@isOwn, @keyAssignee, @valAssignee, @expr, @filterExpr, @block) ->
   childNodes: ['keyAssignee', 'valAssignee', 'expr', 'filterExpr', 'block']
-  envEnrichments: -> nub concat [
-    super arguments...
-    beingDeclared @keyAssignee
-    if @valAssignee? then beingDeclared @valAssignee else []
-  ]
   toJSON: ->
     nodeType: @className
     isOwn: @isOwn
@@ -333,17 +284,6 @@ class UnaryOp extends @Node
 @Function = class Function extends @Node
   className: 'Function'
   constructor: (@parameters, @block) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    @parameters = for param in @parameters
-      continue while param isnt (param = (fn.call param, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, param.envEnrichments()
-      param
-    if @block?
-      continue while @block isnt (@block = (fn.call @block, inScope, ancestry).walk fn, inScope, ancestry)
-    ancestry.shift()
-    fn.call this, inScope, ancestry
   toJSON: ->
     nodeType: @className
     parameters: (p.toJSON() for p in @parameters)
@@ -358,18 +298,6 @@ class UnaryOp extends @Node
 @FunctionApplication = class FunctionApplication extends @Node
   className: 'FunctionApplication'
   constructor: (@function, @arguments) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    continue while @function isnt (@function = (fn.call @function, inScope, ancestry).walk fn, inScope, ancestry)
-    inScope = union inScope, @function.envEnrichments()
-    @arguments = for arg in @arguments
-      continue while arg isnt (arg = (fn.call arg, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, arg.envEnrichments()
-      arg
-    ancestry.shift()
-    fn.call this, inScope, ancestry
-  envEnrichments: -> nub concatMap @arguments, (arg) -> arg.envEnrichments()
   toJSON: ->
     nodeType: @className
     function: @function.toJSON()
@@ -504,17 +432,6 @@ class UnaryOp extends @Node
 @NewOp = class NewOp extends @Node
   className: 'NewOp'
   constructor: (@ctor, @arguments) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    continue while @ctor isnt (@ctor = (fn.call @ctor, inScope, ancestry).walk fn, inScope, ancestry)
-    inScope = union inScope, @ctor.envEnrichments()
-    @arguments = for arg in @arguments
-      continue while arg isnt (arg = (fn.call arg, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, arg.envEnrichments()
-      arg
-    ancestry.shift()
-    fn.call this, inScope, ancestry
   toJSON: ->
     nodeType: @className
     constructor: @ctor.toJSON()
@@ -529,16 +446,6 @@ class UnaryOp extends @Node
 @ObjectInitialiser = class ObjectInitialiser extends @Node
   className: 'ObjectInitialiser'
   constructor: (@members) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    @members = for [key, val] in @members
-      continue while val isnt (val = (fn.call val, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, val.envEnrichments()
-      [key, val]
-    ancestry.shift()
-    fn.call this, inScope, ancestry
-  envEnrichments: -> nub concatMap @members, ([key, expr]) -> expr.envEnrichments()
   keys: -> map @members ([key, val]) -> key
   vals: -> map @members ([key, val]) -> val
   toJSON: ->
@@ -663,16 +570,6 @@ class UnaryOp extends @Node
 @Super = class Super extends @Node
   className: 'Super'
   constructor: (@arguments) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    @arguments = for arg in @arguments
-      continue while arg isnt (arg = (fn.call arg, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, arg.envEnrichments()
-      arg
-    ancestry.shift()
-    fn.call this, inScope, ancestry
-  envEnrichments: -> nub concatMap @arguments, (a) -> a.envEnrichments()
   toJSON: ->
     nodeType: @className
     arguments: (a.toJSON() for a in @arguments)
@@ -681,27 +578,6 @@ class UnaryOp extends @Node
 @Switch = class Switch extends @Node
   className: 'Switch'
   constructor: (@expr, @cases, @elseBlock) ->
-  walk: (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    if @expr?
-      continue while @expr isnt (@expr = (fn.call @expr, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, @expr.envEnrichments()
-    @cases = for [conds, block] in @cases
-      conds = for cond in conds
-        continue while cond isnt (cond = (fn.call cond, inScope, ancestry).walk fn, inScope, ancestry)
-        inScope = union inScope, cond.envEnrichments()
-        cond
-      continue while block isnt (block = (fn.call block, inScope, ancestry).walk fn, inScope, ancestry)
-      inScope = union inScope, block.envEnrichments()
-      [conds, block]
-    if elseBlock?
-      continue while @elseBlock isnt (@elseBlock = (fn.call @elseBlock, inScope, ancestry).walk fn, inScope, ancestry)
-    ancestry.shift()
-    fn.call this, inScope, ancestry
-  envEnrichments: ->
-    otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-    nub concatMap [@expr, @elseBlock, otherExprs...], (e) -> if e? then e.envEnrichments() else []
   toJSON: ->
     nodeType: @className
     expression: @expr?.toJSON()

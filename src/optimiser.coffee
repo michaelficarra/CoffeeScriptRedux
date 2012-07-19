@@ -2,138 +2,128 @@
 {beingDeclared, declarationsFor, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 
-isTruthy_ = -> switch
-  when @instanceof CS.ArrayInitialiser, CS.Class, CS.DeleteOp, CS.ForIn, CS.ForOf, CS.Function, CS.BoundFunction, CS.HeregExp, CS.ObjectInitialiser, CS.Range, CS.RegExp, CS.Slice, CS.TypeofOp, CS.While then yes
-  when @instanceof CS.AssignOp then isTruthy @expr
-  when @instanceof CS.Block
-    if @statements.length is 0 then no
-    else isTruthy @statements[@statements.length - 1]
-  when @instanceof CS.Bool, CS.Float, CS.Int, CS.String then !!@data
-  when @instanceof CS.Conditional
-    (isTruthy @condition) and (isTruthy @block) or
-    (isFalsey @condition) and isTruthy @elseBlock
-  when @instanceof CS.LogicalAndOp then (isTruthy @left) and isTruthy @right
-  when @instanceof CS.LogicalNotOp then isFalsey @expr
-  when @instanceof CS.LogicalOrOp then (isTruthy @left) or isTruthy @right
-  when @instanceof CS.Program then isTruthy @block
-  when @instanceof CS.SeqOp then isTruthy @right
-  # TODO: Switch: all case blocks are truthy
-  when @instanceof CS.UnaryExistsOp
-    (isTruthy @expr) or
-    # TODO: comprehensive list of all possibly-falsey and always non-null expressions
-    @expr.instanceof CS.Int, CS.Float, CS.String, CS.UnaryPlusOp, CS.UnaryNegateOp, CS.LogicalNotOp
-  else no
 
-isTruthy = (node) -> if node? then isTruthy_.call node else no
+makeDispatcher = (defaultValue, handlers, defaultHandler = (->)) ->
+  handlers_ = {}
+  for [ctors, handler] in handlers
+    handlers_[ctor::className] = handler for ctor in ctors
+  (node, args...) ->
+    return defaultValue unless node?
+    handler =
+      if Object::hasOwnProperty.call handlers_, node.className
+        handlers_[node.className]
+      else defaultHandler
+    handler.apply node, args
 
-isFalsey_ = -> switch
-  when @instanceof CS.Null, CS.Undefined then yes
-  when @instanceof CS.AssignOp then isFalsey @expr
-  when @instanceof CS.Block
-    if @statements.length is 0 then yes
-    else isFalsey @statements[@statements.length - 1]
-  when @instanceof CS.Bool, CS.Float, CS.Int, CS.String then not @data
-  when @instanceof CS.Conditional
-    (isTruthy @condition) and (isFalsey @block) or
-    (isFalsey @condition) and isFalsey @elseBlock
-  when @instanceof CS.LogicalAndOp then (isFalsey @left) or isFalsey @right
-  when @instanceof CS.LogicalNotOp then isTruthy @expr
-  when @instanceof CS.LogicalOrOp then (isFalsey @left) and isFalsey @right
-  when @instanceof CS.Program then isFalsey @block
-  when @instanceof CS.SeqOp then isFalsey @right
-  # TODO: Switch: all case blocks are falsey
-  when @instanceof CS.UnaryExistsOp then @expr.instanceof CS.Null, CS.Undefined
-  else no
 
-isFalsey = (node) -> if node? then isFalsey_.call node else no
+isTruthy =
+  makeDispatcher no, [
+    [[
+      CS.ArrayInitialiser, CS.Class, CS.DeleteOp, CS.ForIn, CS.ForOf
+      CS.Function, CS.BoundFunction, CS.HeregExp, CS.ObjectInitialiser, CS.Range
+      CS.RegExp, CS.Slice, CS.TypeofOp, CS.While
+    ], -> yes]
+    [[CS.AssignOp], -> isTruthy @expr]
+    [[CS.Block], ->
+      if @statements.length is 0 then no
+      else isTruthy @statements[@statements.length - 1]
+    ]
+    [[CS.Bool, CS.Float, CS.Int, CS.String], -> !!@data]
+    [[CS.Conditional], ->
+      (isTruthy @condition) and (isTruthy @block) or
+      (isFalsey @condition) and isTruthy @elseBlock
+    ]
+    [[CS.LogicalAndOp], -> (isTruthy @left) and isTruthy @right]
+    [[CS.LogicalNotOp], -> isFalsey @expr]
+    [[CS.LogicalOrOp], -> (isTruthy @left) or isTruthy @right]
+    [[CS.Program], -> isTruthy @block]
+    [[CS.SeqOp], -> isTruthy @right]
+    # TODO: Switch: all case blocks are truthy
+    [[CS.UnaryExistsOp], ->
+      (isTruthy @expr) or
+      # TODO: comprehensive list of all possibly-falsey and always non-null expressions
+      @expr.instanceof CS.Int, CS.Float, CS.String, CS.UnaryPlusOp, CS.UnaryNegateOp, CS.LogicalNotOp
+    ]
+  ], -> no
+
+isFalsey =
+  makeDispatcher no, [
+    [[CS.Null, CS.Undefined], -> yes]
+    [[CS.AssignOp], -> isFalsey @expr]
+    [[CS.Block], ->
+      if @statements.length is 0 then yes
+      else isFalsey @statements[@statements.length - 1]
+    ]
+    [[CS.Bool, CS.Float, CS.Int, CS.String], -> not @data]
+    [[CS.Conditional], ->
+      (isTruthy @condition) and (isFalsey @block) or
+      (isFalsey @condition) and isFalsey @elseBlock
+    ]
+    [[CS.LogicalAndOp], -> (isFalsey @left) or isFalsey @right]
+    [[CS.LogicalNotOp], -> isTruthy @expr]
+    [[CS.LogicalOrOp], -> (isFalsey @left) and isFalsey @right]
+    [[CS.Program], -> isFalsey @block]
+    [[CS.SeqOp], -> isFalsey @right]
+    # TODO: Switch: all case blocks are falsey
+    [[CS.UnaryExistsOp], -> @expr.instanceof CS.Null, CS.Undefined]
+  ], -> no
 
 # TODO: make sure `inScope` is really necessary where we use it
-mayHaveSideEffects_ = [
-  [[
-    CS.ClassProtoAssignOp
-    CS.Function
-    CS.BoundFunction
-    CS.Null
-    CS.RegExp
-    CS.This
-    CS.Undefined
-  ], -> no]
-  [[
-    CS.Break
-    CS.Continue
-    CS.DeleteOp
-    CS.NewOp
-    CS.PreDecrementOp
-    CS.PreIncrementOp
-    CS.PostDecrementOp
-    CS.PostIncrementOp
-    CS.Return
-    CS.Super
-  ], -> yes]
-  [[CS.ArrayInitialiser], (inScope) -> any @members, (m) -> mayHaveSideEffects m, inScope]
-  [[CS.Block], (inScope) -> any @statements, (s) -> mayHaveSideEffects s, inScope]
-  [[CS.Class], (inScope) ->
-    (mayHaveSideEffects @parent, inScope) or
-    @nameAssignment? and (@name or (beingDeclared @nameAssignment).length > 0)
-  ]
-  [[CS.Conditional], (inScope) ->
-    (mayHaveSideEffects @condition, inScope) or
-    (not isFalsey @condition) and (mayHaveSideEffects @block, inScope) or
-    (not isTruthy @condition) and mayHaveSideEffects @elseBlock, inScope
-  ]
-  [[CS.DoOp], (inScope) ->
-    return yes unless @expr.instanceof CS.Function, CS.BoundFunction
-    newScope = difference inScope, concatMap @expr.parameters, beingDeclared
-    args = for p in @expr.parameters
-      if p.instanceof CS.AssignOp then p.expr else p
-    return yes if any args, (a) -> mayHaveSideEffects a, newScope
-    mayHaveSideEffects @expr, newScope
-  ]
-  [[CS.FunctionApplication], (inScope) ->
-    return yes unless @function.instanceof CS.Function, CS.BoundFunction
-    newScope = difference inScope, concatMap @function.parameters, beingDeclared
-    return yes if any @arguments, (a) -> mayHaveSideEffects a, newScope
-    mayHaveSideEffects @function.block, newScope
-  ]
-  [[CS.ObjectInitialiser], (inScope) ->
-    any @members, ([key, expr]) ->
-      (mayHaveSideEffects key, inScope) or mayHaveSideEffects expr, inScope
-  ]
-  [[CS.Switch], (inScope) ->
-    otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-    any [@expr, @elseBlock, otherExprs...], (e) -> mayHaveSideEffects e, inScope
-  ]
-  [[CS.While], (inScope) ->
-    (mayHaveSideEffects @condition, inScope) or
-    (not isFalsey @condition) and mayHaveSideEffects @block, inScope
-  ]
-  [[ # category: AssignOp
-    CS.AssignOp
-    CS.ClassProtoAssignOp
-    CS.CompoundAssignOp
-    CS.ExistsAssignOp
+mayHaveSideEffects =
+  makeDispatcher no, [
+    [[
+      CS.ClassProtoAssignOp, CS.Function, CS.BoundFunction, CS.Null, CS.RegExp
+      CS.This, CS.Undefined
+    ], -> no]
+    [[
+      CS.Break, CS.Continue, CS.DeleteOp, CS.NewOp, CS.Return, CS.Super
+      CS.PreDecrementOp, CS.PreIncrementOp, CS.PostDecrementOp, CS.PostIncrementOp
+    ], -> yes]
+    [[CS.ArrayInitialiser], (inScope) -> any @members, (m) -> mayHaveSideEffects m, inScope]
+    [[CS.Block], (inScope) -> any @statements, (s) -> mayHaveSideEffects s, inScope]
+    [[CS.Class], (inScope) ->
+      (mayHaveSideEffects @parent, inScope) or
+      @nameAssignment? and (@name or (beingDeclared @nameAssignment).length > 0)
+    ]
+    [[CS.Conditional], (inScope) ->
+      (mayHaveSideEffects @condition, inScope) or
+      (not isFalsey @condition) and (mayHaveSideEffects @block, inScope) or
+      (not isTruthy @condition) and mayHaveSideEffects @elseBlock, inScope
+    ]
+    [[CS.DoOp], (inScope) ->
+      return yes unless @expr.instanceof CS.Function, CS.BoundFunction
+      newScope = difference inScope, concatMap @expr.parameters, beingDeclared
+      args = for p in @expr.parameters
+        if p.instanceof CS.AssignOp then p.expr else p
+      return yes if any args, (a) -> mayHaveSideEffects a, newScope
+      mayHaveSideEffects @expr, newScope
+    ]
+    [[CS.FunctionApplication], (inScope) ->
+      return yes unless @function.instanceof CS.Function, CS.BoundFunction
+      newScope = difference inScope, concatMap @function.parameters, beingDeclared
+      return yes if any @arguments, (a) -> mayHaveSideEffects a, newScope
+      mayHaveSideEffects @function.block, newScope
+    ]
+    [[CS.ObjectInitialiser], (inScope) ->
+      any @members, ([key, expr]) ->
+        (mayHaveSideEffects key, inScope) or mayHaveSideEffects expr, inScope
+    ]
+    [[CS.Switch], (inScope) ->
+      otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
+      any [@expr, @elseBlock, otherExprs...], (e) -> mayHaveSideEffects e, inScope
+    ]
+    [[CS.While], (inScope) ->
+      (mayHaveSideEffects @condition, inScope) or
+      (not isFalsey @condition) and mayHaveSideEffects @block, inScope
+    ]
+    # category: AssignOp
+    [[CS.AssignOp, CS.ClassProtoAssignOp, CS.CompoundAssignOp, CS.ExistsAssignOp], (inScope) ->
+      (mayHaveSideEffects @expr, inScope) or (beingDeclared @assignee).length > 0
+    ]
+    # category: Primitive
+    [[CS.Bool, CS.Float, CS.Identifier, CS.Int, CS.JavaScript, CS.String], -> no]
   ], (inScope) ->
-    (mayHaveSideEffects @expr, inScope) or (beingDeclared @assignee).length
-  ]
-  [[ # category: Primitive
-    CS.Bool
-    CS.Float
-    CS.Identifier
-    CS.Int
-    CS.JavaScript
-    CS.String
-  ], -> no]
-]
-
-mayHaveSideEffects = do ->
-  handlers = {}
-  for [ctors, handler] in mayHaveSideEffects_
-    handlers[ctor::className] = handler for ctor in ctors
-  (node, inScope) ->
-    return no unless node?
-    if Object::hasOwnProperty.call handlers, node.className
-      handlers[node.className].call node, inScope
-    else any node.childNodes, (child) -> mayHaveSideEffects node[child], inScope
+    any @childNodes, (child) => mayHaveSideEffects @[child], inScope
 
 walk = do ->
 
@@ -227,23 +217,27 @@ walk = do ->
       ancestry.shift()
       fn.call this, inScope, ancestry
 
+  walkDefault = (fn, inScope = [], ancestry = []) ->
+    return this if this in ancestry
+    ancestry = [this, ancestry...]
+    for childName in @childNodes
+      child = @[childName]
+      if child?
+        continue while child isnt walk (child = fn.call child, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments child
+        @[childName] = child
+      child
+    ancestry.shift()
+    fn.call this, inScope, ancestry
+
   (node, fn, inScope = [], ancestry = []) ->
     handlers = {}
     handlers[CS[key]::className] = val for own key, val of walk_
-    if Object::hasOwnProperty.call handlers, node.className
-      handlers[node.className].call node, fn, inScope, ancestry
-    else
-      return node if node in ancestry
-      ancestry = [node, ancestry...]
-      for childName in node.childNodes
-        child = node[childName]
-        if child?
-          continue while child isnt walk (child = fn.call child, inScope, ancestry), fn, inScope, ancestry
-          inScope = union inScope, envEnrichments child
-          node[childName] = child
-        child
-      ancestry.shift()
-      fn.call node, inScope, ancestry
+    handler =
+      if Object::hasOwnProperty.call handlers, node.className
+        handlers[node.className]
+      else walkDefault
+    handler.call node, fn, inScope, ancestry
 
 
 # TODO: better comments

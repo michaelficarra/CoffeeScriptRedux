@@ -1,8 +1,5 @@
 {map, concat, concatMap, nub, union} = require './functional-helpers'
 
-YES = -> yes
-NO = -> no
-
 # TODO: DRY `walk` methods
 # TODO: make use of Node::instanceof *everywhere*
 # TODO: sync instance prop names with those output by the toJSON methods, then lift toJSON to Node::toJSON

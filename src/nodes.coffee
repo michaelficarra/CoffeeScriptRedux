@@ -18,28 +18,11 @@ beingDeclared = (assignment) ->
 @Node = class Node
   generated: no
   toJSON: -> nodeType: @className
-  isTruthy: NO
-  isFalsey: NO
   childNodes: [] # children's names; in evaluation order where applicable
   envEnrichments: -> # environment enrichments that occur when this node is evaluated
     nub concatMap @childNodes, (child) => @[child]?.envEnrichments() ? []
   mayHaveSideEffects: (inScope) ->
     any @childNodes, (child) => @[child]?.mayHaveSideEffects inScope
-  usedAsExpression: (ancestors) -> switch
-    when !ancestors[0]? then yes
-    when ancestors[0].instanceof Program, Class then no
-    #when not ancestors[0].usedAsExpression ancestors[1..] then no
-    when (ancestors[0].instanceof SeqOp) then this is ancestors[0].right
-    when (ancestors[0].instanceof Block) and
-    (ancestors[0].statements.indexOf this) isnt ancestors[0].statements.length - 1
-      no
-    when (ancestors[0].instanceof Function, BoundFunction) and
-    ancestors[0].body is this and
-    (ancestors[1]?.instanceof ClassProtoAssignOp) and
-    (ancestors[1].assignee instanceof String) and
-    ancestors[1].assignee.data is 'constructor'
-      no
-    else yes
   #fmap: (memo, fn) ->
   #  memo = fn memo, this
   #  for child in @childNodes
@@ -125,7 +108,6 @@ class UnaryOp extends @Node
       member
     ancestry.shift()
     fn.call this, inScope, ancestry
-  isTruthy: YES
   envEnrichments: -> nub (concatMap @members, (m) -> m.envEnrichments())
   mayHaveSideEffects: (inScope) -> any @members, (m) -> m.mayHaveSideEffects inScope
   toJSON: ->
@@ -136,8 +118,6 @@ class UnaryOp extends @Node
 @AssignOp = class AssignOp extends AssignOp
   className: 'AssignOp'
   constructor: (@assignee, @expr) ->
-  isTruthy: -> @expr.isTruthy()
-  isFalsey: -> @expr.isFalsey()
   envEnrichments: -> nub beingDeclared @assignee
 
 # BitAndOp :: Exprs -> Exprs -> BitAndOp
@@ -174,8 +154,6 @@ class UnaryOp extends @Node
     ancestry.shift()
     fn.call this, inScope, ancestry
   @wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
-  # TODO: isTruthy and isFalsey must check the last expression and also any
-  # early returns, no matter how deeply nested in conditionals
   envEnrichments: -> nub concatMap @statements, (s) -> s.envEnrichments()
   mayHaveSideEffects: (inScope) -> any @statements, (s) -> s.mayHaveSideEffects inScope
   toJSON: ->
@@ -186,8 +164,6 @@ class UnaryOp extends @Node
 @Bool = class Bool extends Primitive
   className: 'Bool'
   constructor: (@data) ->
-  isTruthy: -> !!@data
-  isFalsey: -> not @data
 
 # Break :: Break
 @Break = class Break extends Statement
@@ -210,7 +186,6 @@ class UnaryOp extends @Node
           else null
       else null
   childNodes: ['parent', 'block']
-  isTruthy: YES
   envEnrichments: ->
     declaredInName = if @nameAssignment? then beingDeclared @nameAssignment else []
     nub declaredInName.concat (if name? then [name] else [])
@@ -250,12 +225,6 @@ class UnaryOp extends @Node
 @Conditional = class Conditional extends @Node
   className: 'Conditional'
   childNodes: ['condition', 'block', 'elseBlock']
-  isTruthy: ->
-    !!(@condition.isTruthy() and @block?.isTruthy() or
-    @condition.isFalsey() and @elseBlock?.isTruthy())
-  isFalsey: ->
-    !!(@condition.isTruthy() and @block?.isFalsey() or
-    @condition.isFalsey() and @elseBlock?.isFalsey())
   mayHaveSideEffects: (inScope) ->
     # TODO: only check each respective block if the condition would allow execution to get there
     !!((@condition.mayHaveSideEffects inScope) or
@@ -284,7 +253,6 @@ class UnaryOp extends @Node
 @DeleteOp = class DeleteOp extends UnaryOp
   className: 'DeleteOp'
   constructor: (@expr) ->
-  isTruthy: YES
   mayHaveSideEffects: YES
 
 # DivideOp :: Exprs -> Exprs -> DivideOp
@@ -354,15 +322,12 @@ class UnaryOp extends @Node
 @Float = class Float extends Primitive
   className: 'Float'
   constructor: (@data) ->
-  isTruthy: -> !!@data
-  isFalsey: -> not @data
 
 # ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
 @ForIn = class ForIn extends @Node
   className: 'ForIn'
   constructor: (@valAssignee, @keyAssignee, @expr, @step, @filterExpr, @block) ->
   childNodes: ['valAssignee', 'keyAssignee', 'expr', 'step', 'filterExpr', 'block']
-  isTruthy: YES
   envEnrichments: -> nub concat [
     super arguments...
     beingDeclared @valAssignee
@@ -382,7 +347,6 @@ class UnaryOp extends @Node
   className: 'ForOf'
   constructor: (@isOwn, @keyAssignee, @valAssignee, @expr, @filterExpr, @block) ->
   childNodes: ['keyAssignee', 'valAssignee', 'expr', 'filterExpr', 'block']
-  isTruthy: YES
   envEnrichments: -> nub concat [
     super arguments...
     beingDeclared @keyAssignee
@@ -412,7 +376,6 @@ class UnaryOp extends @Node
       continue while @block isnt (@block = (fn.call @block, inScope, ancestry).walk fn, inScope, ancestry)
     ancestry.shift()
     fn.call this, inScope, ancestry
-  isTruthy: YES
   mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
@@ -473,7 +436,6 @@ class UnaryOp extends @Node
     for flag in ['g', 'i', 'm', 'y']
       @flags[flag] = flag in flags
   childNodes: ['expr']
-  isTruthy: YES
   toJSON: ->
     nodeType: @className
     expression: @expr
@@ -503,8 +465,6 @@ class UnaryOp extends @Node
 @Int = class Int extends Primitive
   className: 'Int'
   constructor: (@data) ->
-  isTruthy: -> !!@data
-  isFalsey: -> not @data
 
 # JavaScript :: string -> JavaScript
 @JavaScript = class JavaScript extends Primitive
@@ -530,8 +490,6 @@ class UnaryOp extends @Node
 # LogicalAndOp :: Exprs -> Exprs -> LogicalAndOp
 @LogicalAndOp = class LogicalAndOp extends BinOp
   className: 'LogicalAndOp'
-  isTruthy: -> @left.isTruthy() and @right.isTruthy()
-  isFalsey: -> @left.isFalsey() or @right.isFalsey()
   constructor: (@left, @right) ->
   # TODO: override BinOp::mayHaveSideEffects, respecting short-circuiting behaviour
 
@@ -539,15 +497,11 @@ class UnaryOp extends @Node
 @LogicalNotOp = class LogicalNotOp extends UnaryOp
   className: 'LogicalNotOp'
   constructor: (@expr) ->
-  isTruthy: -> @expr.isFalsey()
-  isFalsey: -> @expr.isTruthy()
 
 # LogicalOrOp :: Exprs -> Exprs -> LogicalOrOp
 @LogicalOrOp = class LogicalOrOp extends BinOp
   className: 'LogicalOrOp'
   constructor: (@left, @right) ->
-  isTruthy: -> @left.isTruthy() or @right.isTruthy()
-  isFalsey: -> @left.isFalsey() and @right.isFalsey()
   # TODO: override BinOp::mayHaveSideEffects, respecting short-circuiting behaviour
 
 # MemberAccessOp :: Exprs -> MemberNames -> MemberAccessOp
@@ -610,7 +564,6 @@ class UnaryOp extends @Node
 @Null = class Null extends Statement
   className: 'Null'
   constructor: -> # jashkenas/coffee-script#2359
-  isFalsey: YES
   mayHaveSideEffects: NO
 
 # ObjectInitialiser :: [(ObjectInitialiserKeys, Exprs)] -> ObjectInitialiser
@@ -626,7 +579,6 @@ class UnaryOp extends @Node
       [key, val]
     ancestry.shift()
     fn.call this, inScope, ancestry
-  isTruthy: YES
   envEnrichments: -> nub concatMap @members, ([key, expr]) -> expr.envEnrichments()
   mayHaveSideEffects: (inScope) ->
     any @members, ([key, expr]) ->
@@ -677,8 +629,6 @@ class UnaryOp extends @Node
   className: 'Program'
   constructor: (@block) ->
   childNodes: ['block']
-  isTruthy: -> !!@block?.isTruthy()
-  isFalsey: -> !!@block?.isFalsey()
   toJSON: ->
     nodeType: @className
     block: @block?.toJSON()
@@ -687,7 +637,6 @@ class UnaryOp extends @Node
 @Range = class Range extends BinOp
   className: 'Range'
   constructor: (@isInclusive, @left, @right) ->
-  isTruthy: YES
   toJSON: ->
     nodeType: @className
     isInclusive: @isInclusive
@@ -701,7 +650,6 @@ class UnaryOp extends @Node
     @flags = {}
     for flag in ['g', 'i', 'm', 'y']
       @flags[flag] = flag in flags
-  isTruthy: YES
   mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
@@ -722,13 +670,12 @@ class UnaryOp extends @Node
 @Return = class Return extends UnaryOp
   className: 'Return'
   constructor: (@expr) ->
+  mayHaveSideEffects: YES
 
 # SeqOp :: Exprs -> Exprs -> SeqOp
 @SeqOp = class SeqOp extends BinOp
   className: 'SeqOp'
   constructor: (@left, @right) ->
-  isTruthy: -> @right.isTruthy()
-  isFalsey: -> @right.isFalsey()
 
 # SignedRightShiftOp :: Exprs -> Exprs -> SignedRightShiftOp
 @SignedRightShiftOp = class SignedRightShiftOp extends BinOp
@@ -740,7 +687,6 @@ class UnaryOp extends @Node
   className: 'Slice'
   constructor: (@expr, @isInclusive, @left, @right) ->
   childNodes: ['expr', 'left', 'right']
-  isTruthy: YES
   toJSON: ->
     nodeType: @className
     expression: @expr.toJSON()
@@ -757,8 +703,6 @@ class UnaryOp extends @Node
 @String = class String extends Primitive
   className: 'String'
   constructor: (@data) ->
-  isTruthy: -> !!@data
-  isFalsey: -> not @data
 
 # SubtractOp :: Exprs -> Exprs -> SubtractOp
 @SubtractOp = class SubtractOp extends BinOp
@@ -806,7 +750,6 @@ class UnaryOp extends @Node
       continue while @elseBlock isnt (@elseBlock = (fn.call @elseBlock, inScope, ancestry).walk fn, inScope, ancestry)
     ancestry.shift()
     fn.call this, inScope, ancestry
-  # TODO: isTruthy/isFalsey: all blocks are truthy/falsey
   envEnrichments: ->
     otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
     nub concatMap [@expr, @elseBlock, otherExprs...], (e) -> if e? then e.envEnrichments() else []
@@ -847,17 +790,11 @@ class UnaryOp extends @Node
 @TypeofOp = class TypeofOp extends UnaryOp
   className: 'TypeofOp'
   constructor: (@expr) ->
-  isTruthy: YES
 
 # UnaryExistsOp :: Exprs -> UnaryExistsOp
 @UnaryExistsOp = class UnaryExistsOp extends UnaryOp
   className: 'UnaryExistsOp'
   constructor: (@expr) ->
-  isTruthy: ->
-    @expr.isTruthy() or
-    @expr.instanceof Int, Float, String, UnaryPlusOp, UnaryNegateOp, LogicalNotOp
-    # TODO: comprehensive list of all possibly-falsey and always non-null expressions
-  isFalsey: -> @expr.instanceof Null, Undefined
 
 # UnaryNegateOp :: Exprs -> UnaryNegateOp
 @UnaryNegateOp = class UnaryNegateOp extends UnaryOp
@@ -873,7 +810,6 @@ class UnaryOp extends @Node
 @Undefined = class Undefined extends Statement
   className: 'Undefined'
   constructor: -> # jashkenas/coffee-script#2359
-  isFalsey: YES
   mayHaveSideEffects: NO
 
 # UnsignedRightShiftOp :: Exprs -> Exprs -> UnsignedRightShiftOp
@@ -886,7 +822,6 @@ class UnaryOp extends @Node
   className: 'While'
   constructor: (@condition, @block) ->
   childNodes: ['condition', 'block']
-  isTruthy: YES
   mayHaveSideEffects: (inScope) ->
     (@condition.mayHaveSideEffects inScope) or
     (not @condition.isFalsey() and @block?.mayHaveSideEffects inScope)

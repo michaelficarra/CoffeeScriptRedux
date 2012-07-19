@@ -9,7 +9,7 @@ TESTS = $(shell find test -name "*.coffee" -type f | sort)
 COFFEE = node_modules/coffee-script/bin/coffee
 PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
 MOCHA = node_modules/mocha/bin/mocha --compilers coffee:coffee-script -u tdd
-MINIFIER = node_modules/uglify-js/bin/uglifyjs
+MINIFIER = node_modules/uglify-js/bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
 
 all: $(LIB)
 build: all

@@ -2,14 +2,14 @@ suite 'Truthiness', ->
 
   setup ->
     @truthy = (ast) ->
-      ok ast.isTruthy()
-      ok not ast.isFalsey()
+      ok Optimiser.isTruthy ast
+      ok not Optimiser.isFalsey ast
     @falsey = (ast) ->
-      ok ast.isFalsey()
-      ok not ast.isTruthy()
+      ok Optimiser.isFalsey ast
+      ok not Optimiser.isTruthy ast
     @neither = (ast) ->
-      ok not ast.isTruthy()
-      ok not ast.isFalsey()
+      ok not Optimiser.isTruthy ast
+      ok not Optimiser.isFalsey ast
 
   test 'ints', ->
     @falsey new Int 0

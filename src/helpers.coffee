@@ -1,35 +1,34 @@
-# TODO: just use prelude.ls?
-@YES = -> yes
-@NO = -> no
+{foldl} = require './functional-helpers'
 
-@any = (list, fn) ->
-  for e in list
-    return yes if fn e
-  no
+# these are the identifiers that need to be declared when the given value is
+# being used as the target of an assignment
+@beingDeclared = beingDeclared = (assignment) ->
+  switch assignment.className
+    when Identifier::className then [assignment]
+    when AssignOp::className then beingDeclared assignment.assignee
+    when ArrayInitialiser::className then concatMap assignment.members, beingDeclared
+    when ObjectInitialiser::className then concatMap assignment.vals(), beingDeclared
+    else throw new Error "beingDeclared: Non-exhaustive patterns in case: #{assignment.className}"
 
-@foldl = foldl = (memo, list, fn) ->
-  for i in list
-    memo = fn memo, i
-  memo
+@declarationsFor = (node) ->
+  vars = node.envEnrichments()
+  foldl (new Undefined).g(), vars, (expr, v) ->
+    (new AssignOp v, expr).g()
 
-@foldl1 = (list, fn) -> foldl list[0], list[1..], fn
+usedAsExpression_ = (node, parent, grandparent, otherAncestors...) -> switch
+  when !parent? then yes
+  when parent.instanceof Program, Class then no
+  when parent.instanceof SeqOp then this is parent.right
+  when (parent.instanceof Block) and
+  (parent.statements.indexOf this) isnt parent.statements.length - 1
+    no
+  when (parent.instanceof CSFunction, BoundFunction) and
+  parent.body is this and
+  (grandparent?.instanceof ClassProtoAssignOp) and
+  (grandparent.assignee.instanceof CSString) and
+  grandparent.assignee.data is 'constructor'
+    no
+  else yes
 
-@map = map = (list, fn) -> fn e for e in list
-
-@concat = concat = (list) -> [].concat list...
-
-@concatMap = (list, fn) -> concat map list, fn
-
-@intersect = (listA, listB) -> a for a in listA when a in listB
-
-@difference = (listA, listB) -> a for a in listA when a not in listB
-
-@nub = nub = (list) ->
-  result = []
-  result.push i for i in list when i not in result
-  result
-
-@union = (listA, listB) ->
-  listA.concat (b for b in (nub listB) when b not in listA)
-
-@flip = (fn) -> (b, a) -> fn.call this, a, b
+@usedAsExpression = (node, ancestors) ->
+  usedAsExpression_.apply node, [node, ancestors...]

@@ -1,14 +1,8 @@
-{YES, NO, any, foldl, map, concat, concatMap, difference, nub, union} = require './helpers'
+{map, concat, concatMap, nub, union} = require './functional-helpers'
+{beingDeclared} = require './helpers'
 
-# these are the identifiers that need to be declared when the given value is
-# being used as the target of an assignment
-beingDeclared = (assignment) ->
-  switch assignment.className
-    when Identifier::className then [assignment]
-    when AssignOp::className then beingDeclared assignment.assignee
-    when ArrayInitialiser::className then concatMap assignment.members, beingDeclared
-    when ObjectInitialiser::className then concatMap assignment.vals(), beingDeclared
-    else throw new Error "beingDeclared: Non-exhaustive patterns in case: #{assignment.className}"
+YES = -> yes
+NO = -> no
 
 # TODO: DRY `walk` methods
 # TODO: make use of Node::instanceof *everywhere*
@@ -21,8 +15,6 @@ beingDeclared = (assignment) ->
   childNodes: [] # children's names; in evaluation order where applicable
   envEnrichments: -> # environment enrichments that occur when this node is evaluated
     nub concatMap @childNodes, (child) => @[child]?.envEnrichments() ? []
-  mayHaveSideEffects: (inScope) ->
-    any @childNodes, (child) => @[child]?.mayHaveSideEffects inScope
   #fmap: (memo, fn) ->
   #  memo = fn memo, this
   #  for child in @childNodes
@@ -60,8 +52,6 @@ beingDeclared = (assignment) ->
 class AssignOp extends @Node
   constructor: -> # jashkenas/coffee-script#2359
   childNodes: ['expr']
-  mayHaveSideEffects: (inScope) ->
-    (@expr.mayHaveSideEffects inScope) or (beingDeclared @assignee).length
   toJSON: ->
     nodeType: @className
     assignee: @assignee.toJSON()
@@ -77,7 +67,6 @@ class BinOp extends @Node
 
 class Primitive extends @Node
   constructor: -> # jashkenas/coffee-script#2359
-  mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
     data: @data
@@ -109,7 +98,6 @@ class UnaryOp extends @Node
     ancestry.shift()
     fn.call this, inScope, ancestry
   envEnrichments: -> nub (concatMap @members, (m) -> m.envEnrichments())
-  mayHaveSideEffects: (inScope) -> any @members, (m) -> m.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     members: (m.toJSON() for m in @members)
@@ -155,7 +143,6 @@ class UnaryOp extends @Node
     fn.call this, inScope, ancestry
   @wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
   envEnrichments: -> nub concatMap @statements, (s) -> s.envEnrichments()
-  mayHaveSideEffects: (inScope) -> any @statements, (s) -> s.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     statements: (s.toJSON() for s in @statements)
@@ -169,7 +156,6 @@ class UnaryOp extends @Node
 @Break = class Break extends Statement
   className: 'Break'
   constructor: -> # jashkenas/coffee-script#2359
-  mayHaveSideEffects: NO
 
 # class @:: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
 @Class = class Class extends @Node
@@ -189,9 +175,6 @@ class UnaryOp extends @Node
   envEnrichments: ->
     declaredInName = if @nameAssignment? then beingDeclared @nameAssignment else []
     nub declaredInName.concat (if name? then [name] else [])
-  mayHaveSideEffects: (inScope) ->
-    (@parent?.mayHaveSideEffects inScope) or
-    @nameAssignment? and (@name or (beingDeclared @nameAssignment).length > 0)
   toJSON: ->
     nodeType: @className
     nameAssignment: @nameAssignment?.toJSON()
@@ -203,7 +186,6 @@ class UnaryOp extends @Node
 @ClassProtoAssignOp = class ClassProtoAssignOp extends AssignOp
   className: 'ClassProtoAssignOp'
   constructor: (@assignee, @expr) ->
-  mayHaveSideEffects: NO
 
 # CompoundAssignOp :: CompoundAssignableOps -> Assignables -> Exprs -> CompoundAssignOp
 @CompoundAssignOp = class CompoundAssignOp extends AssignOp
@@ -225,11 +207,6 @@ class UnaryOp extends @Node
 @Conditional = class Conditional extends @Node
   className: 'Conditional'
   childNodes: ['condition', 'block', 'elseBlock']
-  mayHaveSideEffects: (inScope) ->
-    # TODO: only check each respective block if the condition would allow execution to get there
-    !!((@condition.mayHaveSideEffects inScope) or
-    (not @condition.isFalsey() and @block?.mayHaveSideEffects inScope) or
-    (not @condition.isTruthy() and @elseBlock?.mayHaveSideEffects inScope))
   constructor: (@condition, @block, @elseBlock) ->
   toJSON: ->
     nodeType: @className
@@ -247,13 +224,11 @@ class UnaryOp extends @Node
 @Continue = class Continue extends Statement
   className: 'Continue'
   constructor: -> # jashkenas/coffee-script#2359
-  mayHaveSideEffects: NO
 
 # DeleteOp :: MemberAccessOps -> DeleteOp
 @DeleteOp = class DeleteOp extends UnaryOp
   className: 'DeleteOp'
   constructor: (@expr) ->
-  mayHaveSideEffects: YES
 
 # DivideOp :: Exprs -> Exprs -> DivideOp
 @DivideOp = class DivideOp extends BinOp
@@ -264,13 +239,6 @@ class UnaryOp extends @Node
 @DoOp = class DoOp extends UnaryOp
   className: 'DoOp'
   constructor: (@expr) ->
-  mayHaveSideEffects: (inScope) ->
-    return yes unless @expr.instanceof Function, BoundFunction
-    newScope = difference inScope, concatMap @expr.parameters, beingDeclared
-    args = for p in @expr.parameters
-      if p.instanceof AssignOp then p.expr else p
-    return yes if any args, (a) -> a.mayHaveSideEffects newScope
-    @expr.mayHaveSideEffects newScope
 
 # DynamicMemberAccessOp :: Exprs -> Exprs -> DynamicMemberAccessOp
 @DynamicMemberAccessOp = class DynamicMemberAccessOp extends @Node
@@ -376,7 +344,6 @@ class UnaryOp extends @Node
       continue while @block isnt (@block = (fn.call @block, inScope, ancestry).walk fn, inScope, ancestry)
     ancestry.shift()
     fn.call this, inScope, ancestry
-  mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
     parameters: (p.toJSON() for p in @parameters)
@@ -403,11 +370,6 @@ class UnaryOp extends @Node
     ancestry.shift()
     fn.call this, inScope, ancestry
   envEnrichments: -> nub concatMap @arguments, (arg) -> arg.envEnrichments()
-  mayHaveSideEffects: (inScope) ->
-    return yes unless @function.instanceof Function, BoundFunction
-    newScope = difference inScope, concatMap @function.parameters, beingDeclared
-    return yes if any @arguments, (a) -> a.mayHaveSideEffects newScope
-    @function.block.mayHaveSideEffects newScope
   toJSON: ->
     nodeType: @className
     function: @function.toJSON()
@@ -469,7 +431,6 @@ class UnaryOp extends @Node
 # JavaScript :: string -> JavaScript
 @JavaScript = class JavaScript extends Primitive
   className: 'JavaScript'
-  mayHaveSideEffects: YES
   constructor: (@data) ->
 
 # LTEOp :: Exprs -> Exprs -> LTEOp
@@ -554,7 +515,6 @@ class UnaryOp extends @Node
       arg
     ancestry.shift()
     fn.call this, inScope, ancestry
-  mayHaveSideEffects: YES
   toJSON: ->
     nodeType: @className
     constructor: @ctor.toJSON()
@@ -564,7 +524,6 @@ class UnaryOp extends @Node
 @Null = class Null extends Statement
   className: 'Null'
   constructor: -> # jashkenas/coffee-script#2359
-  mayHaveSideEffects: NO
 
 # ObjectInitialiser :: [(ObjectInitialiserKeys, Exprs)] -> ObjectInitialiser
 @ObjectInitialiser = class ObjectInitialiser extends @Node
@@ -580,9 +539,6 @@ class UnaryOp extends @Node
     ancestry.shift()
     fn.call this, inScope, ancestry
   envEnrichments: -> nub concatMap @members, ([key, expr]) -> expr.envEnrichments()
-  mayHaveSideEffects: (inScope) ->
-    any @members, ([key, expr]) ->
-      (key.mayHaveSideEffects inScope) or expr.mayHaveSideEffects inScope
   keys: -> map @members ([key, val]) -> key
   vals: -> map @members ([key, val]) -> val
   toJSON: ->
@@ -604,25 +560,21 @@ class UnaryOp extends @Node
 @PreDecrementOp = class PreDecrementOp extends UnaryOp
   className: 'PreDecrementOp'
   constructor: (@expr) ->
-  mayHaveSideEffects: YES
 
 # PreIncrementOp :: Exprs -> PreIncrementOp
 @PreIncrementOp = class PreIncrementOp extends UnaryOp
   className: 'PreIncrementOp'
   constructor: (@expr) ->
-  mayHaveSideEffects: YES
 
 # PostDecrementOp :: Exprs -> PostDecrementOp
 @PostDecrementOp = class PostDecrementOp extends UnaryOp
   className: 'PostDecrementOp'
   constructor: (@expr) ->
-  mayHaveSideEffects: YES
 
 # PostIncrementOp :: Exprs -> PostIncrementOp
 @PostIncrementOp = class PostIncrementOp extends UnaryOp
   className: 'PostIncrementOp'
   constructor: (@expr) ->
-  mayHaveSideEffects: YES
 
 # Program :: Maybe Exprs -> Program
 @Program = class Program extends @Node
@@ -650,7 +602,6 @@ class UnaryOp extends @Node
     @flags = {}
     for flag in ['g', 'i', 'm', 'y']
       @flags[flag] = flag in flags
-  mayHaveSideEffects: NO
   toJSON: ->
     nodeType: @className
     data: @data
@@ -670,7 +621,6 @@ class UnaryOp extends @Node
 @Return = class Return extends UnaryOp
   className: 'Return'
   constructor: (@expr) ->
-  mayHaveSideEffects: YES
 
 # SeqOp :: Exprs -> Exprs -> SeqOp
 @SeqOp = class SeqOp extends BinOp
@@ -723,7 +673,6 @@ class UnaryOp extends @Node
     ancestry.shift()
     fn.call this, inScope, ancestry
   envEnrichments: -> nub concatMap @arguments, (a) -> a.envEnrichments()
-  mayHaveSideEffects: YES
   toJSON: ->
     nodeType: @className
     arguments: (a.toJSON() for a in @arguments)
@@ -753,9 +702,6 @@ class UnaryOp extends @Node
   envEnrichments: ->
     otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
     nub concatMap [@expr, @elseBlock, otherExprs...], (e) -> if e? then e.envEnrichments() else []
-  mayHaveSideEffects: (inScope) ->
-    otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-    any [@expr, @elseBlock, otherExprs...], (e) -> e?.mayHaveSideEffects inScope
   toJSON: ->
     nodeType: @className
     expression: @expr?.toJSON()
@@ -767,7 +713,6 @@ class UnaryOp extends @Node
 @This = class This extends Statement
   className: 'This'
   constructor: -> # jashkenas/coffee-script#2359
-  mayHaveSideEffects: NO
 
 # Throw :: Exprs -> Throw
 @Throw = class Throw extends UnaryOp
@@ -810,7 +755,6 @@ class UnaryOp extends @Node
 @Undefined = class Undefined extends Statement
   className: 'Undefined'
   constructor: -> # jashkenas/coffee-script#2359
-  mayHaveSideEffects: NO
 
 # UnsignedRightShiftOp :: Exprs -> Exprs -> UnsignedRightShiftOp
 @UnsignedRightShiftOp = class UnsignedRightShiftOp extends BinOp
@@ -822,9 +766,6 @@ class UnaryOp extends @Node
   className: 'While'
   constructor: (@condition, @block) ->
   childNodes: ['condition', 'block']
-  mayHaveSideEffects: (inScope) ->
-    (@condition.mayHaveSideEffects inScope) or
-    (not @condition.isFalsey() and @block?.mayHaveSideEffects inScope)
   toJSON: ->
     nodeType: @className
     condition: @condition.toJSON()

@@ -47,7 +47,7 @@ createNodes
         AssignOp: null
         # ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
         ClassProtoAssignOp: null
-        # CompoundAssignOp :: CompoundAssignableOps -> Assignables -> Exprs -> CompoundAssignOp
+        # CompoundAssignOp :: string -> Assignables -> Exprs -> CompoundAssignOp
         CompoundAssignOp: [['op', 'assignee', 'expression']]
         # ExistsAssignOp :: Assignables -> Exprs -> ExistsAssignOp
         ExistsAssignOp: null
@@ -166,8 +166,10 @@ createNodes
 
     # ArrayInitialiser :: [ArrayInitialiserMembers] -> ArrayInitialiser
     ArrayInitialiser: [['members']]
-    # ObjectInitialiser :: [(ObjectInitialiserKeys, Exprs)] -> ObjectInitialiser
+    # ObjectInitialiser :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiser: [['members']]
+    # ObjectInitialiserMember :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
+    ObjectInitialiserMember: [['key', 'expression']]
     # Class:: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
     Class: ['nameAssignment', 'parent', 'block']
     Functions: [ ['parameters', 'block'],
@@ -248,6 +250,7 @@ handlePrimitives = (ctor, primitives) ->
     json
 
 handlePrimitives Class, ['name']
+handlePrimitives CompoundAssignOp, ['op']
 handlePrimitives ForOf, ['isOwn']
 handlePrimitives HeregExp, ['flags']
 handlePrimitives Identifiers, ['data']
@@ -256,13 +259,6 @@ handlePrimitives Range, ['isInclusive']
 handlePrimitives RegExp, ['data', 'flags']
 handlePrimitives Slice, ['isInclusive']
 handlePrimitives StaticMemberAccessOps, ['memberName']
-
-# TODO: change constructor reference to a simple className reference?
-CompoundAssignOp::childNodes = difference CompoundAssignOp::childNodes, ['op']
-CompoundAssignOp::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.op = @op::className
-  json
 
 
 ## Nodes that contain list properties
@@ -280,18 +276,10 @@ handleLists Block, ['statements']
 handleLists Functions, ['parameters']
 handleLists FunctionApplications, ['arguments']
 handleLists NewOp, ['arguments']
+handleLists ObjectInitialiser, ['members']
 handleLists Super, ['arguments']
 handleLists Switch, ['cases']
 handleLists SwitchCase, ['conditions']
-
-# TODO: same idea as with Switch: make `members` a list of ObjectInitialiserMapping
-ObjectInitialiser::childNodes = []
-ObjectInitialiser::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.members = for [key, expr] in @members
-    [key.toJSON(), expr.toJSON()]
-  json
-
 
 
 ## Nodes with special behaviours
@@ -312,8 +300,8 @@ Class::initialise = ->
 
 GenSym::initialise = (_, @ns = '') ->
 
-ObjectInitialiser::keys = -> map @members ([key, val]) -> key
-ObjectInitialiser::vals = -> map @members ([key, val]) -> val
+ObjectInitialiser::keys = -> map @members (m) -> m.key
+ObjectInitialiser::vals = -> map @members (m) -> m.expression
 
 RegExps::initialise = (_, flags) ->
   @flags = {}

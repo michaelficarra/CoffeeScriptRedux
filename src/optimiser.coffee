@@ -106,8 +106,10 @@ mayHaveSideEffects =
       mayHaveSideEffects @function.block, newScope
     ]
     [[CS.ObjectInitialiser], (inScope) ->
-      any @members, ([key, expr]) ->
-      (mayHaveSideEffects key, inScope) or mayHaveSideEffects expr, inScope
+      any @members, (m) -> mayHaveSideEffects m, inScope
+    ]
+    [[CS.ObjectInitialiserMember], (inScope) ->
+      (mayHaveSideEffects @key, inScope) or mayHaveSideEffects @expression, inScope
     ]
     [[CS.Switch], (inScope) ->
       any [@expression, @elseBlock, @cases...], (e) -> mayHaveSideEffects e, inScope
@@ -186,10 +188,10 @@ walk = do ->
     ObjectInitialiser: (fn, inScope = [], ancestry = []) ->
       return this if this in ancestry
       ancestry = [this, ancestry...]
-      @members = for [key, val] in @members
-        continue while val isnt walk (val = fn.call val, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments val
-        [key, val]
+      @members = for member in @members
+        continue while member isnt walk (member = fn.call member, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments member
+        member
       ancestry.shift()
       fn.call this, inScope, ancestry
     Super: (fn, inScope = [], ancestry = []) ->

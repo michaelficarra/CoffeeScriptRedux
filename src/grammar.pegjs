@@ -647,15 +647,16 @@ objectLiteral
   objectLiteralMemberList
     = e:objectLiteralMember es:(objectLiteralMemberSeparator objectLiteralMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1].raw; }).join('');
-        return {list: [e.member].concat(es.map(function(e){ return e[1].member; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[1]; })), raw: raw};
       }
   objectLiteralMemberSeparator = arrayLiteralMemberSeparator
   objectLiteralMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
-        return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
+        var raw = key.raw + ws0 + ':' + ws1 + val.raw;
+        return new Nodes.ObjectInitialiserMember(key, val).r(raw).p(line, column);
       }
 	/ v:ObjectInitialiserKeys {
-        return {member: [v, v], raw: v.raw};
+        return new Nodes.ObjectInitialiserMember(v, v).r(v.raw).p(line, column);
       }
   ObjectInitialiserKeys
     = i:identifierName { return new Nodes.String(i).r(i).p(line, column); }

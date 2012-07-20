@@ -3,7 +3,6 @@ exports = module?.exports ? this
 
 # TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
 # TODO: make sure all the type signatures are correct
-# TODO: expr -> expression
 
 allNodes = {}
 
@@ -29,7 +28,7 @@ createNodes = (subclasses, superclasses = []) ->
           @initialise?.apply this, arguments
           this
       className: className
-      superclasses: superclasses
+      @superclasses = superclasses
     if specs?[0]? then klass::childNodes = specs[0]
 
     allNodes[className] = klass
@@ -156,8 +155,10 @@ createNodes
     ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'block']]
     # ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
     ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'block']]
-    # Switch :: Maybe Exprs -> [([Exprs], Exprs)] -> Maybe Exprs -> Switch
-    Switch: ['expression', 'cases', 'elseBlock']
+    # Switch :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
+    Switch: [['expression', 'cases', 'elseBlock']]
+    # SwitchCase :: [Exprs] -> Maybe Expr -> SwitchCase
+    SwitchCase: [['conditions', 'block']]
     # Try :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
     Try: [['block', 'catchAssignee', 'catchBlock', 'finallyBlock']]
     # While :: Exprs -> Maybe Exprs -> While
@@ -175,7 +176,7 @@ createNodes
     ]
     Identifiers: [ ['data'],
       Identifier: null # Identifier :: string -> Identifier
-      GenSym: ['data', 'ns'] # GenSym :: string -> string -> GenSym
+      GenSym: [['data', 'ns']] # GenSym :: string -> string -> GenSym
     ]
     Null: null # Null :: Null
     Primitives: [ ['data'],
@@ -197,7 +198,7 @@ createNodes
     Undefined: null # Undefined :: Undefined
 
     # Slice :: Exprs -> bool -> Maybe Exprs -> Maybe Exprs -> Slice
-    Slice: ['expression', 'isInclusive', 'left', 'right']
+    Slice: [['expression', 'isInclusive', 'left', 'right']]
 
     Rest: [['expression']] # Rest :: Exprs -> Rest
     Spread: [['expression']] # Spread :: Exprs -> Spread
@@ -209,7 +210,7 @@ createNodes
   ArrayInitialiser, ObjectInitialiser, NegatedConditional, Conditional,
   Identifier, ForOf, Functions, While, GenSym, Class, Block, NewOp,
   FunctionApplications, RegExps, RegExp, HeregExp, Super, Slice, Switch,
-  Identifiers
+  Identifiers, SwitchCase
 } = allNodes
 
 Nodes.fromJSON = (json) -> exports[json.nodeType].fromJSON json
@@ -280,8 +281,10 @@ handleLists Functions, ['parameters']
 handleLists FunctionApplications, ['arguments']
 handleLists NewOp, ['arguments']
 handleLists Super, ['arguments']
+handleLists Switch, ['cases']
+handleLists SwitchCase, ['conditions']
 
-# TODO: same idea as with Switch below: make `members` a list of ObjectInitialiserPair
+# TODO: same idea as with Switch: make `members` a list of ObjectInitialiserMapping
 ObjectInitialiser::childNodes = []
 ObjectInitialiser::toJSON = ->
   json = Nodes::toJSON.call this
@@ -289,14 +292,6 @@ ObjectInitialiser::toJSON = ->
     [key.toJSON(), expr.toJSON()]
   json
 
-# TODO: Switch::childNodes doesn't account for the case conditions/bodies.
-# Solution: make `cases` a list of a new SwitchCase node
-Switch::childNodes = ['expression', 'elseBlock']
-Switch::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.cases = for [conds, block] in @cases
-    [c.toJSON() for c in conds, block.toJSON()]
-  json
 
 
 ## Nodes with special behaviours

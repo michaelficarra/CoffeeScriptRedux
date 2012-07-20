@@ -107,11 +107,13 @@ mayHaveSideEffects =
     ]
     [[CS.ObjectInitialiser], (inScope) ->
       any @members, ([key, expr]) ->
-        (mayHaveSideEffects key, inScope) or mayHaveSideEffects expr, inScope
+      (mayHaveSideEffects key, inScope) or mayHaveSideEffects expr, inScope
     ]
     [[CS.Switch], (inScope) ->
-      otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-      any [@expression, @elseBlock, otherExprs...], (e) -> mayHaveSideEffects e, inScope
+      any [@expression, @elseBlock, @cases...], (e) -> mayHaveSideEffects e, inScope
+    ]
+    [[CS.SwitchCase], (inScope) ->
+      any [@block, @conditions...], (e) -> mayHaveSideEffects e, inScope
     ]
     [[CS.While], (inScope) ->
       (mayHaveSideEffects @condition, inScope) or
@@ -205,18 +207,25 @@ walk = do ->
       if @expression?
         continue while @expression isnt walk (@expression = fn.call @expression, inScope, ancestry), fn, inScope, ancestry
         inScope = union inScope, envEnrichments @expression
-      @cases = for [conds, block] in @cases
-        conds = for cond in conds
-          continue while cond isnt walk (cond = fn.call cond, inScope, ancestry), fn, inScope, ancestry
-          inScope = union inScope, envEnrichments cond
-          cond
-        continue while block isnt walk (block = fn.call block, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments block
-        [conds, block]
+      @cases = for case_ in @cases
+        continue while case_ isnt walk (case_ = fn.call case_, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments case_
+        case_
       if elseBlock?
         continue while @elseBlock isnt walk (@elseBlock = fn.call @elseBlock, inScope, ancestry), fn, inScope, ancestry
       ancestry.shift()
       fn.call this, inScope, ancestry
+    SwitchCase: (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry = [this, ancestry...]
+      @conditions = for condition in @conditions
+        continue while condition isnt walk (condition = fn.call condition, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments condition
+        condition
+      continue while @block isnt walk (@block = fn.call @block, inScope, ancestry), fn, inScope, ancestry
+      ancestry.shift()
+      fn.call this, inScope, ancestry
+
 
   walkDefault = (fn, inScope = [], ancestry = []) ->
     return this if this in ancestry

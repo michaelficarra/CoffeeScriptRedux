@@ -56,9 +56,8 @@ envEnrichments_ = -> switch
   when @instanceof CS.FunctionApplication then nub concatMap @arguments, (arg) -> envEnrichments arg
   when @instanceof CS.ObjectInitialiser then nub concatMap @members, ([key, expr]) -> envEnrichments expr
   when @instanceof CS.Super then nub concatMap @arguments, (a) -> envEnrichments a
-  when @instanceof CS.Switch
-    otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-    nub concatMap [@expr, @elseBlock, otherExprs...], (e) -> envEnrichments e
+  when @instanceof CS.Switch then nub concatMap [@expr, @elseBlock, @cases...], (e) -> envEnrichments e
+  when @instanceof CS.SwitchCase then nub concatMap [@block, @conditions...], (e) -> envEnrichments e
   else nub concatMap @childNodes, (child) => envEnrichments @[child]
 
 @envEnrichments = envEnrichments = (node) -> if node? then envEnrichments_.call node else []

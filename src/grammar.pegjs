@@ -88,6 +88,7 @@ start = program
 
 // TODO: DRY everything!
 // TODO: clean up
+// TODO: `Nodes.` to `CS.`
 // TODO: this is JS; equality comparisons should have literals on left if possible
 
 
@@ -564,24 +565,19 @@ switch
     }
   switchBody
     = ws:_ t:TERMINDENT b:switchBlock d:DEDENT { return {cases: b.cases, 'else': b['else'], raw: ws + t + b.raw + d}; }
-    / ws0:_ t:THEN ws1:_ c:case { return {cases: [[c.conditions, c.block]], raw: ws0 + t + ws1 + c.raw}; }
+    / ws0:_ t:THEN ws1:_ c:case { return {cases: [c], raw: ws0 + t + ws1 + c.raw}; }
     / ws:_ THEN { return {cases: [], raw: ws + 'then'}; }
   switchBlock
     = w:case ws:(_ TERMINATOR _ case)* elseClause:(_ TERMINATOR _ elseClause)? term:TERMINATOR? {
         var raw = w.raw + ws.map(function(w){ return w[0] + w[1] + w[2] + w[3].raw; }).join('') +
           (elseClause ? elseClause[0] + elseClause[1] + elseClause[2] + elseClause[3].raw : '') + term;
-        var cases = [[w.conditions, w.block]].concat(ws.map(function(w){
-          return [w[3].conditions, w[3].block];
-        }));
+        var cases = [w].concat(ws.map(function(w){ return w[3]; }));
         return {cases: cases, 'else': elseClause ? elseClause[3].block : null, raw: raw};
       }
   case
     = WHEN ws:_ conditions:caseConditions body:caseBody {
-        return 0,
-        { conditions: conditions.list
-        , block: body.block
-        , raw: 'when' + ws + conditions.raw + body.raw
-        };
+        var raw = 'when' + ws + conditions.raw + body.raw
+        return new Nodes.SwitchCase(conditions.list, body.block).r(raw).p(line, column);
       }
   caseCondition = assignmentExpression
   caseConditions

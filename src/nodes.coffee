@@ -43,167 +43,136 @@ createNodes
 
     BinOps: [ ['left', 'right'],
       AssignOps: [ ['assignee', 'expression'],
-        # AssignOp :: Assignables -> Exprs -> AssignOp
-        AssignOp: null
-        # ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
-        ClassProtoAssignOp: null
-        # CompoundAssignOp :: string -> Assignables -> Exprs -> CompoundAssignOp
-        CompoundAssignOp: [['op', 'assignee', 'expression']]
-        # ExistsAssignOp :: Assignables -> Exprs -> ExistsAssignOp
-        ExistsAssignOp: null
+        AssignOp: null # :: Assignables -> Exprs -> AssignOp
+        ClassProtoAssignOp: null # :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
+        CompoundAssignOp: [['op', 'assignee', 'expression']] # :: string -> Assignables -> Exprs -> CompoundAssignOp
+        ExistsAssignOp: null # :: Assignables -> Exprs -> ExistsAssignOp
       ]
       BitOps: [ null
-        BitAndOp: null # BitAndOp :: Exprs -> Exprs -> BitAndOp
-        BitOrOp: null # BitOrOp :: Exprs -> Exprs -> BitOrOp
-        BitXorOp: null # BitXorOp :: Exprs -> Exprs -> BitXorOp
-        LeftShiftOp: null # LeftShiftOp :: Exprs -> Exprs -> LeftShiftOp
-        SignedRightShiftOp: null # SignedRightShiftOp :: Exprs -> Exprs -> SignedRightShiftOp
-        UnsignedRightShiftOp: null # UnsignedRightShiftOp :: Exprs -> Exprs -> UnsignedRightShiftOp
+        BitAndOp: null # :: Exprs -> Exprs -> BitAndOp
+        BitOrOp: null # :: Exprs -> Exprs -> BitOrOp
+        BitXorOp: null # :: Exprs -> Exprs -> BitXorOp
+        LeftShiftOp: null # :: Exprs -> Exprs -> LeftShiftOp
+        SignedRightShiftOp: null # :: Exprs -> Exprs -> SignedRightShiftOp
+        UnsignedRightShiftOp: null # :: Exprs -> Exprs -> UnsignedRightShiftOp
       ]
       ComparisonOps: [ null
-        EQOp: null # EQOp :: Exprs -> Exprs -> EQOp
-        GTEOp: null # GTEOp :: Exprs -> Exprs -> GTEOp
-        GTOp: null # GTOp :: Exprs -> Exprs -> GTOp
-        LTEOp: null # LTEOp :: Exprs -> Exprs -> LTEOp
-        LTOp: null # LTOp :: Exprs -> Exprs -> LTOp
-        NEQOp: null # NEQOp :: Exprs -> Exprs -> NEQOp
+        EQOp: null # :: Exprs -> Exprs -> EQOp
+        GTEOp: null # :: Exprs -> Exprs -> GTEOp
+        GTOp: null # :: Exprs -> Exprs -> GTOp
+        LTEOp: null # :: Exprs -> Exprs -> LTEOp
+        LTOp: null # :: Exprs -> Exprs -> LTOp
+        NEQOp: null # :: Exprs -> Exprs -> NEQOp
       ]
       # Note: A tree of ConcatOp represents interpolation
-      ConcatOp: null # ConcatOp :: Exprs -> Exprs -> ConcatOp
-      ExistsOp: null # ExistsOp :: Exprs -> Exprs -> ExistsOp
-      ExtendsOp: null # ExtendsOp :: Exprs -> Exprs -> ExtendsOp
-      InOp: null # InOp :: Exprs -> Exprs -> InOp
-      InstanceofOp: null # InstanceofOp :: Exprs -> Exprs -> InstanceofOp
+      ConcatOp: null # :: Exprs -> Exprs -> ConcatOp
+      ExistsOp: null # :: Exprs -> Exprs -> ExistsOp
+      ExtendsOp: null # :: Exprs -> Exprs -> ExtendsOp
+      InOp: null # :: Exprs -> Exprs -> InOp
+      InstanceofOp: null # :: Exprs -> Exprs -> InstanceofOp
       LogicalOps: [ null
-        LogicalAndOp: null # LogicalAndOp :: Exprs -> Exprs -> LogicalAndOp
-        LogicalOrOp: null # LogicalOrOp :: Exprs -> Exprs -> LogicalOrOp
+        LogicalAndOp: null # :: Exprs -> Exprs -> LogicalAndOp
+        LogicalOrOp: null # :: Exprs -> Exprs -> LogicalOrOp
       ]
       MathsOps: [ null
-        DivideOp: null # DivideOp :: Exprs -> Exprs -> DivideOp
-        MultiplyOp: null # MultiplyOp :: Exprs -> Exprs -> MultiplyOp
-        RemOp: null # RemOp :: Exprs -> Exprs -> RemOp
-        SubtractOp: null # SubtractOp :: Exprs -> Exprs -> SubtractOp
+        DivideOp: null # :: Exprs -> Exprs -> DivideOp
+        MultiplyOp: null # :: Exprs -> Exprs -> MultiplyOp
+        RemOp: null # :: Exprs -> Exprs -> RemOp
+        SubtractOp: null # :: Exprs -> Exprs -> SubtractOp
       ]
-      OfOp: null # OfOp :: Exprs -> Exprs -> OfOp
-      PlusOp: null # PlusOp :: Exprs -> Exprs -> PlusOp
-      Range: [['isInclusive', 'left', 'right']] # Range :: bool -> Exprs -> Exprs -> Range
-      SeqOp: null # SeqOp :: Exprs -> Exprs -> SeqOp
+      OfOp: null # :: Exprs -> Exprs -> OfOp
+      PlusOp: null # :: Exprs -> Exprs -> PlusOp
+      Range: [['isInclusive', 'left', 'right']] # :: bool -> Exprs -> Exprs -> Range
+      SeqOp: null # :: Exprs -> Exprs -> SeqOp
     ]
 
     Statements: [ [],
-      Break: null # Break :: Break
-      Continue: null # Continue :: Continue
-      Return: [['expression']] # Return :: Exprs -> Return
-      Throw: [['expression']] # Throw :: Exprs -> Throw
+      Break: null # :: Break
+      Continue: null # :: Continue
+      Return: [['expression']] # :: Exprs -> Return
+      Throw: [['expression']] # :: Exprs -> Throw
     ]
 
     UnaryOps: [ ['expression'],
-      BitNotOp: null # BitNotOp :: Exprs -> BitNotOp
-      DeleteOp: null # DeleteOp :: MemberAccessOps -> DeleteOp
-      DoOp: null # DoOp :: Exprs -> DoOp
-      LogicalNotOp: null # LogicalNotOp :: Exprs -> LogicalNotOp
-      NewOp: [['constructor', 'arguments']] # NewOp :: Exprs -> [Arguments] -> NewOp
-      PreDecrementOp: null # PreDecrementOp :: Exprs -> PreDecrementOp
-      PreIncrementOp: null # PreIncrementOp :: Exprs -> PreIncrementOp
-      PostDecrementOp: null # PostDecrementOp :: Exprs -> PostDecrementOp
-      PostIncrementOp: null # PostIncrementOp :: Exprs -> PostIncrementOp
-      TypeofOp: null # TypeofOp :: Exprs -> TypeofOp
-      UnaryExistsOp: null # UnaryExistsOp :: Exprs -> UnaryExistsOp
-      UnaryNegateOp: null # UnaryNegateOp :: Exprs -> UnaryNegateOp
-      UnaryPlusOp: null # UnaryPlusOp :: Exprs -> UnaryPlusOp
+      BitNotOp: null # :: Exprs -> BitNotOp
+      DeleteOp: null # :: MemberAccessOps -> DeleteOp
+      DoOp: null # :: Exprs -> DoOp
+      LogicalNotOp: null # :: Exprs -> LogicalNotOp
+      NewOp: [['constructor', 'arguments']] # :: Exprs -> [Arguments] -> NewOp
+      PreDecrementOp: null # :: Exprs -> PreDecrementOp
+      PreIncrementOp: null # :: Exprs -> PreIncrementOp
+      PostDecrementOp: null # :: Exprs -> PostDecrementOp
+      PostIncrementOp: null # :: Exprs -> PostIncrementOp
+      TypeofOp: null # :: Exprs -> TypeofOp
+      UnaryExistsOp: null # :: Exprs -> UnaryExistsOp
+      UnaryNegateOp: null # :: Exprs -> UnaryNegateOp
+      UnaryPlusOp: null # :: Exprs -> UnaryPlusOp
     ]
 
     MemberAccessOps: [ null
       StaticMemberAccessOps: [ ['expression', 'memberName'],
-        # MemberAccessOp :: Exprs -> MemberNames -> MemberAccessOp
-        MemberAccessOp: null
-        # ProtoMemberAccessOp :: Exprs -> MemberNames -> ProtoMemberAccessOp
-        ProtoMemberAccessOp: null
-        # SoakedMemberAccessOp :: Exprs -> MemberNames -> SoakedMemberAccessOp
-        SoakedMemberAccessOp: null
-        # SoakedProtoMemberAccessOp :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
-        SoakedProtoMemberAccessOp: null
+        MemberAccessOp: null # :: Exprs -> MemberNames -> MemberAccessOp
+        ProtoMemberAccessOp: null # :: Exprs -> MemberNames -> ProtoMemberAccessOp
+        SoakedMemberAccessOp: null # :: Exprs -> MemberNames -> SoakedMemberAccessOp
+        SoakedProtoMemberAccessOp: null # :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
       ]
       DynamicMemberAccessOps: [ ['expression', 'indexingExpr'],
-        # DynamicMemberAccessOp :: Exprs -> Exprs -> DynamicMemberAccessOp
-        DynamicMemberAccessOp: null
-        # DynamicProtoMemberAccessOp :: Exprs -> Exprs -> DynamicProtoMemberAccessOp
-        DynamicProtoMemberAccessOp: null
-        # SoakedDynamicMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
-        SoakedDynamicMemberAccessOp: null
-        # SoakedDynamicProtoMemberAccessOp :: Exprs -> Exprs -> SoakedDynamicProtoMemberAccessOp
-        SoakedDynamicProtoMemberAccessOp: null
+        DynamicMemberAccessOp: null # :: Exprs -> Exprs -> DynamicMemberAccessOp
+        DynamicProtoMemberAccessOp: null # :: Exprs -> Exprs -> DynamicProtoMemberAccessOp
+        SoakedDynamicMemberAccessOp: null # :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
+        SoakedDynamicProtoMemberAccessOp: null # :: Exprs -> Exprs -> SoakedDynamicProtoMemberAccessOp
       ]
     ]
 
     FunctionApplications: [ ['function', 'arguments'],
-      # FunctionApplication :: Exprs -> [Arguments] -> FunctionApplication
-      FunctionApplication: null
-      # SoakedFunctionApplication :: Exprs -> [Arguments] -> SoakedFunctionApplication
-      SoakedFunctionApplication: null
+      FunctionApplication: null # :: Exprs -> [Arguments] -> FunctionApplication
+      SoakedFunctionApplication: null # :: Exprs -> [Arguments] -> SoakedFunctionApplication
     ]
-    # Super :: [Arguments] -> Super
-    Super: [['arguments']]
+    Super: [['arguments']] # :: [Arguments] -> Super
 
-    # Program :: Maybe Exprs -> Program
-    Program: [['block']]
-    # Block :: [Statement] -> Block
-    Block: [['statements']]
-    # Conditional :: Exprs -> Maybe Exprs -> Maybe Exprs -> Conditional
-    Conditional: [['condition', 'block', 'elseBlock']]
-    # ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
-    ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'block']]
-    # ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
-    ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'block']]
-    # Switch :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
-    Switch: [['expression', 'cases', 'elseBlock']]
-    # SwitchCase :: [Exprs] -> Maybe Expr -> SwitchCase
-    SwitchCase: [['conditions', 'block']]
-    # Try :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
-    Try: [['block', 'catchAssignee', 'catchBlock', 'finallyBlock']]
-    # While :: Exprs -> Maybe Exprs -> While
-    While: [['condition', 'block']]
+    Program: [['block']] # :: Maybe Exprs -> Program
+    Block: [['statements']] # :: [Statement] -> Block
+    Conditional: [['condition', 'block', 'elseBlock']] # :: Exprs -> Maybe Exprs -> Maybe Exprs -> Conditional
+    ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'block']] # :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
+    ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'block']] # :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
+    Switch: [['expression', 'cases', 'elseBlock']] # :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
+    SwitchCase: [['conditions', 'block']] # :: [Exprs] -> Maybe Expr -> SwitchCase
+    Try: [['block', 'catchAssignee', 'catchBlock', 'finallyBlock']] # :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
+    While: [['condition', 'block']] # :: Exprs -> Maybe Exprs -> While
 
-    # ArrayInitialiser :: [ArrayInitialiserMembers] -> ArrayInitialiser
-    ArrayInitialiser: [['members']]
-    # ObjectInitialiser :: [ObjectInitialiserMember] -> ObjectInitialiser
-    ObjectInitialiser: [['members']]
-    # ObjectInitialiserMember :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
-    ObjectInitialiserMember: [['key', 'expression']]
-    # Class:: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
-    Class: ['nameAssignment', 'parent', 'block']
+    ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
+    ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
+    ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
+    Class: ['nameAssignment', 'parent', 'block'] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
     Functions: [ ['parameters', 'block'],
-      Function: null # Function :: [Parameters] -> Maybe Exprs -> Function
-      BoundFunction: null # BoundFunction :: [Parameters] -> Maybe Exprs -> BoundFunction
+      Function: null # :: [Parameters] -> Maybe Exprs -> Function
+      BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction
     ]
     Identifiers: [ ['data'],
-      Identifier: null # Identifier :: string -> Identifier
-      GenSym: [['data', 'ns']] # GenSym :: string -> string -> GenSym
+      Identifier: null # :: string -> Identifier
+      GenSym: [['data', 'ns']] # :: string -> string -> GenSym
     ]
-    Null: null # Null :: Null
+    Null: null # :: Null
     Primitives: [ ['data'],
-      Bool: null # Bool :: bool -> Bool
-      JavaScript: null # JavaScript :: string -> JavaScript
+      Bool: null # :: bool -> Bool
+      JavaScript: null # :: string -> JavaScript
       Numbers: [ null,
-        Int: null # Int :: float -> Int
-        Float: null # Float :: float -> Float
+        Int: null # :: float -> Int
+        Float: null # :: float -> Float
       ]
-      String: null # String :: string -> String
+      String: null # :: string -> String
     ]
     RegExps: [ null
-      # RegExp :: string -> [string] -> RegExp
-      RegExp: [['data', 'flags']]
-      # HeregExp :: Exprs -> [string] -> HeregExp
-      HeregExp: [['expression', 'flags']]
+      RegExp: [['data', 'flags']] # :: string -> [string] -> RegExp
+      HeregExp: [['expression', 'flags']] # :: Exprs -> [string] -> HeregExp
     ]
-    This: null # This :: This
-    Undefined: null # Undefined :: Undefined
+    This: null # :: This
+    Undefined: null # :: Undefined
 
-    # Slice :: Exprs -> bool -> Maybe Exprs -> Maybe Exprs -> Slice
-    Slice: [['expression', 'isInclusive', 'left', 'right']]
+    Slice: [['expression', 'isInclusive', 'left', 'right']] # :: Exprs -> bool -> Maybe Exprs -> Maybe Exprs -> Slice
 
-    Rest: [['expression']] # Rest :: Exprs -> Rest
-    Spread: [['expression']] # Spread :: Exprs -> Spread
+    Rest: [['expression']] # :: Exprs -> Rest
+    Spread: [['expression']] # :: Exprs -> Spread
   ]
 
 

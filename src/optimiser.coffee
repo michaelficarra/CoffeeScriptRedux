@@ -1,7 +1,7 @@
 {any, concat, concatMap, difference, foldl, foldl1, union} = require './functional-helpers'
 {beingDeclared, declarationsFor, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
-
+exports = module?.exports ? this
 
 makeDispatcher = (defaultValue, handlers, defaultHandler = (->)) ->
   handlers_ = {}
@@ -69,6 +69,7 @@ isFalsey =
   ], -> no
 
 # TODO: make sure `inScope` is really necessary where we use it
+# TODO: respect short-circuiting behaviour of LogicalAndOp, LogicalOrOp, and ExistsOp
 mayHaveSideEffects =
   makeDispatcher no, [
     [[
@@ -243,7 +244,7 @@ walk = do ->
 # TODO: better comments
 # TODO: make sure I can't split any of these rules into sets of smaller rules
 
-class @Optimiser
+class exports.Optimiser
 
   # expose helpers so people have an easy time writing their own rules
   @isTruthy = isTruthy

@@ -1,4 +1,4 @@
-{map, concat, concatMap, nub, union} = require './functional-helpers'
+{map, concat, concatMap, difference, nub, union} = require './functional-helpers'
 exports = module?.exports ? this
 
 # TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
@@ -42,18 +42,17 @@ createNodes = (subclasses, superclasses = []) ->
 createNodes
   Nodes: [ [],
 
-    Assignments: [ ['assignee', 'expr'],
-      # AssignOp :: Assignables -> Exprs -> AssignOp
-      AssignOp: null
-      # ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
-      ClassProtoAssignOp: null
-      # CompoundAssignOp :: CompoundAssignableOps -> Assignables -> Exprs -> CompoundAssignOp
-      CompoundAssignOp: [['op', 'assignee', 'expr']]
-      # ExistsAssignOp :: Assignables -> Exprs -> ExistsAssignOp
-      ExistsAssignOp: null
-    ]
-
     BinOps: [ ['left', 'right'],
+      AssignOps: [ ['assignee', 'expr'],
+        # AssignOp :: Assignables -> Exprs -> AssignOp
+        AssignOp: null
+        # ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
+        ClassProtoAssignOp: null
+        # CompoundAssignOp :: CompoundAssignableOps -> Assignables -> Exprs -> CompoundAssignOp
+        CompoundAssignOp: [['op', 'assignee', 'expr']]
+        # ExistsAssignOp :: Assignables -> Exprs -> ExistsAssignOp
+        ExistsAssignOp: null
+      ]
       BitOps: [ null
         BitAndOp: null # BitAndOp :: Exprs -> Exprs -> BitAndOp
         BitOrOp: null # BitOrOp :: Exprs -> Exprs -> BitOrOp
@@ -90,20 +89,6 @@ createNodes
       PlusOp: null # PlusOp :: Exprs -> Exprs -> PlusOp
       Range: [['isInclusive', 'left', 'right']] # Range :: bool -> Exprs -> Exprs -> Range
       SeqOp: null # SeqOp :: Exprs -> Exprs -> SeqOp
-    ]
-
-    Primitives: [ ['data'],
-      Bool: null # Bool :: bool -> Bool
-      Identifiers: [ null,
-        Identifier: null # Identifier :: string -> Identifier
-        GenSym: ['data', 'ns'] # GenSym :: string -> string -> GenSym
-      ]
-      JavaScript: null # JavaScript :: string -> JavaScript
-      Numbers: [null,
-        Int: null # Int :: float -> Int
-        Float: null # Float :: float -> Float
-      ]
-      String: null # String :: string -> String
     ]
 
     Statements: [ [],
@@ -152,11 +137,6 @@ createNodes
       ]
     ]
 
-    Functions: [ ['parameters', 'block'],
-      Function: null # Function :: [Parameters] -> Maybe Exprs -> Function
-      BoundFunction: null # BoundFunction :: [Parameters] -> Maybe Exprs -> BoundFunction
-    ]
-
     FunctionApplications: [ ['function', 'arguments'],
       # FunctionApplication :: Exprs -> [Arguments] -> FunctionApplication
       FunctionApplication: null
@@ -189,13 +169,30 @@ createNodes
     ObjectInitialiser: [['members']]
     # Class:: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
     Class: ['nameAssignment', 'parent', 'block']
+    Functions: [ ['parameters', 'block'],
+      Function: null # Function :: [Parameters] -> Maybe Exprs -> Function
+      BoundFunction: null # BoundFunction :: [Parameters] -> Maybe Exprs -> BoundFunction
+    ]
+    Identifiers: [ ['data'],
+      Identifier: null # Identifier :: string -> Identifier
+      GenSym: ['data', 'ns'] # GenSym :: string -> string -> GenSym
+    ]
+    Null: null # Null :: Null
+    Primitives: [ ['data'],
+      Bool: null # Bool :: bool -> Bool
+      JavaScript: null # JavaScript :: string -> JavaScript
+      Numbers: [ null,
+        Int: null # Int :: float -> Int
+        Float: null # Float :: float -> Float
+      ]
+      String: null # String :: string -> String
+    ]
     RegExps: [ null
       # RegExp :: string -> [string] -> RegExp
       RegExp: [['data', 'flags']]
       # HeregExp :: Exprs -> [string] -> HeregExp
       HeregExp: [['expr', 'flags']]
     ]
-    Null: null # Null :: Null
     This: null # This :: This
     Undefined: null # Undefined :: Undefined
 
@@ -210,11 +207,12 @@ createNodes
 {
   Nodes, Primitives, CompoundAssignOp, StaticMemberAccessOps, Range,
   ArrayInitialiser, ObjectInitialiser, NegatedConditional, Conditional,
-  Identifier, ForOf, Functions, While, GenSym, Class, Block, NewOp
-  FunctionApplications, RegExps, RegExp, HeregExp, Super, Slice, Switch
+  Identifier, ForOf, Functions, While, GenSym, Class, Block, NewOp,
+  FunctionApplications, RegExps, RegExp, HeregExp, Super, Slice, Switch,
+  Identifiers
 } = allNodes
 
-Nodes.fromJSON = (json) => @[json.nodeType].fromJSON json
+Nodes.fromJSON = (json) -> exports[json.nodeType].fromJSON json
 Nodes::toJSON = ->
   json = nodeType: @className
   for child in @childNodes
@@ -238,85 +236,49 @@ Nodes::g = ->
   this
 
 
-# TODO: maybe organise/DRY these exceptions better
+## Nodes that contain primitive properties
 
-Primitives::childNodes = []
+handlePrimitives = (ctor, primitives) ->
+  ctor::childNodes = difference ctor::childNodes, primitives
+  ctor::toJSON = ->
+    json = Nodes::toJSON.call this
+    for primitive in primitives
+      json[primitive] = @[primitive]
+    json
 
-StaticMemberAccessOps::childNodes = ['expr']
-StaticMemberAccessOps::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.memberName = @memberName
-  json
+handlePrimitives Class, ['name']
+handlePrimitives ForOf, ['isOwn']
+handlePrimitives HeregExp, ['flags']
+handlePrimitives Identifiers, ['data']
+handlePrimitives Primitives, ['data']
+handlePrimitives Range, ['isInclusive']
+handlePrimitives RegExp, ['data', 'flags']
+handlePrimitives Slice, ['isInclusive']
+handlePrimitives StaticMemberAccessOps, ['memberName']
 
-CompoundAssignOp::childNodes = ['assignee', 'expr']
+CompoundAssignOp::childNodes = difference CompoundAssignOp::childNodes, ['op']
 CompoundAssignOp::toJSON = ->
   json = Nodes::toJSON.call this
   json.op = @op::className
   json
 
-Range::childNodes = ['left', 'right']
-Range::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.isInclusive = @isInclusive
-  json
 
-ForOf::childNodes = ['keyAssignee', 'valAssignee', 'expr', 'filterExpr', 'block']
-ForOf::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.isOwn = @isOwn
-  json
+## Nodes that contain list properties
 
-Class::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.name = @name
-  json
+handleLists = (ctor, listProps) ->
+  ctor::childNodes = difference ctor::childNodes, listProps
+  ctor::toJSON = ->
+    json = Nodes::toJSON.call this
+    for listProp in listProps
+      json[listProp] = (p.toJSON() for p in @[listProp])
+    json
 
-RegExp::childNodes = []
-RegExp::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.data = @data
-  json.flags = @flags
-  json
-
-HeregExp::childNodes = ['expr']
-HeregExp::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.flags = @flags
-  json
-
-Slice::childNodes = ['expr', 'left', 'right']
-Slice::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.isInclusive = @isInclusive
-  json
-
-
-ArrayInitialiser::childNodes = []
-ArrayInitialiser::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.members = (m.toJSON() for m in @members)
-  json
-
-Block::childNodes = []
-Block::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.statements = (s.toJSON() for s in @statements)
-  json
-
-Functions::childNodes = ['block']
-Functions::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.parameters = (p.toJSON() for p in @parameters)
-  json
-
-FunctionApplications::childNodes = ['function']
-FunctionApplications::toJSON = ->
-  json = Nodes::toJSON.call this
-  json.arguments = (a.toJSON() for a in @arguments)
-  json
-
-NewOp::childNodes = ['ctor']
-NewOp::toJSON = FunctionApplications::toJSON
+handleLists ArrayInitialiser, ['members']
+handleLists Block, ['statements']
+handleLists Functions, ['parameters']
+handleLists FunctionApplications, ['arguments']
+handleLists NewOp, ['arguments']
+handleLists Super, ['arguments']
 
 ObjectInitialiser::childNodes = []
 ObjectInitialiser::toJSON = ->
@@ -325,10 +287,8 @@ ObjectInitialiser::toJSON = ->
     [key.toJSON(), expr.toJSON()]
   json
 
-Super::childNodes = []
-Super::toJSON = FunctionApplications::toJSON
-
-# TODO: this doesn't account for the cases
+# TODO: Switch::childNodes doesn't account for the case conditions/bodies.
+# Solution: make `cases` a list of a new SwitchCase node
 Switch::childNodes = ['expr', 'elseBlock']
 Switch::toJSON = ->
   json = Nodes::toJSON.call this
@@ -336,6 +296,8 @@ Switch::toJSON = ->
     [c.toJSON() for c in conds, block.toJSON()]
   json
 
+
+## Nodes with special behaviours
 
 Block::wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
 
@@ -361,6 +323,8 @@ RegExps::initialise = (_, flags) ->
   for flag in ['g', 'i', 'm', 'y']
     @flags[flag] = flag in flags
 
+
+## Syntactic nodes
 
 # Note: This only represents the original syntactic specification as an
 # "unless". The node should be treated in all other ways as a Conditional.

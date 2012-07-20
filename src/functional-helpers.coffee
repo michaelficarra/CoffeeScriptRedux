@@ -4,6 +4,11 @@
     return yes if fn e
   no
 
+@all = (list, fn) ->
+  for e in list
+    return no unless fn e
+  yes
+
 @foldl = foldl = (memo, list, fn) ->
   for i in list
     memo = fn memo, i

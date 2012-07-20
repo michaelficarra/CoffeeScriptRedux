@@ -43,13 +43,13 @@ createNodes
   Nodes: [ [],
 
     BinOps: [ ['left', 'right'],
-      AssignOps: [ ['assignee', 'expr'],
+      AssignOps: [ ['assignee', 'expression'],
         # AssignOp :: Assignables -> Exprs -> AssignOp
         AssignOp: null
         # ClassProtoAssignOp :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
         ClassProtoAssignOp: null
         # CompoundAssignOp :: CompoundAssignableOps -> Assignables -> Exprs -> CompoundAssignOp
-        CompoundAssignOp: [['op', 'assignee', 'expr']]
+        CompoundAssignOp: [['op', 'assignee', 'expression']]
         # ExistsAssignOp :: Assignables -> Exprs -> ExistsAssignOp
         ExistsAssignOp: null
       ]
@@ -62,7 +62,7 @@ createNodes
         UnsignedRightShiftOp: null # UnsignedRightShiftOp :: Exprs -> Exprs -> UnsignedRightShiftOp
       ]
       ComparisonOps: [ null
-        EqOp: null # EQOp :: Exprs -> Exprs -> EQOp
+        EQOp: null # EQOp :: Exprs -> Exprs -> EQOp
         GTEOp: null # GTEOp :: Exprs -> Exprs -> GTEOp
         GTOp: null # GTOp :: Exprs -> Exprs -> GTOp
         LTEOp: null # LTEOp :: Exprs -> Exprs -> LTEOp
@@ -94,16 +94,16 @@ createNodes
     Statements: [ [],
       Break: null # Break :: Break
       Continue: null # Continue :: Continue
-      Return: [['expr']] # Return :: Exprs -> Return
-      Throw: [['expr']] # Throw :: Exprs -> Throw
+      Return: [['expression']] # Return :: Exprs -> Return
+      Throw: [['expression']] # Throw :: Exprs -> Throw
     ]
 
-    UnaryOps: [ ['expr'],
+    UnaryOps: [ ['expression'],
       BitNotOp: null # BitNotOp :: Exprs -> BitNotOp
       DeleteOp: null # DeleteOp :: MemberAccessOps -> DeleteOp
       DoOp: null # DoOp :: Exprs -> DoOp
       LogicalNotOp: null # LogicalNotOp :: Exprs -> LogicalNotOp
-      NewOp: [['ctor', 'arguments']] # NewOp :: Exprs -> [Arguments] -> NewOp
+      NewOp: [['constructor', 'arguments']] # NewOp :: Exprs -> [Arguments] -> NewOp
       PreDecrementOp: null # PreDecrementOp :: Exprs -> PreDecrementOp
       PreIncrementOp: null # PreIncrementOp :: Exprs -> PreIncrementOp
       PostDecrementOp: null # PostDecrementOp :: Exprs -> PostDecrementOp
@@ -115,7 +115,7 @@ createNodes
     ]
 
     MemberAccessOps: [ null
-      StaticMemberAccessOps: [ ['expr', 'memberName'],
+      StaticMemberAccessOps: [ ['expression', 'memberName'],
         # MemberAccessOp :: Exprs -> MemberNames -> MemberAccessOp
         MemberAccessOp: null
         # ProtoMemberAccessOp :: Exprs -> MemberNames -> ProtoMemberAccessOp
@@ -125,7 +125,7 @@ createNodes
         # SoakedProtoMemberAccessOp :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
         SoakedProtoMemberAccessOp: null
       ]
-      DynamicMemberAccessOps: [ ['expr', 'indexingExpr'],
+      DynamicMemberAccessOps: [ ['expression', 'indexingExpr'],
         # DynamicMemberAccessOp :: Exprs -> Exprs -> DynamicMemberAccessOp
         DynamicMemberAccessOp: null
         # DynamicProtoMemberAccessOp :: Exprs -> Exprs -> DynamicProtoMemberAccessOp
@@ -153,11 +153,11 @@ createNodes
     # Conditional :: Exprs -> Maybe Exprs -> Maybe Exprs -> Conditional
     Conditional: [['condition', 'block', 'elseBlock']]
     # ForIn :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
-    ForIn: [['valAssignee', 'keyAssignee', 'expr', 'step', 'filterExpr', 'block']]
+    ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'block']]
     # ForOf :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
-    ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expr', 'filterExpr', 'block']]
+    ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'block']]
     # Switch :: Maybe Exprs -> [([Exprs], Exprs)] -> Maybe Exprs -> Switch
-    Switch: ['expr', 'cases', 'elseBlock']
+    Switch: ['expression', 'cases', 'elseBlock']
     # Try :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
     Try: [['block', 'catchAssignee', 'catchBlock', 'finallyBlock']]
     # While :: Exprs -> Maybe Exprs -> While
@@ -191,16 +191,16 @@ createNodes
       # RegExp :: string -> [string] -> RegExp
       RegExp: [['data', 'flags']]
       # HeregExp :: Exprs -> [string] -> HeregExp
-      HeregExp: [['expr', 'flags']]
+      HeregExp: [['expression', 'flags']]
     ]
     This: null # This :: This
     Undefined: null # Undefined :: Undefined
 
     # Slice :: Exprs -> bool -> Maybe Exprs -> Maybe Exprs -> Slice
-    Slice: ['expr', 'isInclusive', 'left', 'right']
+    Slice: ['expression', 'isInclusive', 'left', 'right']
 
-    Rest: [['expr']] # Rest :: Exprs -> Rest
-    Spread: [['expr']] # Spread :: Exprs -> Spread
+    Rest: [['expression']] # Rest :: Exprs -> Rest
+    Spread: [['expression']] # Spread :: Exprs -> Spread
   ]
 
 
@@ -256,6 +256,7 @@ handlePrimitives RegExp, ['data', 'flags']
 handlePrimitives Slice, ['isInclusive']
 handlePrimitives StaticMemberAccessOps, ['memberName']
 
+# TODO: change constructor reference to a simple className reference?
 CompoundAssignOp::childNodes = difference CompoundAssignOp::childNodes, ['op']
 CompoundAssignOp::toJSON = ->
   json = Nodes::toJSON.call this
@@ -280,6 +281,7 @@ handleLists FunctionApplications, ['arguments']
 handleLists NewOp, ['arguments']
 handleLists Super, ['arguments']
 
+# TODO: same idea as with Switch below: make `members` a list of ObjectInitialiserPair
 ObjectInitialiser::childNodes = []
 ObjectInitialiser::toJSON = ->
   json = Nodes::toJSON.call this
@@ -289,7 +291,7 @@ ObjectInitialiser::toJSON = ->
 
 # TODO: Switch::childNodes doesn't account for the case conditions/bodies.
 # Solution: make `cases` a list of a new SwitchCase node
-Switch::childNodes = ['expr', 'elseBlock']
+Switch::childNodes = ['expression', 'elseBlock']
 Switch::toJSON = ->
   json = Nodes::toJSON.call this
   json.cases = for [conds, block] in @cases
@@ -299,7 +301,7 @@ Switch::toJSON = ->
 
 ## Nodes with special behaviours
 
-Block::wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
+Block.wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
 
 Class::initialise = ->
   @name =
@@ -313,7 +315,7 @@ Class::initialise = ->
         else null
     else null
 
-GenSym::initialise = -> @ns ?= ''
+GenSym::initialise = (_, @ns = '') ->
 
 ObjectInitialiser::keys = -> map @members ([key, val]) -> key
 ObjectInitialiser::vals = -> map @members ([key, val]) -> val

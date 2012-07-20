@@ -23,7 +23,7 @@ isTruthy =
       CS.Function, CS.BoundFunction, CS.HeregExp, CS.ObjectInitialiser, CS.Range
       CS.RegExp, CS.Slice, CS.TypeofOp, CS.While
     ], -> yes]
-    [[CS.AssignOp], -> isTruthy @expr]
+    [[CS.AssignOp], -> isTruthy @expression]
     [[CS.Block], ->
       if @statements.length is 0 then no
       else isTruthy @statements[@statements.length - 1]
@@ -34,22 +34,22 @@ isTruthy =
       (isFalsey @condition) and isTruthy @elseBlock
     ]
     [[CS.LogicalAndOp], -> (isTruthy @left) and isTruthy @right]
-    [[CS.LogicalNotOp], -> isFalsey @expr]
+    [[CS.LogicalNotOp], -> isFalsey @expression]
     [[CS.LogicalOrOp], -> (isTruthy @left) or isTruthy @right]
     [[CS.Program], -> isTruthy @block]
     [[CS.SeqOp], -> isTruthy @right]
     # TODO: Switch: all case blocks are truthy
     [[CS.UnaryExistsOp], ->
-      (isTruthy @expr) or
+      (isTruthy @expression) or
       # TODO: comprehensive list of all possibly-falsey and always non-null expressions
-      @expr.instanceof CS.Int, CS.Float, CS.String, CS.UnaryPlusOp, CS.UnaryNegateOp, CS.LogicalNotOp
+      @expression.instanceof CS.Int, CS.Float, CS.String, CS.UnaryPlusOp, CS.UnaryNegateOp, CS.LogicalNotOp
     ]
   ], -> no
 
 isFalsey =
   makeDispatcher no, [
     [[CS.Null, CS.Undefined], -> yes]
-    [[CS.AssignOp], -> isFalsey @expr]
+    [[CS.AssignOp], -> isFalsey @expression]
     [[CS.Block], ->
       if @statements.length is 0 then yes
       else isFalsey @statements[@statements.length - 1]
@@ -60,12 +60,12 @@ isFalsey =
       (isFalsey @condition) and isFalsey @elseBlock
     ]
     [[CS.LogicalAndOp], -> (isFalsey @left) or isFalsey @right]
-    [[CS.LogicalNotOp], -> isTruthy @expr]
+    [[CS.LogicalNotOp], -> isTruthy @expression]
     [[CS.LogicalOrOp], -> (isFalsey @left) and isFalsey @right]
     [[CS.Program], -> isFalsey @block]
     [[CS.SeqOp], -> isFalsey @right]
     # TODO: Switch: all case blocks are falsey
-    [[CS.UnaryExistsOp], -> @expr.instanceof CS.Null, CS.Undefined]
+    [[CS.UnaryExistsOp], -> @expression.instanceof CS.Null, CS.Undefined]
   ], -> no
 
 # TODO: make sure `inScope` is really necessary where we use it
@@ -92,12 +92,12 @@ mayHaveSideEffects =
       (not isTruthy @condition) and mayHaveSideEffects @elseBlock, inScope
     ]
     [[CS.DoOp], (inScope) ->
-      return yes unless @expr.instanceof CS.Function, CS.BoundFunction
-      newScope = difference inScope, concatMap @expr.parameters, beingDeclared
-      args = for p in @expr.parameters
-        if p.instanceof CS.AssignOp then p.expr else p
+      return yes unless @expression.instanceof CS.Function, CS.BoundFunction
+      newScope = difference inScope, concatMap @expression.parameters, beingDeclared
+      args = for p in @expression.parameters
+        if p.instanceof CS.AssignOp then p.expression else p
       return yes if any args, (a) -> mayHaveSideEffects a, newScope
-      mayHaveSideEffects @expr, newScope
+      mayHaveSideEffects @expression, newScope
     ]
     [[CS.FunctionApplication], (inScope) ->
       return yes unless @function.instanceof CS.Function, CS.BoundFunction
@@ -111,7 +111,7 @@ mayHaveSideEffects =
     ]
     [[CS.Switch], (inScope) ->
       otherExprs = concat ([(cond for cond in conds)..., block] for [conds, block] in @cases)
-      any [@expr, @elseBlock, otherExprs...], (e) -> mayHaveSideEffects e, inScope
+      any [@expression, @elseBlock, otherExprs...], (e) -> mayHaveSideEffects e, inScope
     ]
     [[CS.While], (inScope) ->
       (mayHaveSideEffects @condition, inScope) or
@@ -119,7 +119,7 @@ mayHaveSideEffects =
     ]
     # category: AssignOp
     [[CS.AssignOp, CS.ClassProtoAssignOp, CS.CompoundAssignOp, CS.ExistsAssignOp], (inScope) ->
-      (mayHaveSideEffects @expr, inScope) or (beingDeclared @assignee).length > 0
+      (mayHaveSideEffects @expression, inScope) or (beingDeclared @assignee).length > 0
     ]
     # category: Primitive
     [[CS.Bool, CS.Float, CS.Identifier, CS.Int, CS.JavaScript, CS.String], -> no]
@@ -173,8 +173,8 @@ walk = do ->
     NewOp: (fn, inScope = [], ancestry = []) ->
       return this if this in ancestry
       ancestry = [this, ancestry...]
-      continue while @ctor isnt walk (@ctor = fn.call @ctor, inScope, ancestry), fn, inScope, ancestry
-      inScope = union inScope, envEnrichments @ctor
+      continue while @constructor isnt walk (@constructor = fn.call @constructor, inScope, ancestry), fn, inScope, ancestry
+      inScope = union inScope, envEnrichments @constructor
       @arguments = for arg in @arguments
         continue while arg isnt walk (arg = fn.call arg, inScope, ancestry), fn, inScope, ancestry
         inScope = union inScope, envEnrichments arg
@@ -202,9 +202,9 @@ walk = do ->
     Switch: (fn, inScope = [], ancestry = []) ->
       return this if this in ancestry
       ancestry = [this, ancestry...]
-      if @expr?
-        continue while @expr isnt walk (@expr = fn.call @expr, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments @expr
+      if @expression?
+        continue while @expression isnt walk (@expression = fn.call @expression, inScope, ancestry), fn, inScope, ancestry
+        inScope = union inScope, envEnrichments @expression
       @cases = for [conds, block] in @cases
         conds = for cond in conds
           continue while cond isnt walk (cond = fn.call cond, inScope, ancestry), fn, inScope, ancestry
@@ -282,8 +282,8 @@ class exports.Optimiser
     ]
 
     [CS.AssignOp, ->
-      return this unless @expr.instanceof CS.SeqOp
-      new CS.SeqOp @expr.left, new CS.AssignOp @assignee, @expr.right
+      return this unless @expression.instanceof CS.SeqOp
+      new CS.SeqOp @expression.left, new CS.AssignOp @assignee, @expression.right
     ]
 
     [CS.While, (inScope) ->
@@ -323,14 +323,14 @@ class exports.Optimiser
 
     # for-in over empty list
     [CS.ForIn, (inScope, ancestors) ->
-      return this unless (@expr.instanceof CS.ArrayInitialiser) and @expr.members.length is 0
+      return this unless (@expression.instanceof CS.ArrayInitialiser) and @expression.members.length is 0
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
       new CS.SeqOp (declarationsFor this), retVal.g()
     ]
 
     # for-own-of over empty object
     [CS.ForOf, ->
-      return this unless (@expr.instanceof CS.ObjectInitialiser) and @expr.isOwn and @expr.members.length is 0
+      return this unless (@expression.instanceof CS.ObjectInitialiser) and @expression.isOwn and @expression.members.length is 0
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
       new CS.SeqOp (declarationsFor this), retVal.g()
     ]
@@ -339,31 +339,31 @@ class exports.Optimiser
     # TODO: move this to compiler internals
     #[CS.DoOp, ->
     #  args = []
-    #  if @expr.instanceof CS.Function
-    #    args = for param in @expr.parameters
+    #  if @expression.instanceof CS.Function
+    #    args = for param in @expression.parameters
     #      switch
-    #        when param.instanceof CS.AssignOp then param.expr
+    #        when param.instanceof CS.AssignOp then param.expression
     #        when param.instanceof CS.Identifier, CS.MemberAccessOp then param
     #        else (new CS.Undefined).g()
-    #  (new CS.FunctionApplication @expr, args).g().p @line, @column
+    #  (new CS.FunctionApplication @expression, args).g().p @line, @column
     #]
 
     [CS.ExistsOp, -> if @left.instanceof CS.Null, CS.Undefined then @right else this]
 
-    [CS.UnaryExistsOp, -> if @expr.instanceof CS.Null, CS.Undefined then (new CS.Bool false).g() else this]
+    [CS.UnaryExistsOp, -> if @expression.instanceof CS.Null, CS.Undefined then (new CS.Bool false).g() else this]
 
     # LogicalNotOp applied to a literal or !!
     [CS.LogicalNotOp, (inScope) ->
       switch
-        when @expr.instanceof CS.Int, CS.Float, CS.String, CS.Bool
-          (new Bool !@expr.data).g()
-        when @expr.instanceof CS.Function, CS.BoundFunction then (new CS.Bool false).g()
-        when @expr.instanceof CS.Null, CS.Undefined then (new CS.Bool true).g()
-        when @expr.instanceof CS.ArrayInitialiser, CS.ObjectInitialiser
-          if mayHaveSideEffects @expr, inScope then this
-          else new CS.SeqOp (declarationsFor @expr), (new CS.Bool false).g()
-        when @expr.instanceof CS.LogicalNotOp
-          if @expr.expr.instanceof CS.LogicalNotOp then @expr.expr
+        when @expression.instanceof CS.Int, CS.Float, CS.String, CS.Bool
+          (new Bool !@expression.data).g()
+        when @expression.instanceof CS.Function, CS.BoundFunction then (new CS.Bool false).g()
+        when @expression.instanceof CS.Null, CS.Undefined then (new CS.Bool true).g()
+        when @expression.instanceof CS.ArrayInitialiser, CS.ObjectInitialiser
+          if mayHaveSideEffects @expression, inScope then this
+          else new CS.SeqOp (declarationsFor @expression), (new CS.Bool false).g()
+        when @expression.instanceof CS.LogicalNotOp
+          if @expression.expression.instanceof CS.LogicalNotOp then @expression.expression
           else this
         else this
     ]
@@ -371,11 +371,11 @@ class exports.Optimiser
     # typeof on any literal
     [CS.TypeofOp, ->
       switch
-        when @expr.instanceof CS.Int, CS.Float, CS.UnaryNegateOp, CS.UnaryPlusOp
+        when @expression.instanceof CS.Int, CS.Float, CS.UnaryNegateOp, CS.UnaryPlusOp
           (new String 'number').g()
-        when @expr.instanceof CS.String then (new CS.String 'string').g()
-        when @expr.instanceof CS.Function, CS.BoundFunction then (new CS.String 'function').g()
-        when @expr.instanceof CS.Undefined then (new CS.String 'undefined').g()
+        when @expression.instanceof CS.String then (new CS.String 'string').g()
+        when @expression.instanceof CS.Function, CS.BoundFunction then (new CS.String 'function').g()
+        when @expression.instanceof CS.Undefined then (new CS.String 'undefined').g()
         # TODO: comprehensive
         else this
     ]

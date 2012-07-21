@@ -1,4 +1,4 @@
-{any, concat, concatMap, difference, foldl, foldl1, union} = require './functional-helpers'
+{all, any, concat, concatMap, difference, foldl, foldl1, union} = require './functional-helpers'
 {beingDeclared, declarationsFor, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 exports = module?.exports ? this
@@ -38,7 +38,11 @@ isTruthy =
     [[CS.LogicalOrOp], -> (isTruthy @left) or isTruthy @right]
     [[CS.Program], -> isTruthy @block]
     [[CS.SeqOp], -> isTruthy @right]
-    # TODO: Switch: all case blocks are truthy
+    [[CS.Switch], ->
+      (all @cases, isTruthy) and
+      if @elseBlock? then isTruthy @elseBlock else yes
+    ]
+    [[CS.SwitchCase], -> isTruthy @block]
     [[CS.UnaryExistsOp], ->
       (isTruthy @expression) or
       # TODO: comprehensive list of all possibly-falsey and always non-null expressions
@@ -64,7 +68,11 @@ isFalsey =
     [[CS.LogicalOrOp], -> (isFalsey @left) and isFalsey @right]
     [[CS.Program], -> isFalsey @block]
     [[CS.SeqOp], -> isFalsey @right]
-    # TODO: Switch: all case blocks are falsey
+    [[CS.Switch], ->
+      (all @cases, isFalsey) and
+      if @elseBlock? then isFalsey @elseBlock else yes
+    ]
+    [[CS.SwitchCase], -> isFalsey @block]
     [[CS.UnaryExistsOp], -> @expression.instanceof CS.Null, CS.Undefined]
   ], -> no
 

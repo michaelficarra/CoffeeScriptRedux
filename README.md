@@ -24,9 +24,13 @@ CoffeeScript II: The Wrath of Khan
                                                            /    _.'
                                                           ( _.-'
 ```
-
 If you haven't seen [the funded Kickstarter project](http://www.kickstarter.com/projects/michaelficarra/make-a-better-coffeescript-compiler)
 yet, you should check that out to find out more about this.
+
+## Getting Started
+
+    make deps
+	make test
 
 ### Notable Contributors
 

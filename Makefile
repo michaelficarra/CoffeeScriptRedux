@@ -4,6 +4,7 @@ SRC = $(shell find src -name "*.coffee" -type f | sort)
 LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js) lib/coffee-script/parser.js
 LIBMIN = $(LIB:lib/coffee-script/%.js=lib/coffee-script/%.min.js)
 TESTS = $(shell find test -name "*.coffee" -type f | sort)
+ROOT = $(shell pwd)
 
 # TODO: use `node_modules/.bin/<binary>`
 COFFEE = node_modules/coffee-script/bin/coffee
@@ -15,6 +16,13 @@ all: $(LIB)
 build: all
 parser: lib/coffee-script/parser.js
 minify: $(LIBMIN)
+deps:
+	git submodule update --init
+	cd $(ROOT)/node_modules/mocha
+	npm install commander debug diff
+	cd $(ROOT)/node_modules/pegjs
+	make build
+	cd $(ROOT)
 # TODO: build-browser
 # TODO: test-browser
 # TODO: doc

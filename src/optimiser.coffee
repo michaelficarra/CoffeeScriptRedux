@@ -288,19 +288,12 @@ class exports.Optimiser
 
     [CS.Program, -> if @block? and mayHaveSideEffects @block, [] then this else new CS.Program null]
 
+    # Turn the block into an expression
     [CS.Block, (inScope, ancestors) ->
-      canDropLast = not usedAsExpression this, ancestors
-      stmts = concat do =>
-        for s, i in @statements then switch
-          when (not mayHaveSideEffects s, inScope) and (canDropLast or i + 1 isnt @statements.length)
-            [declarationsFor s]
-          when s.instanceof CS.Block then s.statements
-          when s.instanceof CS.SeqOp then [s.left, s.right]
-          else [s]
-      switch stmts.length
+      switch @statements.length
         when 0 then (new CS.Undefined).g()
-        when 1 then stmts[0]
-        else foldl1 stmts, (expr, s) ->
+        when 1 then @statements[0]
+        else foldl1 @statements, (expr, s) ->
           new CS.SeqOp expr, s
     ]
 
@@ -311,7 +304,10 @@ class exports.Optimiser
         return this if (@left.instanceof CS.Int) and @left.data is 0
         return new CS.SeqOp (new CS.Int 0).g(), @right
       else
-        @right
+        canDropLast = not usedAsExpression this, ancestors
+        if canDropLast and not mayHaveSideEffects @right, inScope
+          (new CS.Undefined).g()
+        else @right
     ]
 
     [CS.AssignOp, ->

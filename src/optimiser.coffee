@@ -77,7 +77,6 @@ isFalsey =
   ], -> no
 
 # TODO: make sure `inScope` is really necessary where we use it
-# TODO: respect short-circuiting behaviour of LogicalAndOp, LogicalOrOp, and ExistsOp
 mayHaveSideEffects =
   makeDispatcher no, [
     [[
@@ -107,11 +106,26 @@ mayHaveSideEffects =
       return yes if any args, (a) -> mayHaveSideEffects a, newScope
       mayHaveSideEffects @expression, newScope
     ]
+    [[CS.ExistsOp], (inScope) ->
+      return yes if mayHaveSideEffects @left, inScope
+      return no if @left.instanceof CS.Undefined, CS.Null
+      mayHaveSideEffects @right, inScope
+    ]
     [[CS.FunctionApplication], (inScope) ->
       return yes unless @function.instanceof CS.Function, CS.BoundFunction
       newScope = difference inScope, concatMap @function.parameters, beingDeclared
       return yes if any @arguments, (a) -> mayHaveSideEffects a, newScope
       mayHaveSideEffects @function.block, newScope
+    ]
+    [[CS.LogicalAndOp], (inScope) ->
+      return yes if mayHaveSideEffects @left, inScope
+      return no if isFalsey @left
+      mayHaveSideEffects @right, inScope
+    ]
+    [[CS.LogicalOrOp], (inScope) ->
+      return yes if mayHaveSideEffects @left, inScope
+      return no if isTruthy @left
+      mayHaveSideEffects @right, inScope
     ]
     [[CS.ObjectInitialiser], (inScope) ->
       any @members, (m) -> mayHaveSideEffects m, inScope

@@ -1,4 +1,3 @@
-# TODO: just use prelude.ls?
 @any = (list, fn) ->
   for e in list
     return yes if fn e

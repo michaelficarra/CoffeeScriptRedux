@@ -274,9 +274,6 @@ walk = do ->
     handler.apply node, args
 
 
-# TODO: better comments
-# TODO: make sure I can't split any of these rules into sets of smaller rules
-
 class exports.Optimiser
 
   # expose helpers so people have an easy time writing their own rules
@@ -315,7 +312,7 @@ class exports.Optimiser
         else @right
     ]
 
-    # Push assignments forward
+    # Push assignments through sequences
     [CS.AssignOp, ->
       return this unless @expression.instanceof CS.SeqOp
       new CS.SeqOp @expression.left, new CS.AssignOp @assignee, @expression.right

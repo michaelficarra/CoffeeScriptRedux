@@ -286,9 +286,13 @@ class exports.Optimiser
 
   defaultRules = [
 
-    [CS.Program, -> if @block? and mayHaveSideEffects @block, [] then this else new CS.Program null]
+    # If a program has no side effects, then it is the empty program
+    [CS.Program, ->
+      if @block? and mayHaveSideEffects @block, [] then this
+      else new CS.Program null
+    ]
 
-    # Turn the block into an expression
+    # Turn blocks into an expressions
     [CS.Block, (inScope, ancestors) ->
       switch @statements.length
         when 0 then (new CS.Undefined).g()
@@ -297,6 +301,7 @@ class exports.Optimiser
           new CS.SeqOp expr, s
     ]
 
+    # Reject unused and inconsequential expressions
     [CS.SeqOp, (inScope, ancestors) ->
       if mayHaveSideEffects @left, inScope
         if (mayHaveSideEffects @right, inScope) or usedAsExpression this, ancestors then this else @left
@@ -310,24 +315,25 @@ class exports.Optimiser
         else @right
     ]
 
+    # Push assignments forward
     [CS.AssignOp, ->
       return this unless @expression.instanceof CS.SeqOp
       new CS.SeqOp @expression.left, new CS.AssignOp @assignee, @expression.right
     ]
 
+    # A falsey condition with side effects -> the condition
+    # A falsey condition without side effects -> the undefined value
+    # A truthy condition without side effects -> a loop
     [CS.While, (inScope) ->
       if isFalsey @condition
         return if mayHaveSideEffects @condition, inScope
-          # while (falsey with side effects) -> the condition
           @condition
         else
-          # while (falsey without side effects) -> nothing
           if block?
             declarationsFor @block
           else
             (new CS.Undefined).g()
       if isTruthy @condition
-        # while (truthy without side effects) -> loop
         unless mayHaveSideEffects @condition, inScope
           return (new CS.Undefined).g() unless @block?
           return this if this instanceof CS.Loop
@@ -335,6 +341,9 @@ class exports.Optimiser
       this
     ]
 
+    # Produce the consequent when the condition is truthy
+    # Produce the alternative when the condition is falsey
+    # Prepend the condition if it has side effects
     [CS.Conditional, (inScope) ->
       if isFalsey @condition
         block = @elseBlock
@@ -350,14 +359,14 @@ class exports.Optimiser
       block
     ]
 
-    # for-in over empty list
+    # for-in over an empty list produces an empty list
     [CS.ForIn, (inScope, ancestors) ->
       return this unless (@expression.instanceof CS.ArrayInitialiser) and @expression.members.length is 0
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
       new CS.SeqOp (declarationsFor this), retVal.g()
     ]
 
-    # for-own-of over empty object
+    # for-own-of over empty object produces an empty list
     [CS.ForOf, ->
       return this unless (@expression.instanceof CS.ObjectInitialiser) and @expression.isOwn and @expression.members.length is 0
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
@@ -377,8 +386,10 @@ class exports.Optimiser
     #  (new CS.FunctionApplication @expression, args).g().p @line, @column
     #]
 
+    # Produce the right operand when the left operand is null or undefined
     [CS.ExistsOp, -> if @left.instanceof CS.Null, CS.Undefined then @right else this]
 
+    # Produce false when the expression is null or undefined
     [CS.UnaryExistsOp, -> if @expression.instanceof CS.Null, CS.Undefined then (new CS.Bool false).g() else this]
 
     # LogicalNotOp applied to a literal or !!

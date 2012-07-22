@@ -30,7 +30,7 @@ lib/coffee-script:
 	mkdir -p lib/coffee-script/
 
 lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
-	echo -n "module.exports = " > "$@"
+	printf %s "module.exports = " > "$@"
 	$(PEGJS) < "$<" >> "$@"
 
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script

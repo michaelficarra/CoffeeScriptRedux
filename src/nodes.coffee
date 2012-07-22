@@ -184,6 +184,9 @@ createNodes
   Identifiers, SwitchCase
 } = allNodes
 
+exports.Nodes = Nodes
+
+
 Nodes.fromJSON = (json) -> exports[json.nodeType].fromJSON json
 Nodes::toJSON = ->
   json = nodeType: @className

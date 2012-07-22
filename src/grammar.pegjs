@@ -644,15 +644,19 @@ objectLiteral
     return new CS.ObjectInitialiser(members).r(raw).p(line, column);
   }
   objectLiteralMemberList
-    = e:objectLiteralMember es:(objectLiteralMemberSeparator objectLiteralMember)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1].raw; }).join('');
-        return {list: [e].concat(es.map(function(e){ return e[1]; })), raw: raw};
+    = e:objectLiteralMember ws:_ es:(objectLiteralMemberSeparator _ objectLiteralMember _)* trail:","? {
+        var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
+        return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
       }
   objectLiteralMemberSeparator = arrayLiteralMemberSeparator
   objectLiteralMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
         var raw = key.raw + ws0 + ':' + ws1 + val.raw;
         return new CS.ObjectInitialiserMember(key, val).r(raw).p(line, column);
+      }
+    / v:contextVar {
+        var key = new CS.String(v.memberName).r(v.memberName).p(line, column + 1)
+        return new CS.ObjectInitialiserMember(key, v).r(v.raw).p(line, column);
       }
 	/ v:ObjectInitialiserKeys {
         return new CS.ObjectInitialiserMember(v, v).r(v.raw).p(line, column);

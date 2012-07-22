@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+
+var fs = require('fs');
+var Preprocessor = require('../lib/coffee-script/preprocessor').Preprocessor;
+var Optimiser = require('../lib/coffee-script/optimiser').Optimiser;
+var parser = require('../lib/coffee-script/parser.js');
+var inspect = function(o){ console.log(require('util').inspect(o, false, 9e9, true)); };
+
+function humanReadable(str) { return str.replace(/\uEFEF/g, '(INDENT)').replace(/\uEFFE\uEFFF/g, '(DEDENT)'); }
+function cleanMarkers(str) { return str.replace(/\uEFEF|\uEFFE\uEFFF/g, ''); }
+
+var optimiser = new Optimiser;
+var sources = process.argv.splice(2);
+
+sources.forEach(function(source) {
+    fs.readFile(source, function(err, input){
+        if(err) throw err;
+	console.log("Processing: " + source);
+        var result = null, line;
+        try { input = Preprocessor.processSync(input); } catch(e) { console.error(e.stack || e.message); }
+        try {
+            result = parser.parse(input);
+        } catch(e) {
+            if(!(e instanceof parser.SyntaxError)) throw e;
+            if(e.found != null) {
+                line = input.split('\n')[e.line - 1];
+                e.column = cleanMarkers((line + "\n").slice(0, e.column)).length;
+            }
+            console.error(humanReadable('Syntax error on line ' + e.line + ', column ' + e.column + ': unexpected ' +
+                                        (e.found != null ?  require('util').inspect(e.found) : 'end of result')));
+            if(e.found != null) {
+                console.error(cleanMarkers(line));
+                console.error(Array(e.column).join('-') + '^');
+            }
+        }
+        try { if(result != null) result = optimiser.optimise(result); } catch(e) { console.error(e.stack || e.message); }
+        try { if(result != null) result = result.toJSON(); } catch(e) { console.error(e.stack || e.message); }
+        if(result != null) inspect(result);
+    });
+});

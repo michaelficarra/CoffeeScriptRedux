@@ -314,7 +314,7 @@ relationalExpression
       }
     / NOT ws:_ op:(INSTANCEOF / IN / OF) {
         var fn = function(left, right, raw, line, column){
-          return new LogicalNotOp(new constructorLookup[op](left, right).r(raw).p(line, column)).r(raw).g();
+          return new CS.LogicalNotOp(new constructorLookup[op](left, right).r(raw).p(line, column)).r(raw).g();
         };
         fn.raw = 'not' + ws + op;
         return fn;

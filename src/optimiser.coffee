@@ -289,7 +289,7 @@ class exports.Optimiser
       else new CS.Program null
     ]
 
-    # Turn blocks into an expressions
+    # Turn blocks into expressions
     [CS.Block, (inScope, ancestors) ->
       switch @statements.length
         when 0 then (new CS.Undefined).g()

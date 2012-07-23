@@ -4,6 +4,9 @@ path = require 'path'
 {Preprocessor} = require './preprocessor'
 {Optimiser} = require './optimiser'
 parser = require './parser'
+cscodegen = try require 'cscodegen'
+escodegen = try require 'escodegen'
+uglifyjs = try require 'uglify-js'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
@@ -46,14 +49,8 @@ options = {}
 optionMap = {}
 
 optionArguments = [
-  [['bare',    'b'], off, 'omit the top-level function wrapper']
-  [['compile', 'c'], off, 'compile to JavaScript']
-  [['eval',    'e'], off, 'evaluate compiled javascript']
   [['parse',   'p'], off, 'output a JSON-serialised AST representation of the input']
-  [['jsast',   'j'], off, 'output a JSON-serialised AST representation of the output']
-  [['lint',    'l'], off, 'pass compiled javascript output through JavaScriptLint']
-  [['minify',  'm'], off, 'run compiled javascript output through a JS minifier']
-  [['repl'        ], off, 'run an interactive CoffeeScript REPL']
+  [['compile', 'c'], off, 'output a JSON-serialised AST representation of the output']
   [['optimise'    ],  on, 'enable optimisations (default: on)']
   [['debug'       ], off, 'output intermediate representations on stderr for debug']
   [['version', 'v'], off, 'display the version number']
@@ -65,20 +62,23 @@ parameterArguments = [
   [['input',   'i'], 'FILE' , 'file to be used as input instead of STDIN']
   [['nodejs'      ], 'OPTS' , 'pass options through to the node binary']
   [['output',  'o'], 'FILE' , 'file to be used as output instead of STDIN']
-  [['require', 'I'], 'FILE' , 'require a library before a script is executed']
   [['watch',   'w'], 'FILE' , 'watch the given file/directory for changes']
 ]
 
-# mutual exclusions
-# - c (compile), e (eval), j (jsast), p (parse), repl
-# - i (input), w (watch), cli
+if escodegen?
+  [].push.apply optionArguments, [
+    [['bare',    'b'], off, 'omit the top-level function wrapper']
+    [['js',      'j'], off, 'generate JavaScript output']
+    [['eval',    'e'], off, 'evaluate compiled JavaScript']
+    [['repl'        ], off, 'run an interactive CoffeeScript REPL']
+  ]
+  if uglifyjs?
+    optionArguments.push [['minify',  'm'], off, 'run compiled javascript output through a JS minifier']
+  parameterArguments.push [['require', 'I'], 'FILE' , 'require a library before a script is executed']
 
-# dependencies
-# - I (require) depends on e (eval)
-# - m (minify) depends on c (compile)
-# - l (lint) depends on c (compile)
-# - b (bare) depends on c (compile)
-# - i (input) depends on o (output) when input is a directory
+if cscodegen?
+  optionArguments.push [['cscodegen', 'f'], off, 'output cscodegen-generated CoffeeScript code']
+
 
 shortOptionArguments = []
 longOptionArguments = []
@@ -127,23 +127,55 @@ while args.length
 
 
 # input validation
-unless options.compile or options.jsast or options.parse or options.eval
-  if positionalArgs.length
+
+unless options.compile or options.js or options.parse or options.eval or options.cscodegen
+  if not escodegen?
+    options.compile = on
+  else if positionalArgs.length
     options.eval = on
     options.input = positionalArgs.shift()
     additionalArgs = [positionalArgs..., additionalArgs...]
   else
     options.repl = on
 
-if 1 isnt options.compile + options.eval + options.jsast + options.parse + options.repl
-  console.error 'Error: At most one of --compile (-c), --eval (-e), --jsast (-j), --parse (-p), or --repl may be used.'
+# mutual exclusions
+# - p (parse), c (compile), j (js), e (eval), cscodegen, repl
+if 1 isnt options.parse + options.compile + (options.js ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
+  console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --eval (-e), --cscodegen, or --repl may be used."
   process.exit 1
 
+# - i (input), w (watch), cli
 if 1 < options.input? + options.watch? + options.cli?
   console.error 'Error: At most one of --input (-i), --watch (-w), or --cli may be used.'
   process.exit 1
 
+# dependencies
+# - I (require) depends on e (eval)
+if options.require? and not options.eval
+  console.error 'Error: --require (-I) depends on --eval (-e)'
+  process.exit 1
 
+# - m (minify) depends on escodegen and uglifyjs and (c (compile) or e (eval))
+if options.minify and not (options.compile or options.eval)
+  console.error 'Error: --minify does not make sense without --compile or --eval'
+  process.exit 1
+
+# - b (bare) depends on escodegen and (c (compile) or e (eval)
+if options.bare and not (options.compile or options.eval)
+  console.error 'Error: --bare does not make sense without --compile or --eval'
+  process.exit 1
+
+# - i (input) depends on o (output) when input is a directory
+if options.input? and (fs.statSync options.input).isDirectory() and (not options.output? or (fs.statSync options.output)?.isFile())
+  console.error 'Error: when --input is a directory, --output must be provided, and --output must not reference a file'
+
+# - cscodegen depends on cscodegen
+if options.cscodegen and not cscodegen?
+  console.error 'Error: cscodegen must be installed to use --cscodegen'
+  process.exit 1
+
+
+# start processing options
 if options.help
   $0 = if process.argv[0] is 'node' then process.argv[1] else process.argv[0]
   $0 = path.basename $0
@@ -171,7 +203,7 @@ if options.help
     Usage:
       #{$0} FILE ARG* [-- ARG*]
       #{$0} OPT* [--repl] OPT*
-      #{$0} OPT* -{-parse,p,-jsast,j,-compile,c} OPT*
+      #{$0} OPT* -{-parse,p,-compile,c,-js,j,-cscodegen} OPT*
       #{$0} {OPT,ARG}* -{-eval,e} {OPT,ARG}* -- ARG*
 
   """
@@ -195,7 +227,7 @@ if options.help
   console.log """
 
     Unless instructed otherwise (--{input,watch,cli}), `#{$0}` will operate on stdin/stdout.
-    When none of -{-parse,p,-jsast,j,-compile,c,-eval,e,-repl} are given
+    When none of -{-parse,p,-compile,c,-js,j,-eval,e,-cscodegen,-repl} are given
       If positional arguments were given
         * --eval is implied
         * the first positional argument is used as an input filename
@@ -240,7 +272,7 @@ else
       printParserError e
       process.exit 1
 
-    if options.debug and result?
+    if options.debug and options.optimise and result?
       console.error '### PARSED ###'
       console.error inspect result.toJSON()
 
@@ -252,21 +284,71 @@ else
         console.error (e.stack || e.message)
         process.exit 1
 
+    # --parse
     if options.parse
       if result?
         console.log inspect result.toJSON()
         process.exit 0
-      else
-        process.exit 1
-    else if options.optimise and options.debug and result?
-      console.error '### OPTIMISED ###'
+      else process.exit 1
+
+    if options.debug and result?
+      console.error "### #{if options.optimise then 'OPTIMISED' else 'PARSED'} ###"
       console.error inspect result.toJSON()
 
-    # TODO: compile
-    # TODO: code gen
-    # TODO: lint
-    # TODO: minify
-    # TODO: eval
+    # cs code gen
+    if options.cscodegen
+      try result = cscodegen.generate result
+      catch e
+        console.error (e.stack || e.message)
+        process.exit 1
+      if result?
+        console.log result
+        process.exit 0
+      else process.exit 1
+
+    # compile
+    try
+      throw new Error 'compilation not implemented yet'
+      compiler = new Compiler
+      result = compiler.compile result
+    catch e
+      console.error (e.stack || e.message)
+      process.exit 1
+
+    # --compile
+    if options.compile
+      if result?
+        console.log inspect result.toJSON()
+        process.exit 0
+      else process.exit 1
+
+    # js code gen
+    try
+      result = escodegen.generate result
+        format:
+          indent:
+            style: '  '
+            base: 0
+          renumber: yes
+          hexadecimal: yes
+          quotes: 'auto'
+          parentheses: no
+      if options.minify and result?
+        result = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse result
+    catch e
+      console.error (e.stack || e.message)
+      process.exit 1
+
+    # --js
+    if options.js
+      if result?
+        console.log inspect result.toJSON()
+        process.exit 0
+      else process.exit 1
+
+    # --eval
+    if options.eval
+      do -> (0; eval) result
 
 
   # choose input source

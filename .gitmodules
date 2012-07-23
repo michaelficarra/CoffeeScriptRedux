@@ -13,3 +13,6 @@
 [submodule "node_modules/mocha"]
 	path = node_modules/mocha
 	url = git://github.com/visionmedia/mocha.git
+[submodule "node_modules/escodegen"]
+	path = node_modules/escodegen
+	url = git://github.com/Constellation/escodegen.git

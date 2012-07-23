@@ -54,9 +54,10 @@ optionArguments = [
   [['lint',    'l'], off, 'pass compiled javascript output through JavaScriptLint']
   [['minify',  'm'], off, 'run compiled javascript output through a JS minifier']
   [['repl'        ], off, 'run an interactive CoffeeScript REPL']
-  [['help'        ], off, 'display this help message']
   [['optimise'    ],  on, 'enable optimisations (default: on)']
+  [['debug'       ], off, 'output intermediate representations on stderr for debug']
   [['version', 'v'], off, 'display the version number']
+  [['help'        ], off, 'display this help message']
 ]
 
 parameterArguments = [
@@ -146,11 +147,11 @@ if 1 < options.input? + options.watch? + options.cli?
 if options.help
   $0 = if process.argv[0] is 'node' then process.argv[1] else process.argv[0]
   $0 = path.basename $0
-  maxWidth = 80
+  maxWidth = 85
 
   wrap = (lhsWidth, input) ->
     rhsWidth = maxWidth - lhsWidth
-    pad = (Array lhsWidth + 1).join ' '
+    pad = (Array lhsWidth + 4 + 1).join ' '
     rows = while input.length
       row = input[...rhsWidth]
       input = input[rhsWidth..]
@@ -221,7 +222,6 @@ else
 
     throw err if err?
     result = null
-    console.log numberLines input.trim()
 
     # preprocess
     try input = Preprocessor.processSync input
@@ -229,12 +229,20 @@ else
       console.error (e.stack or e.message)
       process.exit 1
 
+    if options.debug
+      console.error '### PREPROCESSED ###'
+      console.error numberLines humanReadable input.trim()
+
     # parse
     try result = parser.parse input
     catch e
       throw e unless e instanceof parser.SyntaxError
       printParserError e
       process.exit 1
+
+    if options.debug and result?
+      console.error '### PARSED ###'
+      console.error inspect result.toJSON()
 
     # optimise
     if options.optimise and result?
@@ -250,6 +258,9 @@ else
         process.exit 0
       else
         process.exit 1
+    else if options.optimise and options.debug and result?
+      console.error '### OPTIMISED ###'
+      console.error inspect result.toJSON()
 
     # TODO: compile
     # TODO: code gen

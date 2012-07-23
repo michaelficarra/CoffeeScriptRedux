@@ -272,8 +272,8 @@ Class::initialise = ->
 
 GenSym::initialise = (_, @ns = '') ->
 
-ObjectInitialiser::keys = -> map @members (m) -> m.key
-ObjectInitialiser::vals = -> map @members (m) -> m.expression
+ObjectInitialiser::keys = -> map @members, (m) -> m.key
+ObjectInitialiser::vals = -> map @members, (m) -> m.expression
 
 RegExps::initialise = (_, flags) ->
   @flags = {}

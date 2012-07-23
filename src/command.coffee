@@ -137,83 +137,79 @@ if 1 < options.input? + options.watch? + options.cli?
   process.exit 1
 
 
-# process exceptional flags
-
 if options.help
   console.log '  Usage: coffee [options] -- [args]'
   console.log ''
   console.log '  Unless instructed otherwise, `coffee` will operate on stdin/stdout and eval its input'
   # TODO: enumerate options
-  return
 
-if options.version
+else if options.version
   filename = (require 'path').join __dirname, '..', '..', 'package.json'
   fs.readFile filename, (err, pkg) ->
     throw err if err
     console.log "CoffeeScript version #{(JSON.parse pkg).version}"
-  return
 
-if options.repl
+else if options.repl
   # TODO: start repl
-  return
 
-
-# normal workflow
-
-input = ''
-
-processInput = (err) ->
-
-  throw err if err?
-  result = null
-  console.log numberLines input.trim()
-
-  # preprocess
-  try input = Preprocessor.processSync input
-  catch e
-    console.error (e.stack or e.message)
-    process.exit 1
-
-  # parse
-  try result = parser.parse input
-  catch e
-    throw e unless e instanceof parser.SyntaxError
-    printParserError e
-    process.exit 1
-
-  if options.optimise and result?
-    optimiser = new Optimiser
-    try result = optimiser.optimise result
-    catch e
-      console.error (e.stack || e.message)
-      process.exit 1
-
-  if options.parse
-    if result?
-      console.log inspect result.toJSON()
-      process.exit 0
-    else
-      process.exit 1
-
-  # TODO: compile
-  # TODO: code gen
-  # TODO: lint
-  # TODO: minify
-  # TODO: eval
-
-
-# choose input source
-
-if options.input?
-  # TODO: handle directories
-  fs.readFile options.input, processInput
-else if options.watch?
-  # TODO
-else if options.cli?
-  input = options.cli
-  do processInput
 else
-  process.stdin.on 'data', (data) -> input += data
-  process.stdin.on 'end', processInput
-  process.stdin.setEncoding 'utf8'
-  do process.stdin.resume
+  # normal workflow
+
+  input = ''
+
+  processInput = (err) ->
+
+    throw err if err?
+    result = null
+    console.log numberLines input.trim()
+
+    # preprocess
+    try input = Preprocessor.processSync input
+    catch e
+      console.error (e.stack or e.message)
+      process.exit 1
+
+    # parse
+    try result = parser.parse input
+    catch e
+      throw e unless e instanceof parser.SyntaxError
+      printParserError e
+      process.exit 1
+
+    # optimise
+    if options.optimise and result?
+      optimiser = new Optimiser
+      try result = optimiser.optimise result
+      catch e
+        console.error (e.stack || e.message)
+        process.exit 1
+
+    if options.parse
+      if result?
+        console.log inspect result.toJSON()
+        process.exit 0
+      else
+        process.exit 1
+
+    # TODO: compile
+    # TODO: code gen
+    # TODO: lint
+    # TODO: minify
+    # TODO: eval
+
+
+  # choose input source
+
+  if options.input?
+    # TODO: handle directories
+    fs.readFile options.input, processInput
+  else if options.watch?
+    # TODO
+  else if options.cli?
+    input = options.cli
+    do processInput
+  else
+    process.stdin.on 'data', (data) -> input += data
+    process.stdin.on 'end', processInput
+    process.stdin.setEncoding 'utf8'
+    do process.stdin.resume

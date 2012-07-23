@@ -273,9 +273,12 @@ else
 
   if options.input?
     # TODO: handle directories
-    fs.readFile options.input, processInput
+    fs.readFile options.input, (err, contents) ->
+      throw err if err?
+      input = contents
+      do processInput
   else if options.watch?
-    # TODO
+    # TODO: watch
   else if options.cli?
     input = options.cli
     do processInput

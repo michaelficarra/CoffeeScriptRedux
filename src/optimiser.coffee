@@ -152,126 +152,6 @@ mayHaveSideEffects =
   ], (inScope) ->
     any @childNodes, (child) => mayHaveSideEffects @[child], inScope
 
-walk = do ->
-
-  # TODO: DRY this!
-  walk_ =
-    ArrayInitialiser: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      @members = for member in @members
-        continue while member isnt walk (member = fn.call member, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments member
-        member
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    Block: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      @statements = for statement in @statements
-        continue while statement isnt walk (statement = fn.call statement, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments statement
-        statement
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    Function: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      @parameters = for param in @parameters
-        continue while param isnt walk (param = fn.call param, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments param
-        param
-      if @block?
-        continue while @block isnt walk (@block = fn.call @block, inScope, ancestry), fn, inScope, ancestry
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    FunctionApplication: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      continue while @function isnt walk (@function = fn.call @function, inScope, ancestry), fn, inScope, ancestry
-      inScope = union inScope, envEnrichments @function
-      @arguments = for arg in @arguments
-        continue while arg isnt walk (arg = fn.call arg, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments arg
-        arg
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    NewOp: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      continue while @constructor isnt walk (@constructor = fn.call @constructor, inScope, ancestry), fn, inScope, ancestry
-      inScope = union inScope, envEnrichments @constructor
-      @arguments = for arg in @arguments
-        continue while arg isnt walk (arg = fn.call arg, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments arg
-        arg
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    ObjectInitialiser: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      @members = for member in @members
-        continue while member isnt walk (member = fn.call member, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments member
-        member
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    Super: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      @arguments = for arg in @arguments
-        continue while arg isnt walk (arg = fn.call arg, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments arg
-        arg
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    Switch: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      if @expression?
-        continue while @expression isnt walk (@expression = fn.call @expression, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments @expression
-      @cases = for case_ in @cases
-        continue while case_ isnt walk (case_ = fn.call case_, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments case_
-        case_
-      if elseBlock?
-        continue while @elseBlock isnt walk (@elseBlock = fn.call @elseBlock, inScope, ancestry), fn, inScope, ancestry
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-    SwitchCase: (fn, inScope = [], ancestry = []) ->
-      return this if this in ancestry
-      ancestry = [this, ancestry...]
-      @conditions = for condition in @conditions
-        continue while condition isnt walk (condition = fn.call condition, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments condition
-        condition
-      continue while @block isnt walk (@block = fn.call @block, inScope, ancestry), fn, inScope, ancestry
-      ancestry.shift()
-      fn.call this, inScope, ancestry
-
-
-  walkDefault = (fn, inScope = [], ancestry = []) ->
-    return this if this in ancestry
-    ancestry = [this, ancestry...]
-    for childName in @childNodes
-      child = @[childName]
-      if child?
-        continue while child isnt walk (child = fn.call child, inScope, ancestry), fn, inScope, ancestry
-        inScope = union inScope, envEnrichments child
-        @[childName] = child
-      child
-    ancestry.shift()
-    fn.call this, inScope, ancestry
-
-  (node, args...) ->
-    handlers = {}
-    handlers[CS[key]::className] = val for own key, val of walk_
-    handler =
-      if Object::hasOwnProperty.call handlers, node.className
-        handlers[node.className]
-      else walkDefault
-    handler.apply node, args
 
 
 class exports.Optimiser
@@ -429,11 +309,31 @@ class exports.Optimiser
     (@rules[ctor] ?= []).push handler
     return
 
-  optimise: (ast) ->
-    rules = @rules
-    walk ast, (inScope, ancestry) ->
-      # not a fold for efficiency's sake
-      memo = this
-      for rule in rules[@className] ? []
-        memo = rule.call memo, inScope, ancestry
-      memo
+  optimise: do ->
+
+    walk = (fn, inScope = [], ancestry = []) ->
+      return this if this in ancestry
+      ancestry.unshift this
+      for childName in @childNodes
+        child = @[childName]
+        if child?
+          if childName in @listMembers
+            @[childName] = for member in child
+              continue while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry
+              inScope = union inScope, envEnrichments member
+              member
+          else
+            continue while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry
+            inScope = union inScope, envEnrichments child
+            @[childName] = child
+      do ancestry.shift
+      fn.call this, inScope, ancestry
+
+    (ast) ->
+      rules = @rules
+      walk.call ast, (inScope, ancestry) ->
+        # not a fold for efficiency's sake
+        memo = this
+        for rule in rules[@className] ? []
+          memo = rule.call memo, inScope, ancestry
+        memo

@@ -188,9 +188,10 @@ exports.Nodes = Nodes
 
 
 Nodes.fromJSON = (json) -> exports[json.nodeType].fromJSON json
+Nodes::listMembers = []
 Nodes::toJSON = ->
   json = nodeType: @className
-  for child in @childNodes
+  for child in @childNodes when child not in @listMembers
     json[child] = @[child]?.toJSON()
   json
 Nodes::fmap = (memo, fn) ->
@@ -236,7 +237,7 @@ handlePrimitives StaticMemberAccessOps, ['memberName']
 ## Nodes that contain list properties
 
 handleLists = (ctor, listProps) ->
-  ctor::childNodes = difference ctor::childNodes, listProps
+  ctor::listMembers = listProps
   ctor::toJSON = ->
     json = Nodes::toJSON.call this
     for listProp in listProps

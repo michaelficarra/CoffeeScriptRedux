@@ -4,6 +4,7 @@ CS = require './nodes'
 # these are the identifiers that need to be declared when the given value is
 # being used as the target of an assignment
 @beingDeclared = beingDeclared = (assignment) -> switch
+  when not assignment? then []
   when assignment.instanceof CS.Identifier then [assignment]
   when assignment.instanceof CS.AssignOp then beingDeclared assignment.assignee
   when assignment.instanceof CS.ArrayInitialiser then concatMap assignment.members, beingDeclared
@@ -15,6 +16,7 @@ CS = require './nodes'
   foldl (new CS.Undefined).g(), vars, (expr, v) ->
     (new CS.AssignOp v, expr).g()
 
+# TODO: name change; this tests when a node is *being used as a value*
 usedAsExpression_ = (node, parent, grandparent, otherAncestors...) -> switch
   when !parent? then yes
   when parent.instanceof CS.Program, CS.Class then no
@@ -35,29 +37,27 @@ usedAsExpression_ = (node, parent, grandparent, otherAncestors...) -> switch
 
 # environment enrichments that occur when this node is evaluated
 envEnrichments_ = -> switch
-  when @instanceof CS.ArrayInitialiser then nub (concatMap @members, (m) -> envEnrichments m)
   when @instanceof CS.AssignOp then nub beingDeclared @assignee
-  when @instanceof CS.Block then nub concatMap @statements, (s) -> envEnrichments s
   when @instanceof CS.Class
-    declaredInName = if @nameAssignment? then beingDeclared @nameAssignment else []
-    nub declaredInName.concat (if name? then [name] else [])
-  when @instanceof CS.ForIn
     nub concat [
-      concatMap @childNodes, (child) => envEnrichments @[child]
-      beingDeclared @valAssignee
-      if @keyAssignee? then beingDeclared @keyAssignee else []
+      beingDeclared @nameAssignment
+      beingDeclared @parent
+      if name? then [name] else []
     ]
-  when @instanceof CS.ForOf
+  when @instanceof CS.ForIn, CS.ForOf
     nub concat [
-      concatMap @childNodes, (child) => envEnrichments @[child]
+      concatMap @childNodes, (child) =>
+        if child in @listMembers
+        then concatMap @[child], (m) -> envEnrichments m
+        else envEnrichments @[child]
       beingDeclared @keyAssignee
-      if @valAssignee? then beingDeclared @valAssignee else []
+      beingDeclared @valAssignee
     ]
-  when @instanceof CS.FunctionApplication then nub concatMap @arguments, (arg) -> envEnrichments arg
-  when @instanceof CS.ObjectInitialiser then nub concatMap @members, ([key, expr]) -> envEnrichments expr
-  when @instanceof CS.Super then nub concatMap @arguments, (a) -> envEnrichments a
-  when @instanceof CS.Switch then nub concatMap [@expr, @elseBlock, @cases...], (e) -> envEnrichments e
-  when @instanceof CS.SwitchCase then nub concatMap [@block, @conditions...], (e) -> envEnrichments e
-  else nub concatMap @childNodes, (child) => envEnrichments @[child]
+  else
+    nub concatMap @childNodes, (child) =>
+      if child in @listMembers
+      then concatMap @[child], (m) -> envEnrichments m
+      else envEnrichments @[child]
 
-@envEnrichments = envEnrichments = (node) -> if node? then envEnrichments_.call node else []
+@envEnrichments = envEnrichments = (node) ->
+  if node? then envEnrichments_.call node else []

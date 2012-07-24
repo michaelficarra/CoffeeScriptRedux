@@ -330,11 +330,11 @@ class exports.Optimiser
         if child?
           if childName in @listMembers
             @[childName] = for member in child
-              continue while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry
+              while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry then
               inScope = union inScope, envEnrichments member
               member
           else
-            continue while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry
+            while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry then
             inScope = union inScope, envEnrichments child
             @[childName] = child
       do ancestry.shift

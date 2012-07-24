@@ -76,7 +76,6 @@ isFalsey =
     [[CS.UnaryExistsOp], -> @expression.instanceof CS.Null, CS.Undefined]
   ], -> no
 
-# TODO: make sure `inScope` is really necessary where we use it
 mayHaveSideEffects =
   makeDispatcher no, [
     [[
@@ -87,8 +86,6 @@ mayHaveSideEffects =
       CS.Break, CS.Continue, CS.DeleteOp, CS.NewOp, CS.Return, CS.Super
       CS.PreDecrementOp, CS.PreIncrementOp, CS.PostDecrementOp, CS.PostIncrementOp
     ], -> yes]
-    [[CS.ArrayInitialiser], (inScope) -> any @members, (m) -> mayHaveSideEffects m, inScope]
-    [[CS.Block], (inScope) -> any @statements, (s) -> mayHaveSideEffects s, inScope]
     [[CS.Class], (inScope) ->
       (mayHaveSideEffects @parent, inScope) or
       @nameAssignment? and (@name or (beingDeclared @nameAssignment).length > 0)
@@ -127,18 +124,6 @@ mayHaveSideEffects =
       return no if isTruthy @left
       mayHaveSideEffects @right, inScope
     ]
-    [[CS.ObjectInitialiser], (inScope) ->
-      any @members, (m) -> mayHaveSideEffects m, inScope
-    ]
-    [[CS.ObjectInitialiserMember], (inScope) ->
-      (mayHaveSideEffects @key, inScope) or mayHaveSideEffects @expression, inScope
-    ]
-    [[CS.Switch], (inScope) ->
-      any [@expression, @elseBlock, @cases...], (e) -> mayHaveSideEffects e, inScope
-    ]
-    [[CS.SwitchCase], (inScope) ->
-      any [@block, @conditions...], (e) -> mayHaveSideEffects e, inScope
-    ]
     [[CS.While], (inScope) ->
       (mayHaveSideEffects @condition, inScope) or
       (not isFalsey @condition) and mayHaveSideEffects @block, inScope
@@ -150,7 +135,10 @@ mayHaveSideEffects =
     # category: Primitive
     [[CS.Bool, CS.Float, CS.Identifier, CS.Int, CS.JavaScript, CS.String], -> no]
   ], (inScope) ->
-    any @childNodes, (child) => mayHaveSideEffects @[child], inScope
+    any @childNodes, (child) =>
+      if child in @listMembers
+      then any @[child], (m) -> mayHaveSideEffects m, inScope
+      else mayHaveSideEffects @[child], inScope
 
 
 
@@ -205,10 +193,8 @@ class exports.Optimiser
         return if mayHaveSideEffects @condition, inScope
           @condition
         else
-          if block?
-            declarationsFor @block
-          else
-            (new CS.Undefined).g()
+          if block? then declarationsFor @block, inScope
+          else (new CS.Undefined).g()
       if isTruthy @condition
         unless mayHaveSideEffects @condition, inScope
           return (new CS.Undefined).g() unless @block?
@@ -222,10 +208,10 @@ class exports.Optimiser
     # Prepend the condition if it has side effects
     [CS.Conditional, (inScope) ->
       if isFalsey @condition
-        decls = declarationsFor @block
+        decls = declarationsFor @block, inScope
         block = if @elseBlock? then new CS.SeqOp decls, @elseBlock else decls
       else if isTruthy @condition
-        decls = declarationsFor @elseBlock
+        decls = declarationsFor @elseBlock, inScope
         block = if @block? then new CS.SeqOp @block, decls else decls
       else
         return this
@@ -238,14 +224,14 @@ class exports.Optimiser
     [CS.ForIn, (inScope, ancestors) ->
       return this unless (@expression.instanceof CS.ArrayInitialiser) and @expression.members.length is 0
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
-      new CS.SeqOp (declarationsFor this), retVal.g()
+      new CS.SeqOp (declarationsFor this, inScope), retVal.g()
     ]
 
     # for-own-of over empty object produces an empty list
     [CS.ForOf, ->
       return this unless (@expression.instanceof CS.ObjectInitialiser) and @expression.isOwn and @expression.members.length is 0
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
-      new CS.SeqOp (declarationsFor this), retVal.g()
+      new CS.SeqOp (declarationsFor this, inScope), retVal.g()
     ]
 
     # DoOp -> FunctionApplication
@@ -261,13 +247,12 @@ class exports.Optimiser
     #  (new CS.FunctionApplication @expression, args).g().p @line, @column
     #]
 
-    # Array members without side effects can be dropped when the array is in statement position
+    # Arrays in statement position might as well be Seqs
     [CS.ArrayInitialiser, (inScope, ancestors) ->
-      return this if usedAsExpression this, ancestors
-      originalLength = @members.length
-      members = (m for m in @members when mayHaveSideEffects m, inScope)
-      if members.length is originalLength then this
-      else (new CS.ArrayInitialiser members).g()
+      if usedAsExpression this, ancestors then this
+      else
+        foldl (new CS.Undefined).g(), @members, (expr, m) ->
+          new CS.SeqOp expr, m
     ]
 
     # Produce the right operand when the left operand is null or undefined
@@ -285,7 +270,7 @@ class exports.Optimiser
         when @expression.instanceof CS.Null, CS.Undefined then (new CS.Bool true).g()
         when @expression.instanceof CS.ArrayInitialiser, CS.ObjectInitialiser
           if mayHaveSideEffects @expression, inScope then this
-          else new CS.SeqOp (declarationsFor @expression), (new CS.Bool false).g()
+          else new CS.SeqOp (declarationsFor @expression, inScope), (new CS.Bool false).g()
         when @expression.instanceof CS.LogicalNotOp
           if @expression.expression.instanceof CS.LogicalNotOp then @expression.expression
           else this
@@ -323,18 +308,17 @@ class exports.Optimiser
         throw new Error 'Optimiser rules must produce a node. `null` is not a node.'
       return this if this in ancestry
       ancestry.unshift this
-      for childName in @childNodes
-        child = @[childName]
-        if child?
-          if childName in @listMembers
-            @[childName] = for member in child
-              while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry then
-              inScope = union inScope, envEnrichments member
-              member
-          else
-            while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry then
-            inScope = union inScope, envEnrichments child
-            @[childName] = child
+      for childName in @childNodes when @[childName]?
+        if childName in @listMembers
+          @[childName] = for member in @[childName]
+            while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry then
+            inScope = union inScope, envEnrichments member, inScope
+            member
+        else
+          child = @[childName]
+          while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry then
+          inScope = union inScope, envEnrichments child, inScope
+          @[childName] = child
       do ancestry.shift
       fn.call this, inScope, ancestry
 

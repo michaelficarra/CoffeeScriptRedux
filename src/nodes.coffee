@@ -191,12 +191,18 @@ Nodes.fromJSON = (json) -> exports[json.nodeType].fromJSON json
 Nodes::listMembers = []
 Nodes::toJSON = ->
   json = nodeType: @className
-  for child in @childNodes when child not in @listMembers
-    json[child] = @[child]?.toJSON()
-  json
-Nodes::fmap = (memo, fn) ->
   for child in @childNodes
-    memo = @[child].fmap memo, fn
+    if child in @listMembers
+      json[child] = (p.toJSON() for p in @[child])
+    else
+      json[child] = @[child]?.toJSON()
+  json
+Nodes::fold = (memo, fn) ->
+  for child in @childNodes
+    if child in @listMembers
+      memo = (p.fold memo, fn for p in @[child])
+    else
+      memo = @[child].fold memo, fn
   fn memo, this
 Nodes::instanceof = (ctors...) ->
   # not a fold for efficiency's sake
@@ -236,13 +242,7 @@ handlePrimitives StaticMemberAccessOps, ['memberName']
 
 ## Nodes that contain list properties
 
-handleLists = (ctor, listProps) ->
-  ctor::listMembers = listProps
-  ctor::toJSON = ->
-    json = Nodes::toJSON.call this
-    for listProp in listProps
-      json[listProp] = (p.toJSON() for p in @[listProp])
-    json
+handleLists = (ctor, listProps) -> ctor::listMembers = listProps
 
 handleLists ArrayInitialiser, ['members']
 handleLists Block, ['statements']

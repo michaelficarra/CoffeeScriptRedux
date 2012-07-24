@@ -161,6 +161,8 @@ class exports.Optimiser
   @isFalsey = isFalsey
   @mayHaveSideEffects = mayHaveSideEffects
 
+  # TODO: preserve source information in these trainsformations
+  # TODO: change signature of these functions to named parameters
   defaultRules = [
 
     # If a program has no side effects, then it is the empty program
@@ -263,6 +265,15 @@ class exports.Optimiser
     #  (new CS.FunctionApplication @expression, args).g().p @line, @column
     #]
 
+    # Array members without side effects can be dropped when the array is in statement position
+    [CS.ArrayInitialiser, (inScope, ancestors) ->
+      return this if usedAsExpression this, ancestors
+      originalLength = @members.length
+      members = (m for m in @members when mayHaveSideEffects m, inScope)
+      if members.length is originalLength then this
+      else (new CS.ArrayInitialiser members).g()
+    ]
+
     # Produce the right operand when the left operand is null or undefined
     [CS.ExistsOp, -> if @left.instanceof CS.Null, CS.Undefined then @right else this]
 
@@ -312,6 +323,8 @@ class exports.Optimiser
   optimise: do ->
 
     walk = (fn, inScope = [], ancestry = []) ->
+      if not this? or this is global
+        throw new Error 'Optimiser rules must produce a node. `null` is not a node.'
       return this if this in ancestry
       ancestry.unshift this
       for childName in @childNodes

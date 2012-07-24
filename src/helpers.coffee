@@ -17,23 +17,28 @@ CS = require './nodes'
     (new CS.AssignOp (new CS.Identifier v).g(), expr).g()
 
 # TODO: name change; this tests when a node is *being used as a value*
-usedAsExpression_ = (node, parent, grandparent, otherAncestors...) -> switch
-  when !parent? then yes
-  when parent.instanceof CS.Program, CS.Class then no
-  when parent.instanceof CS.SeqOp then this is parent.right
-  when (parent.instanceof CS.Block) and
-  (parent.statements.indexOf this) isnt parent.statements.length - 1
-    no
-  when (parent.instanceof CS.Function, CS.BoundFunction) and
-  parent.body is this and
-  (grandparent?.instanceof CS.ClassProtoAssignOp) and
-  (grandparent.assignee.instanceof CS.String) and
-  grandparent.assignee.data is 'constructor'
-    no
-  else yes
+usedAsExpression_ = (ancestors) ->
+  parent = ancestors[0]
+  grandparent = ancestors[1]
+  switch
+    when !parent? then yes
+    when parent.instanceof CS.Program, CS.Class then no
+    when parent.instanceof CS.SeqOp
+      this is parent.right and
+      usedAsExpression parent, ancestors[1..]
+    when (parent.instanceof CS.Block) and
+    (parent.statements.indexOf this) isnt parent.statements.length - 1
+      no
+    when (parent.instanceof CS.Function, CS.BoundFunction) and
+    parent.body is this and
+    (grandparent?.instanceof CS.ClassProtoAssignOp) and
+    (grandparent.assignee.instanceof CS.String) and
+    grandparent.assignee.data is 'constructor'
+      no
+    else yes
 
-@usedAsExpression = (node, ancestors) ->
-  usedAsExpression_.apply node, [node, ancestors...]
+@usedAsExpression = usedAsExpression = (node, ancestors) ->
+  usedAsExpression_.call node, ancestors
 
 # environment enrichments that occur when this node is evaluated
 envEnrichments_ = (inScope = []) ->

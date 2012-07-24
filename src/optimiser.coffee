@@ -167,15 +167,25 @@ class exports.Optimiser
 
     # Reject unused and inconsequential expressions
     [CS.SeqOp, (inScope, ancestors) ->
+      canDropLast = not usedAsExpression this, ancestors
       if mayHaveSideEffects @left, inScope
-        if (mayHaveSideEffects @right, inScope) or usedAsExpression this, ancestors then this else @left
-      else if (@right.instanceof CS.Identifier) and @right.data is 'eval'
+        if mayHaveSideEffects @right, inScope then this
+        else if not canDropLast then this
+        else if @right.instanceof CS.Undefined then @left
+        else new CS.SeqOp @left, declarationsFor @right, inScope
+      else if (@right.instanceof CS.Identifier) and @right.data is 'eval' and
+      ((ancestors[0]?.instanceof CS.FunctionApplication) and ancestors[0].function is this or
+      (ancestors[0]?.instanceof CS.DoOp) and ancestors[0].expression is this)
         return this if (@left.instanceof CS.Int) and @left.data is 0
-        return new CS.SeqOp (new CS.Int 0).g(), @right
+        ref = new CS.SeqOp (new CS.Int 0).g(), @right
+        if (envEnrichments @left, inScope).length is 0 then ref
+        else new CS.SeqOp (declarationsFor @left), ref
       else
-        canDropLast = not usedAsExpression this, ancestors
-        if canDropLast and not mayHaveSideEffects @right, inScope
-          (new CS.Undefined).g()
+        if mayHaveSideEffects @right, inScope
+          if @left.instanceof CS.Undefined then @right
+          else new CS.SeqOp (declarationsFor @left, inScope), @right
+        else if canDropLast
+          declarationsFor this, inScope
         else @right
     ]
 

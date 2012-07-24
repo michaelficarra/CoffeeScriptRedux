@@ -223,13 +223,14 @@ class exports.Optimiser
     [CS.Conditional, (inScope) ->
       if isFalsey @condition
         block = @elseBlock
-        removedBlock = @block
+        decls = declarationsFor @block
+        block = if block? then new CS.SeqOp decls, block else decls
       else if isTruthy @condition
         block = @block
-        removedBlock = @elseBlock
+        decls = declarationsFor @elseBlock
+        block = if block? then new CS.SeqOp block, decls else decls
       else
         return this
-      block = new CS.SeqOp (declarationsFor removedBlock), block if removedBlock?
       if mayHaveSideEffects @condition, inScope
         block = new CS.SeqOp @condition, block
       block

@@ -3,6 +3,7 @@ path = require 'path'
 {concat, foldl} = require './functional-helpers'
 {Preprocessor} = require './preprocessor'
 {Optimiser} = require './optimiser'
+{Compiler} = require './compiler'
 parser = require './parser'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
@@ -156,13 +157,13 @@ if options.require? and not options.eval
   process.exit 1
 
 # - m (minify) depends on escodegen and uglifyjs and (c (compile) or e (eval))
-if options.minify and not (options.compile or options.eval)
-  console.error 'Error: --minify does not make sense without --compile or --eval'
+if options.minify and not (options.js or options.eval)
+  console.error 'Error: --minify does not make sense without --js or --eval'
   process.exit 1
 
 # - b (bare) depends on escodegen and (c (compile) or e (eval)
-if options.bare and not (options.compile or options.eval)
-  console.error 'Error: --bare does not make sense without --compile or --eval'
+if options.bare and not (options.compile or options.js or options.eval)
+  console.error 'Error: --bare does not make sense without --compile, --js, or --eval'
   process.exit 1
 
 # - i (input) depends on o (output) when input is a directory
@@ -308,7 +309,6 @@ else
 
     # compile
     try
-      throw new Error 'compilation not implemented yet'
       compiler = new Compiler
       result = compiler.compile result
     catch e
@@ -322,9 +322,13 @@ else
         process.exit 0
       else process.exit 1
 
+    if options.debug and result?
+      console.error "### COMPILED ###"
+      console.error inspect result.toJSON()
+
     # js code gen
     try
-      result = escodegen.generate result
+      result = escodegen.generate result,
         format:
           indent:
             style: '  '
@@ -342,7 +346,7 @@ else
     # --js
     if options.js
       if result?
-        console.log inspect result.toJSON()
+        console.log result
         process.exit 0
       else process.exit 1
 

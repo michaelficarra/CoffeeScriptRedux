@@ -187,10 +187,10 @@ createNodes
 exports.Nodes = Nodes
 
 
-Nodes.fromJSON = (json) -> exports[json.nodeType].fromJSON json
+Nodes.fromJSON = (json) -> exports[json.type].fromJSON json
 Nodes::listMembers = []
 Nodes::toJSON = ->
-  json = nodeType: @className
+  json = type: "CS.#{@className}"
   for child in @childNodes
     if child in @listMembers
       json[child] = (p.toJSON() for p in @[child])
@@ -260,6 +260,7 @@ handleLists SwitchCase, ['conditions']
 Block.wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
 
 Class::initialise = ->
+  # TODO: factor this out, as it's useful elsewhere: short object literal members, NFEs from assignee, etc.
   @name =
     if @nameAssignment?
       # poor man's pattern matching

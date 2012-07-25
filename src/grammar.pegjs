@@ -410,7 +410,7 @@ newExpression
     }
 memberExpression
   = e:primaryExpression accesses:
-    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {op: a.op, operands: a.operands, raw: ws + a.raw, line: a.line, column: a.column}; }
+    ( a:MemberAccessOps
     / "(" _ a:(argumentList _)? ")" {
         return {op: CS.FunctionApplication, operands: [a ? a[0].list : []], raw: '(' + (a ? a[0].raw + a[1] : '') + ')', line: line, column: column};
       }
@@ -418,15 +418,11 @@ memberExpression
       return createMemberExpression(e, accesses || []);
     }
   memberAccess
-    = e:primaryExpression accesses:
-      ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {op: a.op, operands: a.operands, raw: ws + a.raw, line: a.line, column: a.column}; }
-      )+ {
-        return createMemberExpression(e, accesses);
-      }
+    = e:primaryExpression accesses:MemberAccessOps+ { return createMemberExpression(e, accesses); }
   MemberNames
     = identifierName
   MemberAccessOps
-    = "." ws:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: '.' + ws + e, line: line, column: column}; }
+    = ws0:(_ / TERMINATOR) "." ws1:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + '.' + ws1 + e, line: line, column: column}; }
     / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column}; }
     / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column}; }
     / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column}; }

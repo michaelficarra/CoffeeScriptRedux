@@ -38,6 +38,7 @@ createNodes = (subclasses, superclasses = []) ->
   return
 
 
+# TODO: match parser API: block -> body
 createNodes
   Nodes: [ [],
 
@@ -132,10 +133,12 @@ createNodes
 
     Program: [['block']] # :: Maybe Exprs -> Program
     Block: [['statements']] # :: [Statement] -> Block
+    # TODO: test/consequent/alternative
     Conditional: [['condition', 'block', 'elseBlock']] # :: Exprs -> Maybe Exprs -> Maybe Exprs -> Conditional
     ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'block']] # :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
     ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'block']] # :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
     Switch: [['expression', 'cases', 'elseBlock']] # :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
+    # TODO: test/consequent
     SwitchCase: [['conditions', 'block']] # :: [Exprs] -> Maybe Expr -> SwitchCase
     Try: [['block', 'catchAssignee', 'catchBlock', 'finallyBlock']] # :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
     While: [['condition', 'block']] # :: Exprs -> Maybe Exprs -> While

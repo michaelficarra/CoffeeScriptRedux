@@ -16,6 +16,7 @@ statementNodes = [
   JS.ForStatement
   JS.ForInStatement
   JS.FunctionDeclaration
+  JS.IfStatement
   JS.LabeledStatement
   JS.ReturnStatement
   JS.SwitchStatement
@@ -26,55 +27,76 @@ statementNodes = [
   JS.WithStatement
 ]
 
-toStatement = (node) ->
-  if node.instanceof statementNodes...
-  then node
-  else new JS.ExpressionStatement node
+makeReturn = (node) ->
+  if node.instanceof JS.BlockStatement
+    new JS.BlockStatement [node.body[...-1]..., new JS.ReturnStatement expr node.body[node.body.length - 1]]
+  else new JS.ReturnStatement expr node
 
-seqToBlock = (seq) ->
-  # TODO: maybe there's a better way
-  walk = (seq) ->
-    concatMap seq.expressions, (e) ->
-      if e.instanceof JS.SequenceExpression then walk e
-      else [new JS.ExpressionStatement e]
-  new JS.BlockStatement walk seq
+stmt = (e) ->
+  return e unless e?
+  if e.instanceof statementNodes... then e
+  else if e.instanceof JS.SequenceExpression
+    walk = (seq) ->
+      concatMap seq.expressions, (e) ->
+        if e.instanceof JS.SequenceExpression then walk e
+        else [stmt e]
+    new JS.BlockStatement walk e
+  else if (e.instanceof JS.BinaryExpression) and e.operator is '&&'
+    new JS.IfStatement (expr e.left), stmt e.right
+  else if e.instanceof JS.ConditionalExpression
+    new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternative
+  else new JS.ExpressionStatement e
+
+expr = (s) ->
+  return s unless s?
+  if not s.instanceof statementNodes... then s
+  else if s.instanceof JS.BlockStatement
+    new JS.SequenceExpression s.body
+  else if s.instanceof JS.BreakStatement
+    # TODO: throw error?
+  else if s.instanceof JS.ExpressionStatement
+    s.expression
+  else
+    # TODO: comprehensive
+    throw new Error "expr: #{s.type}"
 
 
 class exports.Compiler
 
   defaultRules = [
     [CS.Program, ({block}) ->
+      return new JS.Program [] unless block?
+      block = stmt block
       block =
-        if !block? then []
-        else if block.instanceof JS.SequenceExpression then seq.expressions
-        else if block.instanceof JS.BlockStatement then block.body
-        else [toStatement block]
+        if block.instanceof JS.BlockStatement then block.body
+        else [block]
       new JS.Program block
     ]
     [CS.Block, ({statements}) ->
       switch statements.length
         when 0 then new JS.EmptyStatement
-        when 1 then new JS.ExpressionStatement statements[0]
-        else new JS.BlockStatement (map statements, (s) -> new JS.ExpressionStatement s)
+        when 1 then new stmt statements[0]
+        else new JS.BlockStatement map statements, stmt
     ]
-    [CS.Function, ({parameters, block}) ->
-      if block.instanceof JS.SequenceExpression
-        block = seqToBlock block
-      if block.instanceof JS.BlockStatement
-        block.body[block.body.length - 1] = new JS.ReturnStatement block.body[block.body.length - 1].expression
-      else
-        block = new JS.BlockStatement [new JS.ReturnStatement block]
-      new JS.FunctionExpression null, parameters, block
-    ]
-    [CS.SeqOp, ({left, right})->
-      new JS.SequenceExpression [left, right]
+    [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
+    [CS.Conditional, ({condition, block, elseBlock, compile}) ->
+      block ?= compile new CS.Undefined
+      elseBlock ?= compile new CS.Undefined
+      new JS.ConditionalExpression (expr condition), (expr block), expr elseBlock
     ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) ->
-      new JS.CallExpression fn, args
+      new JS.CallExpression (expr fn), (map args, expr)
+    ]
+    [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
+    [CS.Function, ({parameters, block}) ->
+      block = makeReturn stmt block
+      block = new JS.BlockStatement [block] unless block.instanceof JS.BlockStatement
+      new JS.FunctionExpression null, parameters, block
     ]
     [CS.Identifier, -> new JS.Identifier @data]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]
+    [CS.Undefined, -> new JS.UnaryExpression 'void', new JS.Literal 0]
     [CS.This, -> new JS.ThisExpression]
   ]
 
@@ -109,9 +131,12 @@ class exports.Compiler
             inScope = union inScope, envEnrichments child, inScope
             jsNode
 
-      do ancestry.shift
       children.inScope = inScope
       children.ancestry = ancestry
+      children.compile = (node) ->
+        walk.call node.g(), fn, inScope, ancestry
+
+      do ancestry.shift
       fn.call this, children
 
     defaultRule = ->

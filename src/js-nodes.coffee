@@ -28,7 +28,7 @@ nodeData = [
   ['AssignmentExpression' , ['left', 'right']]
   ['ArrayExpression'      , ['elements']]
   ['BlockStatement'       , ['body']]
-  ['BinaryExpression'     , ['left', 'right']]
+  ['BinaryExpression'     , ['operator', 'left', 'right']]
   ['BreakStatement'       , ['label']]
   ['CallExpression'       , ['callee', 'arguments']]
   ['CatchClause'          , ['param', 'body']]
@@ -60,7 +60,7 @@ nodeData = [
   ['ThisExpression'       , []]
   ['ThrowStatement'       , ['argument']]
   ['TryStatement'         , ['block', 'handlers', 'finalizer']]
-  ['UnaryExpression'      , ['argument']]
+  ['UnaryExpression'      , ['operator', 'argument']]
   ['UpdateExpression'     , ['argument']]
   ['VariableDeclaration'  , ['declarations']]
   ['VariableDeclarator'   , ['id', 'init']]
@@ -69,10 +69,14 @@ nodeData = [
 ]
 
 for [node, params] in nodeData
-  @[node] = createNode node, params
+  exports[node] = createNode node, params
 
 
-{Program, BlockStatement, Literal, Identifier, FunctionExpression, CallExpression, SequenceExpression} = exports
+{
+  Program, BlockStatement, Literal, Identifier, FunctionExpression,
+  CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
+  UnaryExpression
+} = exports
 
 ## Nodes that contain primitive properties
 
@@ -86,6 +90,8 @@ handlePrimitives = (ctor, primitives) ->
 
 handlePrimitives Literal, ['value']
 handlePrimitives Identifier, ['name']
+handlePrimitives BinaryExpression, ['operator']
+handlePrimitives UnaryExpression, ['operator']
 
 
 ## Nodes that contain list properties
@@ -97,3 +103,4 @@ handleLists BlockStatement, ['body']
 handleLists FunctionExpression, ['params']
 handleLists CallExpression, ['arguments']
 handleLists SequenceExpression, ['expressions']
+handleLists ArrayExpression, ['elements']

@@ -149,7 +149,7 @@ class exports.Optimiser
   @isFalsey = isFalsey
   @mayHaveSideEffects = mayHaveSideEffects
 
-  # TODO: preserve source information in these trainsformations
+  # TODO: preserve source information in these transformations
   # TODO: change signature of these functions to named parameters
   defaultRules = [
 
@@ -309,7 +309,7 @@ class exports.Optimiser
 
   addRule: (ctor, handler) ->
     (@rules[ctor] ?= []).push handler
-    return
+    this
 
   optimise: do ->
 
@@ -319,24 +319,25 @@ class exports.Optimiser
       return this if this in ancestry
       ancestry.unshift this
       for childName in @childNodes when @[childName]?
-        if childName in @listMembers
-          @[childName] = for member in @[childName]
-            while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry then
-            inScope = union inScope, envEnrichments member, inScope
-            member
-        else
-          child = @[childName]
-          while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry then
-          inScope = union inScope, envEnrichments child, inScope
-          @[childName] = child
+        @[childName] =
+          if childName in @listMembers
+            for member in @[childName]
+              while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry then
+              inScope = union inScope, envEnrichments member, inScope
+              member
+          else
+            child = @[childName]
+            while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry then
+            inScope = union inScope, envEnrichments child, inScope
+            child
       do ancestry.shift
       fn.call this, inScope, ancestry
 
     (ast) ->
       rules = @rules
-      walk.call ast, (inScope, ancestry) ->
+      walk.call ast, ->
         # not a fold for efficiency's sake
         memo = this
         for rule in rules[@className] ? []
-          memo = rule.call memo, inScope, ancestry
+          memo = rule.apply memo, arguments
         memo

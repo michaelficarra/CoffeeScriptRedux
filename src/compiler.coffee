@@ -44,7 +44,7 @@ stmt = (e) ->
   else if (e.instanceof JS.BinaryExpression) and e.operator is '&&'
     new JS.IfStatement (expr e.left), stmt e.right
   else if e.instanceof JS.ConditionalExpression
-    new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternative
+    new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternate
   else new JS.ExpressionStatement e
 
 expr = (s) ->
@@ -56,6 +56,8 @@ expr = (s) ->
     # TODO: throw error?
   else if s.instanceof JS.ExpressionStatement
     s.expression
+  else if s.instanceof JS.IfStatement
+    new JS.ConditionalExpression s.test, (expr s.consequent), expr s.alternate
   else
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"

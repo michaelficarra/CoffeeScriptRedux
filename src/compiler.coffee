@@ -41,8 +41,8 @@ stmt = (e) ->
         if e.instanceof JS.SequenceExpression then walk e
         else [stmt e]
     new JS.BlockStatement walk e
-  else if (e.instanceof JS.BinaryExpression) and e.operator is '&&'
-    new JS.IfStatement (expr e.left), stmt e.right
+  #else if (e.instanceof JS.BinaryExpression) and e.operator is '&&'
+  #  new JS.IfStatement (expr e.left), stmt e.right
   else if e.instanceof JS.ConditionalExpression
     new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternate
   else new JS.ExpressionStatement e
@@ -95,6 +95,33 @@ class exports.Compiler
       block = new JS.BlockStatement [block] unless block.instanceof JS.BlockStatement
       new JS.FunctionExpression null, parameters, block
     ]
+
+    [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]
+    [CS.MultiplyOp, ({left, right}) -> new JS.BinaryExpression '*', (expr left), expr right]
+    [CS.RemOp, ({left, right}) -> new JS.BinaryExpression '%', (expr left), expr right]
+    [CS.PlusOp, ({left, right}) -> new JS.BinaryExpression '+', (expr left), expr right]
+    [CS.SubtractOp, ({left, right}) -> new JS.BinaryExpression '-', (expr left), expr right]
+
+    [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
+    [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
+
+    [CS.LogicalAndOp, ({left, right}) -> new JS.BinaryExpression '&&', (expr left), expr right]
+    [CS.LogicalOrOp, ({left, right}) -> new JS.BinaryExpression '||', (expr left), expr right]
+
+    [CS.EQOp , ({left, right}) -> new JS.BinaryExpression '===', (expr left), expr right]
+    [CS.NEQOp , ({left, right}) -> new JS.BinaryExpression '!==', (expr left), expr right]
+    [CS.GTEOp , ({left, right}) -> new JS.BinaryExpression '>=', (expr left), expr right]
+    [CS.GTOp , ({left, right}) -> new JS.BinaryExpression '>', (expr left), expr right]
+    [CS.LTEOp , ({left, right}) -> new JS.BinaryExpression '<=', (expr left), expr right]
+    [CS.LTOp , ({left, right}) -> new JS.BinaryExpression '<', (expr left), expr right]
+
+    [CS.BitAndOp , ({left, right}) -> new JS.BinaryExpression '&', (expr left), expr right]
+    [CS.BitOrOp , ({left, right}) -> new JS.BinaryExpression '|', (expr left), expr right]
+    [CS.BitXorOp , ({left, right}) -> new JS.BinaryExpression '^', (expr left), expr right]
+    [CS.LeftShiftOp , ({left, right}) -> new JS.BinaryExpression '<<', (expr left), expr right]
+    [CS.SignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>', (expr left), expr right]
+    [CS.UnsignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>>', (expr left), expr right]
+
     [CS.Identifier, -> new JS.Identifier @data]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]

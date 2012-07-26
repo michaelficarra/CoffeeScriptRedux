@@ -120,6 +120,16 @@ class exports.Compiler
         new JS.BinaryExpression '&&', typeofTest, nullTest
       else nullTest
     ]
+    [CS.DoOp, ({expression, compile}) ->
+      args = []
+      if @expression.instanceof CS.Function
+        args = for param in @expression.parameters
+          switch
+            when param.instanceof CS.AssignOp then param.expression
+            when param.instanceof CS.Identifier, CS.MemberAccessOp then param
+            else (new CS.Undefined).g()
+      compile new CS.FunctionApplication @expression, args
+    ]
 
     # straightforward operators
     [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]

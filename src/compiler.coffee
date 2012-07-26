@@ -65,7 +65,9 @@ expr = (s) ->
   else if s.instanceof JS.ExpressionStatement
     s.expression
   else if s.instanceof JS.IfStatement
-    new JS.ConditionalExpression s.test, (expr s.consequent), expr s.alternate
+    consequent = expr (s.consequent ? new JS.UnaryExpression 'void', new JS.Literal 0)
+    alternate = expr (s.alternate ? new JS.UnaryExpression 'void', new JS.Literal 0)
+    new JS.ConditionalExpression s.test, consequent, alternate
   else
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"
@@ -91,9 +93,7 @@ class exports.Compiler
     ]
     [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
     [CS.Conditional, ({condition, block, elseBlock, compile}) ->
-      block ?= compile new CS.Undefined
-      elseBlock ?= compile new CS.Undefined
-      new JS.ConditionalExpression (expr condition), (expr block), expr elseBlock
+      new JS.IfStatement (expr condition), (stmt block), stmt elseBlock
     ]
 
     # data structures

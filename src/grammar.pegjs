@@ -669,11 +669,11 @@ implicitObjectLiteral
   implicitObjectLiteralMemberList
     = e:implicitObjectLiteralMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ implicitObjectLiteralMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
-        return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[5]; })), raw: raw};
       }
   implicitObjectLiteralMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
-        return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
+        return new CS.ObjectInitialiserMember(key, val).r(key.raw + ws0 + ':' + ws1 + val.raw).p(line, column);
       }
 
 
@@ -822,14 +822,19 @@ Assignable
   namedDestructuringMemberList
     = e:namedDestructuringMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ namedDestructuringMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
-        return {list: [e.member].concat(es.map(function(e){ return e[5].member; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[5]; })), raw: raw};
       }
   namedDestructuringMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:Assignable {
-        return {member: [key, val], raw: key.raw + ws0 + ':' + ws1 + val.raw};
+        var raw = key.raw + ws0 + ':' + ws1 + val.raw;
+        return new CS.ObjectInitialiserMember(key, val).r(raw).p(line, column);
+      }
+    / v:contextVar {
+        var key = new CS.String(v.memberName).r(v.memberName).p(line, column + 1)
+        return new CS.ObjectInitialiserMember(key, v).r(v.raw).p(line, column);
       }
 	/ !unassignable i:identifier {
-        return {member: [i, i], raw: i.raw};
+        return new CS.ObjectInitialiserMember(i, i).r(i.raw).p(line, column);
       }
 
 

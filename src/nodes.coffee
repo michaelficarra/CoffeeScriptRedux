@@ -209,7 +209,7 @@ Nodes::fold = (memo, fn) ->
   fn memo, this
 Nodes::instanceof = (ctors...) ->
   # not a fold for efficiency's sake
-  for ctor in ctors when @className is ctor::className
+  for ctor in ctors when @className in [ctor::className, (map ctor.superclasses, (c) -> c::className)...]
     return yes
   no
 #Node::r = (@raw) -> this
@@ -266,11 +266,10 @@ Class::initialise = ->
   # TODO: factor this out, as it's useful elsewhere: short object literal members, NFEs from assignee, etc.
   @name =
     if @nameAssignment?
-      # poor man's pattern matching
-      switch @nameAssignment.className
-        when Identifier::className
+      switch
+        when @nameAssignment.instanceof Identifier
           @nameAssignment.data
-        when MemberAccessOp::className, ProtoMemberAccessOp::className, SoakedMemberAccessOp::className, SoakedProtoMemberAccessOp::className
+        when @nameAssignment.instanceof StaticMemberAccessOps
           @nameAssignment.memberName
         else null
     else null

@@ -1,4 +1,4 @@
-{concatMap, map, union} = require './functional-helpers'
+{concatMap, foldl1, map, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -35,9 +35,13 @@ statementNodes = [
   JS.WithStatement
 ]
 
+undef = new JS.UnaryExpression 'void', new JS.Literal 0
+
 makeReturn = (node) ->
   if node.instanceof JS.BlockStatement
-    new JS.BlockStatement [node.body[...-1]..., new JS.ReturnStatement expr node.body[node.body.length - 1]]
+    new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
+  else if node.instanceof JS.SequenceExpression
+    new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
   else new JS.ReturnStatement expr node
 
 stmt = (e) ->
@@ -59,18 +63,27 @@ expr = (s) ->
   return s unless s?
   if not s.instanceof statementNodes... then s
   else if s.instanceof JS.BlockStatement
-    new JS.SequenceExpression s.body
+    switch s.body.length
+      when 0 then undef
+      when 1 then expr s.body[0]
+      else new JS.SequenceExpression map s.body, expr
   else if s.instanceof JS.BreakStatement
     # TODO: throw error?
   else if s.instanceof JS.ExpressionStatement
     s.expression
   else if s.instanceof JS.IfStatement
-    consequent = expr (s.consequent ? new JS.UnaryExpression 'void', new JS.Literal 0)
-    alternate = expr (s.alternate ? new JS.UnaryExpression 'void', new JS.Literal 0)
+    consequent = expr (s.consequent ? undef)
+    alternate = expr (s.alternate ? undef)
     new JS.ConditionalExpression s.test, consequent, alternate
   else
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"
+
+forceBlock = (node) ->
+  return node unless node?
+  node = stmt node
+  if node.instanceof JS.BlockStatement then node
+  else new JS.BlockStatement [node]
 
 
 class exports.Compiler
@@ -95,18 +108,36 @@ class exports.Compiler
     ]
     [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
     [CS.Conditional, ({condition, block, elseBlock, compile}) ->
-      new JS.IfStatement (expr condition), (stmt block), stmt elseBlock
+      new JS.IfStatement (expr condition), (forceBlock block), forceBlock elseBlock
     ]
 
     # data structures
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.Function, ({parameters, block}) ->
-      block = makeReturn stmt block
-      block = new JS.BlockStatement [block] unless block.instanceof JS.BlockStatement
-      new JS.FunctionExpression null, parameters, block
+      new JS.FunctionExpression null, parameters, forceBlock makeReturn block
     ]
 
     # more complex operations
+    [CS.AssignOp, ({assignee, expression, compile}) -> switch
+      when @assignee.instanceof CS.ArrayInitialiser
+        # TODO: cache expr
+        assignments = for m, i in @assignee.members
+          new CS.AssignOp m, new CS.DynamicMemberAccessOp @expression, new CS.Int i
+        return compile new CS.Undefined unless assignments.length
+        compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
+      when @assignee.instanceof CS.ObjectInitialiser
+        # TODO: cache expr
+        assignments = for m, i in @assignee.members
+          new CS.AssignOp m.expression, new CS.MemberAccessOp @expression, m.key.data
+        return compile new CS.Undefined unless assignments.length
+        compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
+      when @assignee.instanceof CS.Identifier, CS.MemberAccessOps
+        assignment = new JS.AssignmentExpression assignee, expression
+        assignment.operator = '='
+        assignment
+      else
+        throw new Error "compile: AssignOp: unassignable assignee: #{@assignee.className}"
+    ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
     [CS.NewOp, ({constructor, arguments: args}) -> new JS.NewExpression constructor, args]
     [CS.MemberAccessOp, ({expression}) ->
@@ -115,6 +146,11 @@ class exports.Compiler
         memberAccess.computed = yes
         memberAccess
       else new JS.MemberExpression expression, new JS.Identifier @memberName
+    ]
+    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) ->
+      memberAccess = new JS.MemberExpression expression, indexingExpr
+      memberAccess.computed = yes
+      memberAccess
     ]
     [CS.UnaryExistsOp, ({expression, inScope, compile}) ->
       nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression
@@ -165,7 +201,7 @@ class exports.Compiler
     [CS.Identifier, -> new JS.Identifier @data]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]
-    [CS.Undefined, -> new JS.UnaryExpression 'void', new JS.Literal 0]
+    [CS.Undefined, -> undef]
     [CS.This, -> new JS.ThisExpression]
   ]
 
@@ -213,7 +249,8 @@ class exports.Compiler
       fn.call this, children
 
     defaultRule = ->
-      throw new Error "compile: Non-exhaustive patterns in case: #{@className}"
+      # TODO: re-enable
+      #throw new Error "compile: Non-exhaustive patterns in case: #{@className}"
 
     (ast) ->
       rules = @rules

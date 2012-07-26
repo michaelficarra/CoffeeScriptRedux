@@ -1,5 +1,5 @@
 {concatMap, map, union} = require './functional-helpers'
-{usedAsExpression, envEnrichments} = require './helpers'
+{beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
 exports = module?.exports ? this
@@ -96,6 +96,14 @@ class exports.Compiler
       new JS.FunctionExpression null, parameters, block
     ]
 
+    [CS.UnaryExistsOp, ({expression, inScope, compile}) ->
+      nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression
+      if (expression.instanceof JS.Identifier) and expression.name not in inScope
+        typeofTest = new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', expression
+        new JS.BinaryExpression '&&', typeofTest, nullTest
+      else nullTest
+    ]
+
     [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]
     [CS.MultiplyOp, ({left, right}) -> new JS.BinaryExpression '*', (expr left), expr right]
     [CS.RemOp, ({left, right}) -> new JS.BinaryExpression '%', (expr left), expr right]
@@ -144,6 +152,10 @@ class exports.Compiler
     # contents; make the necessary declarations and generate the symbols inside
 
     walk = (fn, inScope = [], ancestry = []) ->
+
+      if (ancestry[0]?.instanceof CS.Function, CS.BoundFunction) and this is ancestry[0].block
+        inScope = union inScope, concatMap ancestry[0].parameters, beingDeclared
+
       ancestry.unshift this
       children = {}
 

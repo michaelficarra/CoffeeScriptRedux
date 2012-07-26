@@ -263,7 +263,7 @@ else
       process.exit 1
 
     if options.debug
-      console.error '### PREPROCESSED ###'
+      console.error '### PREPROCESSED CS-AST ###'
       console.error numberLines humanReadable input.trim()
 
     # parse
@@ -274,7 +274,7 @@ else
       process.exit 1
 
     if options.debug and options.optimise and result?
-      console.error '### PARSED ###'
+      console.error '### PARSED CS-AST ###'
       console.error inspect result.toJSON()
 
     # optimise
@@ -292,7 +292,7 @@ else
       else process.exit 1
 
     if options.debug and result?
-      console.error "### #{if options.optimise then 'OPTIMISED' else 'PARSED'} ###"
+      console.error "### #{if options.optimise then 'OPTIMISED' else 'PARSED'} CS-AST ###"
       console.error inspect result.toJSON()
 
     # cs code gen
@@ -320,7 +320,7 @@ else
       else process.exit 1
 
     if options.debug and result?
-      console.error "### COMPILED ###"
+      console.error "### COMPILED JS-AST ###"
       console.error inspect result.toJSON()
 
     # js code gen
@@ -334,11 +334,17 @@ else
           hexadecimal: yes
           quotes: 'auto'
           parentheses: no
-      if options.minify and result?
-        result = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse result
     catch e
       console.error (e.stack || e.message)
       process.exit 1
+
+    # minification
+    if options.minify and result?
+      # TODO: uglifyjs options: --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
+      try result = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse result
+      catch e
+        console.error (e.stack || e.message)
+        process.exit 1
 
     # --js
     if options.js

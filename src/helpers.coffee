@@ -41,6 +41,8 @@ usedAsExpression_ = (ancestors) ->
   usedAsExpression_.call node, ancestors
 
 # environment enrichments that occur when this node is evaluated
+# Note: these are enrichments of the *surrounding* environment; while function
+# parameters do enrich *an* environment, that environment is newly created
 envEnrichments_ = (inScope = []) ->
   possibilities = switch
     when @instanceof CS.AssignOp then nub beingDeclared @assignee

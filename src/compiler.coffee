@@ -5,16 +5,24 @@ JS = require './js-nodes'
 exports = module?.exports ? this
 
 
+jsReserved = [
+  'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do',
+  'else', 'enum', 'export', 'extends', 'false', 'finally', 'for', 'function', 'if', 'implements',
+  'import', 'in', 'instanceof', 'interface', 'let', 'native', 'new', 'null', 'package', 'private',
+  'protected', 'public', 'return', 'static', 'super', 'switch', 'this', 'throw', 'true', 'try',
+  'typeof', 'var', 'void', 'while', 'with', 'yield'
+]
+
 statementNodes = [
   JS.BlockStatement
   JS.BreakStatement
   JS.ContinueStatement
-  JS.DoWhileStatement
   JS.DebuggerStatement
+  JS.DoWhileStatement
   JS.EmptyStatement
   JS.ExpressionStatement
-  JS.ForStatement
   JS.ForInStatement
+  JS.ForStatement
   JS.FunctionDeclaration
   JS.IfStatement
   JS.LabeledStatement
@@ -66,6 +74,7 @@ expr = (s) ->
 class exports.Compiler
 
   defaultRules = [
+    # control flow structures
     [CS.Program, ({block}) ->
       return new JS.Program [] unless block?
       block = stmt block
@@ -86,9 +95,8 @@ class exports.Compiler
       elseBlock ?= compile new CS.Undefined
       new JS.ConditionalExpression (expr condition), (expr block), expr elseBlock
     ]
-    [CS.FunctionApplication, ({function: fn, arguments: args}) ->
-      new JS.CallExpression (expr fn), (map args, expr)
-    ]
+
+    # data structures
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.Function, ({parameters, block}) ->
       block = makeReturn stmt block
@@ -96,6 +104,15 @@ class exports.Compiler
       new JS.FunctionExpression null, parameters, block
     ]
 
+    # more complex operations
+    [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
+    [CS.MemberAccessOp, ({expression}) ->
+      if @memberName in jsReserved
+        memberAccess = new JS.MemberExpression expression, new JS.Literal @memberName
+        memberAccess.computed = yes
+        memberAccess
+      else new JS.MemberExpression expression, new JS.Identifier @memberName
+    ]
     [CS.UnaryExistsOp, ({expression, inScope, compile}) ->
       nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression
       if (expression.instanceof JS.Identifier) and expression.name not in inScope
@@ -104,6 +121,7 @@ class exports.Compiler
       else nullTest
     ]
 
+    # straightforward operators
     [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]
     [CS.MultiplyOp, ({left, right}) -> new JS.BinaryExpression '*', (expr left), expr right]
     [CS.RemOp, ({left, right}) -> new JS.BinaryExpression '%', (expr left), expr right]
@@ -130,6 +148,7 @@ class exports.Compiler
     [CS.SignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>', (expr left), expr right]
     [CS.UnsignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>>', (expr left), expr right]
 
+    # primitives
     [CS.Identifier, -> new JS.Identifier @data]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]

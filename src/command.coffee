@@ -279,8 +279,7 @@ else
 
     # optimise
     if options.optimise and result?
-      optimiser = new Optimiser
-      try result = optimiser.optimise result
+      try result = Optimiser.optimise result
       catch e
         console.error (e.stack || e.message)
         process.exit 1
@@ -308,9 +307,7 @@ else
       else process.exit 1
 
     # compile
-    try
-      compiler = new Compiler
-      result = compiler.compile result
+    try result = Compiler.compile result
     catch e
       console.error (e.stack || e.message)
       process.exit 1

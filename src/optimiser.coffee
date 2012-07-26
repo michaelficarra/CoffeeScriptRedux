@@ -144,6 +144,8 @@ mayHaveSideEffects =
 
 class exports.Optimiser
 
+  @optimise = => (new this).optimise arguments...
+
   # expose helpers so people have an easy time writing their own rules
   @isTruthy = isTruthy
   @isFalsey = isFalsey
@@ -243,19 +245,6 @@ class exports.Optimiser
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
       new CS.SeqOp (declarationsFor this, inScope), retVal.g()
     ]
-
-    # DoOp -> FunctionApplication
-    # TODO: move this to compiler internals
-    #[CS.DoOp, ->
-    #  args = []
-    #  if @expression.instanceof CS.Function
-    #    args = for param in @expression.parameters
-    #      switch
-    #        when param.instanceof CS.AssignOp then param.expression
-    #        when param.instanceof CS.Identifier, CS.MemberAccessOp then param
-    #        else (new CS.Undefined).g()
-    #  (new CS.FunctionApplication @expression, args).g().p @line, @column
-    #]
 
     # Arrays in statement position might as well be Seqs
     [CS.ArrayInitialiser, (inScope, ancestors) ->

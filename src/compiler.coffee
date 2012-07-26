@@ -75,6 +75,8 @@ expr = (s) ->
 
 class exports.Compiler
 
+  @compile = => (new this).compile arguments...
+
   defaultRules = [
     # control flow structures
     [CS.Program, ({block}) ->

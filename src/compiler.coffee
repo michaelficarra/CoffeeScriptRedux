@@ -106,6 +106,7 @@ class exports.Compiler
 
     # more complex operations
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
+    [CS.NewOp, ({constructor, arguments: args}) -> new JS.NewExpression constructor, args]
     [CS.MemberAccessOp, ({expression}) ->
       if @memberName in jsReserved
         memberAccess = new JS.MemberExpression expression, new JS.Literal @memberName

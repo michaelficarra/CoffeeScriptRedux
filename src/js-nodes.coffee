@@ -75,7 +75,7 @@ for [node, params] in nodeData
 {
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
-  UnaryExpression
+  UnaryExpression, NewExpression
 } = exports
 
 ## Nodes that contain primitive properties
@@ -104,3 +104,4 @@ handleLists FunctionExpression, ['params']
 handleLists CallExpression, ['arguments']
 handleLists SequenceExpression, ['expressions']
 handleLists ArrayExpression, ['elements']
+handleLists NewExpression, ['arguments']

@@ -4,8 +4,6 @@ exports = module?.exports ? this
 # TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
 # TODO: make sure all the type signatures are correct
 
-allNodes = {}
-
 createNodes = (subclasses, superclasses = []) ->
   for own className, specs of subclasses then do (className) ->
 
@@ -31,9 +29,8 @@ createNodes = (subclasses, superclasses = []) ->
       @superclasses = superclasses
     if specs?[0]? then klass::childNodes = specs[0]
 
-    allNodes[className] = klass
     if isCategory then createNodes specs[1], [klass, superclasses...]
-    else exports[className] = klass
+    exports[className] = klass
 
   return
 
@@ -153,7 +150,7 @@ createNodes
     ]
     Identifiers: [ ['data'],
       Identifier: null # :: string -> Identifier
-      GenSym: [['data', 'ns']] # :: string -> string -> GenSym
+      GenSym: null # :: string -> string -> GenSym
     ]
     Null: null # :: Null
     Primitives: [ ['data'],
@@ -182,12 +179,10 @@ createNodes
 {
   Nodes, Primitives, CompoundAssignOp, StaticMemberAccessOps, Range,
   ArrayInitialiser, ObjectInitialiser, NegatedConditional, Conditional,
-  Identifier, ForOf, Functions, While, GenSym, Class, Block, NewOp,
+  Identifier, ForOf, Functions, While, Class, Block, NewOp,
   FunctionApplications, RegExps, RegExp, HeregExp, Super, Slice, Switch,
   Identifiers, SwitchCase
-} = allNodes
-
-exports.Nodes = Nodes
+} = exports
 
 
 Nodes.fromJSON = (json) -> exports[json.type].fromJSON json
@@ -200,6 +195,7 @@ Nodes::toJSON = ->
     else
       json[child] = @[child]?.toJSON()
   json
+Nodes::toString = -> require('util').inspect @toJSON(), no, 9e9, yes
 Nodes::fold = (memo, fn) ->
   for child in @childNodes
     if child in @listMembers
@@ -209,7 +205,8 @@ Nodes::fold = (memo, fn) ->
   fn memo, this
 Nodes::instanceof = (ctors...) ->
   # not a fold for efficiency's sake
-  for ctor in ctors when @className in [ctor::className, (map ctor.superclasses, (c) -> c::className)...]
+  superclasses = map @constructor.superclasses, (c) -> c::className
+  for ctor in ctors when ctor::className in [@className, superclasses...]
     return yes
   no
 #Node::r = (@raw) -> this
@@ -273,8 +270,6 @@ Class::initialise = ->
           @nameAssignment.memberName
         else null
     else null
-
-GenSym::initialise = (_, @ns = '') ->
 
 ObjectInitialiser::keys = -> map @members, (m) -> m.key
 ObjectInitialiser::vals = -> map @members, (m) -> m.expression

@@ -1,4 +1,4 @@
-{concatMap, foldl1, map, union} = require './functional-helpers'
+{any, concatMap, difference, foldl1, map, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -35,6 +35,16 @@ statementNodes = [
   JS.WithStatement
 ]
 
+genSym = do ->
+  genSymCounters = {}
+  format = (pre, n) -> "#{pre}$#{n}"
+  (pre) ->
+    for own existingPre, value of genSymCounters when pre is existingPre
+      ++genSymCounters[pre]
+      return format pre, value
+    genSymCounters[pre] = 1
+    format pre, 0
+
 undef = new JS.UnaryExpression 'void', new JS.Literal 0
 
 makeReturn = (node) ->
@@ -43,6 +53,13 @@ makeReturn = (node) ->
   else if node.instanceof JS.SequenceExpression
     new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
   else new JS.ReturnStatement expr node
+
+# TODO: something like Optimiser.mayHaveSideEffects
+needsCaching = (node) ->
+  (envEnrichments node, []).length > 0 or
+  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp) or
+  (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
+  (any node.listMembers, (n) -> any node[n], needsCaching)
 
 stmt = (e) ->
   return e unless e?
@@ -92,12 +109,19 @@ class exports.Compiler
 
   defaultRules = [
     # control flow structures
-    [CS.Program, ({block}) ->
+    [CS.Program, ({block, inScope}) ->
       return new JS.Program [] unless block?
       block = stmt block
       block =
         if block.instanceof JS.BlockStatement then block.body
         else [block]
+      # declare everything
+      if inScope.length > 0
+        declarations = for v in inScope
+          new JS.VariableDeclarator new JS.Identifier v
+        declarator = new JS.VariableDeclaration declarations
+        declarator.kind = 'var'
+        block.unshift declarator
       new JS.Program block
     ]
     [CS.Block, ({statements}) ->
@@ -120,18 +144,26 @@ class exports.Compiler
     # more complex operations
     [CS.AssignOp, ({assignee, expression, compile}) -> switch
       when @assignee.instanceof CS.ArrayInitialiser
-        # TODO: cache expr
-        assignments = for m, i in @assignee.members
-          new CS.AssignOp m, new CS.DynamicMemberAccessOp @expression, new CS.Int i
-        return compile new CS.Undefined unless assignments.length
+        assignments = []
+        e = @expression
+        if needsCaching @expression
+          e = new CS.GenSym genSym 'cache'
+          assignments.push new CS.AssignOp e, @expression
+        for m, i in @assignee.members
+          assignments.push new CS.AssignOp m, new CS.DynamicMemberAccessOp e, new CS.Int i
+        return undef unless assignments.length
         compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
       when @assignee.instanceof CS.ObjectInitialiser
-        # TODO: cache expr
-        assignments = for m, i in @assignee.members
-          new CS.AssignOp m.expression, new CS.MemberAccessOp @expression, m.key.data
-        return compile new CS.Undefined unless assignments.length
+        assignments = []
+        e = @expression
+        if needsCaching @expression
+          e = new CS.GenSym genSym 'cache'
+          assignments.push new CS.AssignOp e, @expression
+        for m, i in @assignee.members
+          assignments.push new CS.AssignOp m.expression, new CS.MemberAccessOp e, m.key.data
+        return undef unless assignments.length
         compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
-      when @assignee.instanceof CS.Identifier, CS.MemberAccessOps
+      when @assignee.instanceof CS.Identifier, CS.GenSym, CS.MemberAccessOps
         assignment = new JS.AssignmentExpression assignee, expression
         assignment.operator = '='
         assignment
@@ -198,7 +230,7 @@ class exports.Compiler
     [CS.UnsignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>>', (expr left), expr right]
 
     # primitives
-    [CS.Identifier, -> new JS.Identifier @data]
+    [CS.Identifier, CS.GenSym, -> new JS.Identifier @data]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]
     [CS.Undefined, -> undef]

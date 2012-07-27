@@ -75,7 +75,7 @@ for [node, params] in nodeData
 {
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
-  UnaryExpression, NewExpression
+  UnaryExpression, NewExpression, VariableDeclaration
 } = exports
 
 ## Nodes that contain primitive properties
@@ -88,9 +88,9 @@ handlePrimitives = (ctor, primitives) ->
       json[primitive] = @[primitive]
     json
 
-handlePrimitives Literal, ['value']
-handlePrimitives Identifier, ['name']
 handlePrimitives BinaryExpression, ['operator']
+handlePrimitives Identifier, ['name']
+handlePrimitives Literal, ['value']
 handlePrimitives UnaryExpression, ['operator']
 
 
@@ -98,10 +98,11 @@ handlePrimitives UnaryExpression, ['operator']
 
 handleLists = (ctor, listProps) -> ctor::listMembers = listProps
 
-handleLists Program, ['body']
-handleLists BlockStatement, ['body']
-handleLists FunctionExpression, ['params']
-handleLists CallExpression, ['arguments']
-handleLists SequenceExpression, ['expressions']
 handleLists ArrayExpression, ['elements']
+handleLists BlockStatement, ['body']
+handleLists CallExpression, ['arguments']
+handleLists FunctionExpression, ['params']
 handleLists NewExpression, ['arguments']
+handleLists Program, ['body']
+handleLists SequenceExpression, ['expressions']
+handleLists VariableDeclaration, ['declarations']

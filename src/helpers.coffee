@@ -5,7 +5,7 @@ CS = require './nodes'
 # being used as the target of an assignment
 @beingDeclared = beingDeclared = (assignment) -> switch
   when not assignment? then []
-  when assignment.instanceof CS.Identifier then [assignment.data]
+  when assignment.instanceof CS.Identifier, CS.GenSym then [assignment.data]
   when assignment.instanceof CS.AssignOp then beingDeclared assignment.assignee
   when assignment.instanceof CS.ArrayInitialiser then concatMap assignment.members, beingDeclared
   when assignment.instanceof CS.ObjectInitialiser then concatMap assignment.vals(), beingDeclared

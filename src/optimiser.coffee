@@ -130,7 +130,8 @@ mayHaveSideEffects =
     ]
     # category: AssignOp
     [[CS.AssignOp, CS.ClassProtoAssignOp, CS.CompoundAssignOp, CS.ExistsAssignOp], (inScope) ->
-      (mayHaveSideEffects @expression, inScope) or (beingDeclared @assignee).length > 0
+      #(mayHaveSideEffects @expression, inScope) or (beingDeclared @assignee).length > 0
+      yes
     ]
     # category: Primitive
     [[CS.Bool, CS.Float, CS.Identifier, CS.Int, CS.JavaScript, CS.String], -> no]

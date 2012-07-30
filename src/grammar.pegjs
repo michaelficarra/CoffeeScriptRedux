@@ -801,8 +801,8 @@ null = NULL { return (new CS.Null).r('null').p(line, column); }
 
 unassignable = ("arguments" / "eval") !identifierPart
 Assignable
-  = !unassignable i:identifier { return i; }
-  / memberAccess
+  = memberAccess
+  / !unassignable i:identifier { return i; }
   / contextVar
   / "[" ws0:_ args:positionalDestructuringList? ws1:_ "]" {
       var raw = "[" + ws0 + args.raw + ws1 + "]";

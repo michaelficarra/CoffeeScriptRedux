@@ -258,7 +258,7 @@ else
 
     input = input.toString()
     # strip UTF BOM
-    if 0xFEFF is input.toString().charCodeAt 0 then input = input[1..]
+    if 0xFEFF is input.charCodeAt 0 then input = input[1..]
 
     # preprocess
     try input = Preprocessor.processSync input

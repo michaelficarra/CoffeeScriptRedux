@@ -17,6 +17,7 @@ createNode = (type, props) ->
     no
   toJSON: ->
     json = {@type}
+    json.comments = @comments if @comments?
     for child in @childNodes
       if child in @listMembers
         json[child] = (p.toJSON() for p in @[child])

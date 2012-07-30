@@ -330,6 +330,7 @@ else
     # js code gen
     try
       result = escodegen.generate result,
+        comment: yes
         format:
           indent:
             style: '  '

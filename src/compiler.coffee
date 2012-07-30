@@ -135,6 +135,19 @@ class exports.Compiler
     [CS.Conditional, ({condition, block, elseBlock, compile}) ->
       new JS.IfStatement (expr condition), (forceBlock block), forceBlock elseBlock
     ]
+    [CS.ForOf, ({keyAssignee, valAssignee, expression, filterExpr, block, compile}) ->
+      # TODO: cache expression if isOwn
+      block = forceBlock block
+      if @filterExpr?
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
+      if @valAssignee?
+        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, expression, keyAssignee
+      if @isOwn
+        hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
+        hopTest = new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), [expression]
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', hopTest), new JS.ContinueStatement
+      new JS.ForInStatement keyAssignee, expression, block
+    ]
 
     # data structures
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
@@ -167,9 +180,7 @@ class exports.Compiler
         return undef unless assignments.length
         compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
       when @assignee.instanceof CS.Identifier, CS.GenSym, CS.MemberAccessOps
-        assignment = new JS.AssignmentExpression assignee, expression
-        assignment.operator = '='
-        assignment
+        new JS.AssignmentExpression '=', assignee, expr expression
       else
         throw new Error "compile: AssignOp: unassignable assignee: #{@assignee.className}"
     ]
@@ -206,6 +217,7 @@ class exports.Compiler
       compile new CS.FunctionApplication @expression, args
     ]
     [CS.Return, ({expression: e}) -> new JS.ReturnStatement expr e]
+    [CS.Continue, -> new JS.ContinueStatement]
 
     # straightforward operators
     [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]
@@ -235,6 +247,7 @@ class exports.Compiler
     [CS.UnsignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>>', (expr left), expr right]
 
     [CS.PreIncrementOp, ({expression: e}) -> new JS.UpdateExpression '++', yes, expr e]
+    [CS.LogicalNotOp, ({expression: e}) -> new JS.UnaryExpression '!', expr e]
 
     # primitives
     [CS.Identifier, CS.GenSym, -> new JS.Identifier @data]

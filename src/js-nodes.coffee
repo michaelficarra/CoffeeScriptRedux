@@ -25,7 +25,7 @@ createNode = (type, props) ->
     json
 
 nodeData = [
-  ['AssignmentExpression' , ['left', 'right']]
+  ['AssignmentExpression' , ['operator', 'left', 'right']]
   ['ArrayExpression'      , ['elements']]
   ['BlockStatement'       , ['body']]
   ['BinaryExpression'     , ['operator', 'left', 'right']]
@@ -76,7 +76,7 @@ for [node, params] in nodeData
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
-  MemberExpression, UpdateExpression
+  MemberExpression, UpdateExpression, AssignmentExpression
 } = exports
 
 ## Nodes that contain primitive properties
@@ -89,6 +89,7 @@ handlePrimitives = (ctor, primitives) ->
       json[primitive] = @[primitive]
     json
 
+handlePrimitives AssignmentExpression, ['operator']
 handlePrimitives BinaryExpression, ['operator']
 handlePrimitives Identifier, ['name']
 handlePrimitives Literal, ['value']

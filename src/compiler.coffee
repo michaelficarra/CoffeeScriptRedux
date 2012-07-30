@@ -139,7 +139,7 @@ class exports.Compiler
     # data structures
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
-    [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr value]
+    [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
     [CS.Function, ({parameters, block}) ->
       new JS.FunctionExpression null, parameters, forceBlock makeReturn block
     ]

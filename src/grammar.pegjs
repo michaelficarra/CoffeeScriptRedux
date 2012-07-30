@@ -658,7 +658,7 @@ objectLiteral
         return new CS.ObjectInitialiserMember(v, v).r(v.raw).p(line, column);
       }
   ObjectInitialiserKeys
-    = i:identifierName { return new CS.String(i).r(i).p(line, column); }
+    = i:identifierName { return new CS.Identifier(i).r(i).p(line, column); }
     / string
     / Numbers
 // TODO: complete support for implicit objects

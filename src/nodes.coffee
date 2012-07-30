@@ -179,7 +179,7 @@ createNodes
 {
   Nodes, Primitives, CompoundAssignOp, StaticMemberAccessOps, Range,
   ArrayInitialiser, ObjectInitialiser, NegatedConditional, Conditional,
-  Identifier, ForOf, Functions, While, Class, Block, NewOp,
+  Identifier, ForOf, Functions, While, Class, Block, NewOp, Bool,
   FunctionApplications, RegExps, RegExp, HeregExp, Super, Slice, Switch,
   Identifiers, SwitchCase
 } = exports

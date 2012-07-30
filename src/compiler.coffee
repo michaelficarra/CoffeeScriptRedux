@@ -93,7 +93,7 @@ expr = (s) ->
     consequent = expr (s.consequent ? undef)
     alternate = expr (s.alternate ? undef)
     new JS.ConditionalExpression s.test, consequent, alternate
-  else if s.instanceof JS.ForInStatement
+  else if s.instanceof JS.ForInStatement, JS.WhileStatement
     accum = new JS.Identifier genSym 'accum'
     s.body = forceBlock s.body
     push = new JS.MemberExpression no, accum, new JS.Identifier 'push'
@@ -161,8 +161,9 @@ class exports.Compiler
         hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
         hopTest = new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), [expression]
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', hopTest), new JS.ContinueStatement
-      new JS.ForInStatement keyAssignee, expression, block
+      new JS.ForInStatement keyAssignee, (expr expression), block
     ]
+    [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
 
     # data structures
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]

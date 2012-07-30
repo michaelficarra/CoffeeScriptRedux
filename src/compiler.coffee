@@ -93,6 +93,15 @@ expr = (s) ->
     consequent = expr (s.consequent ? undef)
     alternate = expr (s.alternate ? undef)
     new JS.ConditionalExpression s.test, consequent, alternate
+  else if s.instanceof JS.ForInStatement
+    accum = new JS.Identifier genSym 'accum'
+    console.log s.toJSON()
+    s.body = forceBlock s.body
+    push = new JS.MemberExpression no, accum, new JS.Identifier 'push'
+    s.body.body[s.body.body.length - 1] = stmt new JS.CallExpression push, [expr s.body.body[-1..][0]]
+    block = new JS.BlockStatement [s, new JS.ReturnStatement accum]
+    iife = new JS.FunctionExpression null, [accum], block
+    new JS.CallExpression iife, [new JS.ArrayExpression []]
   else
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"

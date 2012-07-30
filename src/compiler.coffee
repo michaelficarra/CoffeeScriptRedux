@@ -175,6 +175,13 @@ class exports.Compiler
     ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
     [CS.NewOp, ({constructor, arguments: args}) -> new JS.NewExpression constructor, args]
+    [CS.ConcatOp, ({left, right, ancestry}) ->
+      plusOp = new JS.BinaryExpression '+', left, right
+      unless ancestry[0].instanceof CS.ConcatOp
+        leftmost = plusOp
+        leftmost = leftmost.left while leftmost.left?.left
+        leftmost.left = new JS.BinaryExpression '+', (new JS.Literal ''), leftmost.left
+      plusOp
     ]
     [CS.MemberAccessOp, ({expression}) ->
       if @memberName in jsReserved then new JS.MemberExpression yes, expression, new JS.Literal @memberName

@@ -175,18 +175,12 @@ class exports.Compiler
     ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
     [CS.NewOp, ({constructor, arguments: args}) -> new JS.NewExpression constructor, args]
+    ]
     [CS.MemberAccessOp, ({expression}) ->
-      if @memberName in jsReserved
-        memberAccess = new JS.MemberExpression expression, new JS.Literal @memberName
-        memberAccess.computed = yes
-        memberAccess
-      else new JS.MemberExpression expression, new JS.Identifier @memberName
+      if @memberName in jsReserved then new JS.MemberExpression yes, expression, new JS.Literal @memberName
+      else new JS.MemberExpression no, expression, new JS.Identifier @memberName
     ]
-    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) ->
-      memberAccess = new JS.MemberExpression expression, indexingExpr
-      memberAccess.computed = yes
-      memberAccess
-    ]
+    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> new JS.MemberExpression yes, expression, indexingExpr]
     [CS.UnaryExistsOp, ({expression, inScope, compile}) ->
       nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression
       if (expression.instanceof JS.Identifier) and expression.name not in inScope
@@ -204,7 +198,7 @@ class exports.Compiler
             else (new CS.Undefined).g()
       compile new CS.FunctionApplication @expression, args
     ]
-    [CS.Return, ({expr: e}) -> new JS.ReturnStatement expr e]
+    [CS.Return, ({expression: e}) -> new JS.ReturnStatement expr e]
 
     # straightforward operators
     [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]
@@ -233,11 +227,7 @@ class exports.Compiler
     [CS.SignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>', (expr left), expr right]
     [CS.UnsignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>>', (expr left), expr right]
 
-    [CS.PreIncrementOp, ({expr: e}) ->
-      update = new JS.UpdateExpression expr e
-      update.prefix = yes
-      update
-    ]
+    [CS.PreIncrementOp, ({expression: e}) -> new JS.UpdateExpression '++', yes, expr e]
 
     # primitives
     [CS.Identifier, CS.GenSym, -> new JS.Identifier @data]

@@ -1,4 +1,4 @@
-{concatMap, difference, foldl, nub} = require './functional-helpers'
+{concat, concatMap, difference, foldl, nub} = require './functional-helpers'
 CS = require './nodes'
 
 # these are the identifiers that need to be declared when the given value is

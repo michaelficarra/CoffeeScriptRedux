@@ -48,6 +48,7 @@ genSym = do ->
 undef = new JS.UnaryExpression 'void', new JS.Literal 0
 
 makeReturn = (node) ->
+  return new JS.ReturnStatement undef unless node?
   if node.instanceof JS.BlockStatement
     new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
   else if node.instanceof JS.SequenceExpression
@@ -137,6 +138,8 @@ class exports.Compiler
 
     # data structures
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
+    [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
+    [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr value]
     [CS.Function, ({parameters, block}) ->
       new JS.FunctionExpression null, parameters, forceBlock makeReturn block
     ]
@@ -201,6 +204,7 @@ class exports.Compiler
             else (new CS.Undefined).g()
       compile new CS.FunctionApplication @expression, args
     ]
+    [CS.Return, ({expr: e}) -> new JS.ReturnStatement expr e]
 
     # straightforward operators
     [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]
@@ -228,6 +232,12 @@ class exports.Compiler
     [CS.LeftShiftOp , ({left, right}) -> new JS.BinaryExpression '<<', (expr left), expr right]
     [CS.SignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>', (expr left), expr right]
     [CS.UnsignedRightShiftOp , ({left, right}) -> new JS.BinaryExpression '>>>', (expr left), expr right]
+
+    [CS.PreIncrementOp, ({expr: e}) ->
+      update = new JS.UpdateExpression expr e
+      update.prefix = yes
+      update
+    ]
 
     # primitives
     [CS.Identifier, CS.GenSym, -> new JS.Identifier @data]
@@ -281,8 +291,7 @@ class exports.Compiler
       fn.call this, children
 
     defaultRule = ->
-      # TODO: re-enable
-      #throw new Error "compile: Non-exhaustive patterns in case: #{@className}"
+      throw new Error "compile: Non-exhaustive patterns in case: #{@className}"
 
     (ast) ->
       rules = @rules

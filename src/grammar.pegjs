@@ -188,7 +188,7 @@ postfixControlFlowOp
           filter = maybeFilter ? maybeFilter[3] : null;
       return 0,
         { type: 'for-of'
-        , val: val, key: key, list: list, step: step, filter: filter
+        , own: own, key: key, val: val, obj: obj, filter: filter
         , raw: 'for' + ws0 + (own ? 'own' + maybeOwn[1] : '') + key.raw + ws1 +
           (val ? maybeVal[0] + maybeVal[1] + val.raw + maybeVal[3] : '') + 'of' + ws2 + obj.raw +
           (filter ? maybeFilter[0] + 'when' + maybeFilter[2] + filter.raw : '')

@@ -241,10 +241,27 @@ class exports.Optimiser
     ]
 
     # for-own-of over empty object produces an empty list
-    [CS.ForOf, ->
+    [CS.ForOf, (inScope, ancestors) ->
       return this unless (@expression.instanceof CS.ObjectInitialiser) and @expression.isOwn and @expression.members.length is 0
       retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
       new CS.SeqOp (declarationsFor this, inScope), retVal.g()
+    ]
+
+    # for-in or for-of with falsey filter
+    [CS.ForIn, CS.ForOf, (inScope, ancestors) ->
+      return this unless isFalsey @filterExpr
+      retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
+      new CS.SeqOp (declarationsFor this, inScope), retVal.g()
+    ]
+
+    # for-in or for-of with truthy filter
+    [CS.ForIn, ->
+      return this unless isTruthy @filterExpr
+      new CS.ForIn @valAssignee, @keyAssignee, @expression, @step, null, @block
+    ]
+    [CS.ForOf, ->
+      return this unless isTruthy @filterExpr
+      new CS.ForOf @isOwn, @keyAssignee, @valAssignee, @expression, null, @block
     ]
 
     # Arrays in statement position might as well be Seqs

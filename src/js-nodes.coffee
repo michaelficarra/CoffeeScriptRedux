@@ -43,7 +43,7 @@ nodeData = [
   ['ForInStatement'       , ['left', 'right', 'body']]
   ['FunctionDeclaration'  , ['id', 'params', 'body']]
   ['FunctionExpression'   , ['id', 'params', 'body']]
-  ['GenSym'               , ['id']]
+  ['GenSym'               , ['name']]
   ['Identifier'           , ['name']]
   ['IfStatement'          , ['test', 'consequent', 'alternate']]
   ['Literal'              , ['value']]
@@ -77,7 +77,8 @@ for [node, params] in nodeData
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
-  MemberExpression, UpdateExpression, AssignmentExpression
+  MemberExpression, UpdateExpression, AssignmentExpression, GenSym,
+  FunctionDeclaration
 } = exports
 
 ## Nodes that contain primitive properties
@@ -92,6 +93,9 @@ handlePrimitives = (ctor, primitives) ->
 
 handlePrimitives AssignmentExpression, ['operator']
 handlePrimitives BinaryExpression, ['operator']
+handlePrimitives FunctionDeclaration, ['id']
+handlePrimitives FunctionExpression, ['id']
+handlePrimitives GenSym, ['name']
 handlePrimitives Identifier, ['name']
 handlePrimitives Literal, ['value']
 handlePrimitives MemberExpression, ['computed']
@@ -106,6 +110,7 @@ handleLists = (ctor, listProps) -> ctor::listMembers = listProps
 handleLists ArrayExpression, ['elements']
 handleLists BlockStatement, ['body']
 handleLists CallExpression, ['arguments']
+handleLists FunctionDeclaration, ['params']
 handleLists FunctionExpression, ['params']
 handleLists NewExpression, ['arguments']
 handleLists ObjectExpression, ['properties']

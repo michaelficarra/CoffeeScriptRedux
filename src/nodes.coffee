@@ -195,7 +195,6 @@ Nodes::toJSON = ->
     else
       json[child] = @[child]?.toJSON()
   json
-Nodes::toString = -> require('util').inspect @toJSON(), no, 9e9, yes
 Nodes::fold = (memo, fn) ->
   for child in @childNodes
     if child in @listMembers

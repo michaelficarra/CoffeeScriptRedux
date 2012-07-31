@@ -35,6 +35,28 @@ statementNodes = [
   JS.WithStatement
 ]
 
+
+helpers =
+  isOwn: ->
+    hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
+    params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
+    functionBody = forceBlock makeReturn new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), args
+    new JS.FunctionDeclaration (new JS.Identifier 'isOwn'), params, functionBody
+
+enabledHelpers = []
+for h, fn of helpers
+  helpers[h] = do (h, fn) -> ->
+    enabledHelpers.push fn()
+    (helpers[h] = -> new JS.CallExpression (new JS.Identifier "__#{h}"), arguments).apply this, arguments
+
+inlineHelpers =
+  undef: -> new JS.UnaryExpression 'void', new JS.Literal 0
+
+for h, fn of inlineHelpers
+  helpers[h] = fn
+  helpers[h].inline = yes
+
+
 genSym = do ->
   genSymCounters = {}
   format = (pre, n) -> "#{pre}$#{n}"
@@ -42,13 +64,10 @@ genSym = do ->
     for own existingPre, value of genSymCounters when pre is existingPre
       ++genSymCounters[pre]
       return format pre, value
-    genSymCounters[pre] = 1
-    format pre, 0
-
-undef = new JS.UnaryExpression 'void', new JS.Literal 0
+    format pre, genSymCounters[pre] = 0
 
 makeReturn = (node) ->
-  return new JS.ReturnStatement undef unless node?
+  return new JS.ReturnStatement helpers.undef() unless node?
   if node.instanceof JS.BlockStatement
     new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
   else if node.instanceof JS.SequenceExpression
@@ -82,7 +101,7 @@ expr = (s) ->
   if not s.instanceof statementNodes... then s
   else if s.instanceof JS.BlockStatement
     switch s.body.length
-      when 0 then undef
+      when 0 then helpers.undef()
       when 1 then expr s.body[0]
       else new JS.SequenceExpression map s.body, expr
   else if s.instanceof JS.BreakStatement
@@ -90,8 +109,8 @@ expr = (s) ->
   else if s.instanceof JS.ExpressionStatement
     s.expression
   else if s.instanceof JS.IfStatement
-    consequent = expr (s.consequent ? undef)
-    alternate = expr (s.alternate ? undef)
+    consequent = expr (s.consequent ? helpers.undef())
+    alternate = expr (s.alternate ? helpers.undef())
     new JS.ConditionalExpression s.test, consequent, alternate
   else if s.instanceof JS.ForInStatement, JS.WhileStatement
     accum = new JS.Identifier genSym 'accum'
@@ -131,6 +150,8 @@ class exports.Compiler
         declarator = new JS.VariableDeclaration declarations
         declarator.kind = 'var'
         block.unshift declarator
+      # helpers
+      [].push.apply block, enabledHelpers
       # TODO: respect bare option
       block = [stmt new JS.CallExpression (new JS.FunctionExpression null, [], new JS.BlockStatement block), []]
       program = new JS.Program block
@@ -158,9 +179,7 @@ class exports.Compiler
       if @valAssignee?
         block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, expression, keyAssignee
       if @isOwn
-        hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
-        hopTest = new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), [expression]
-        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', hopTest), new JS.ContinueStatement
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn(expression, keyAssignee)), new JS.ContinueStatement
       new JS.ForInStatement keyAssignee, (expr expression), block
     ]
     [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
@@ -183,7 +202,7 @@ class exports.Compiler
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m, new CS.DynamicMemberAccessOp e, new CS.Int i
-        return undef unless assignments.length
+        return helpers.undef() unless assignments.length
         compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
       when @assignee.instanceof CS.ObjectInitialiser
         assignments = []
@@ -193,7 +212,7 @@ class exports.Compiler
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m.expression, new CS.MemberAccessOp e, m.key.data
-        return undef unless assignments.length
+        return helpers.undef() unless assignments.length
         compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
       when @assignee.instanceof CS.Identifier, CS.GenSym, CS.MemberAccessOps
         new JS.AssignmentExpression '=', assignee, expr expression
@@ -229,7 +248,7 @@ class exports.Compiler
           switch
             when param.instanceof CS.AssignOp then param.expression
             when param.instanceof CS.Identifier, CS.MemberAccessOp then param
-            else (new CS.Undefined).g()
+            else helpers.undef()
       compile new CS.FunctionApplication @expression, args
     ]
     [CS.Return, ({expression: e}) -> new JS.ReturnStatement expr e]
@@ -269,7 +288,7 @@ class exports.Compiler
     [CS.Identifier, CS.GenSym, -> new JS.Identifier @data]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]
-    [CS.Undefined, -> undef]
+    [CS.Undefined, -> helpers.undef()]
     [CS.This, -> new JS.ThisExpression]
   ]
 

@@ -1,4 +1,4 @@
-{any, concatMap, difference, foldl1, map, nub, union} = require './functional-helpers'
+{any, concatMap, difference, foldl1, map, nub, owns, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -37,12 +37,8 @@ statementNodes = [
 
 
 genSym = do ->
-  genSymCounters = {}
-  (pre) ->
-    new JS.GenSym pre,
-      if {}.hasOwnProperty.call genSymCounters, pre
-      then ++genSymCounters[pre]
-      else genSymCounters[pre] = 0
+  genSymCounter = 0
+  (pre) -> new JS.GenSym pre, ++genSymCounter
 
 
 stmt = (e) ->
@@ -160,7 +156,6 @@ for h, fn of helpers
     enabledHelpers.push fn()
     (helpers[h] = -> new JS.CallExpression helperNames[h], arguments).apply this, arguments
 
-
 inlineHelpers =
   undef: -> new JS.UnaryExpression 'void', new JS.Literal 0
 
@@ -175,7 +170,7 @@ class exports.Compiler
 
   defaultRules = [
     # control flow structures
-    [CS.Program, ({block, inScope}) ->
+    [CS.Program, ({block, inScope, options}) ->
       return new JS.Program [] unless block?
       block = stmt block
       block =
@@ -338,9 +333,6 @@ class exports.Compiler
     this
 
   compile: do ->
-    # TODO: when you go through a scope bound, ask envEnrichments about the
-    # contents; make the necessary declarations and generate the symbols inside
-
     walk = (fn, inScope = [], ancestry = []) ->
 
       if (ancestry[0]?.instanceof CS.Function, CS.BoundFunction) and this is ancestry[0].block
@@ -371,55 +363,47 @@ class exports.Compiler
       fn.call this, children
 
     generateSymbols = do ->
-      # TODO: clean these up and comment them
+
       generatedSymbols = {}
-      format = (a, b) -> "#{a}$#{b or ''}"
-      replaceGenSym = (node, usedSymbols, nsCounters) ->
-        key = "#{node.ns}$#{node.uniqueId}"
-        replacement =
-          if key of generatedSymbols then replacement = generatedSymbols[key]
-          else
-            if {}.hasOwnProperty.call nsCounters, node.ns
-            then ++nsCounters[node.ns]
-            else nsCounters[node.ns] = 0
-            ++nsCounters[node.ns] while (formatted = format node.ns, nsCounters[node.ns]) in usedSymbols
-            generatedSymbols[key] = formatted
-        new JS.Identifier replacement
+      format = (pre, counter) -> "#{pre}$#{counter or ''}"
+
+      generateName = (node, usedSymbols, nsCounters) ->
+        if owns generatedSymbols, node.uniqueId
+          # if we've already generated a name for this symbol, use it
+          generatedSymbols[node.uniqueId]
+        else
+          # retrieve the next available counter in this symbol's namespace
+          nsCounters[node.ns] = if owns nsCounters, node.ns then 1 + nsCounters[node.ns] else 0
+          # avoid clashing with anything that is already in scope
+          ++nsCounters[node.ns] while (formatted = format node.ns, nsCounters[node.ns]) in usedSymbols
+          # save the name for future reference
+          generatedSymbols[node.uniqueId] = formatted
+
+      handleNode = (node, usedSymbols, nsCounters) ->
+        if node.instanceof JS.GenSym
+          newNode = new JS.Identifier generateName node, usedSymbols, nsCounters
+          usedSymbols.push newNode.name
+          newNode
+        else if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration
+          _usedSymbols = usedSymbols[..]
+          _nsCounters = {}
+          _nsCounters[k] = v for own k, v of nsCounters
+          newNode = generateSymbols node, _usedSymbols, _nsCounters
+          decls = nub concatMap newNode.body.body, declarationsNeededFor
+          newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
+          newNode
+        else generateSymbols node, usedSymbols, nsCounters
+
       (node, usedSymbols = [], nsCounters = {}) ->
         # TODO: fmap?
         for childName in node.childNodes
           continue unless node[childName]?
           node[childName] =
-            # TODO: there is obviously a ton of duplicated code here
             if childName in node.listMembers
               for n in node[childName]
-                if n.instanceof JS.GenSym
-                  newNode = replaceGenSym n, usedSymbols, nsCounters
-                  usedSymbols.push newNode.name
-                  newNode
-                else if n.instanceof JS.FunctionExpression, JS.FunctionDeclaration
-                  _usedSymbols = (s for s in usedSymbols)
-                  _nsCounters = {}
-                  _nsCounters[k] = v for own k, v of nsCounters
-                  newNode = generateSymbols n, _usedSymbols, _nsCounters
-                  decls = nub concatMap newNode.body.body, declarationsNeededFor
-                  newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
-                  newNode
-                else generateSymbols n, usedSymbols, nsCounters
+                handleNode n, usedSymbols, nsCounters
             else
-              if node[childName].instanceof JS.GenSym
-                newNode = replaceGenSym node[childName], usedSymbols, nsCounters
-                usedSymbols.push newNode.name
-                newNode
-              else if node[childName].instanceof JS.FunctionExpression, JS.FunctionDeclaration
-                _usedSymbols = (s for s in usedSymbols)
-                _nsCounters = {}
-                _nsCounters[k] = v for own k, v of nsCounters
-                newNode = generateSymbols node[childName], _usedSymbols, _nsCounters
-                decls = nub concatMap newNode.body.body, declarationsNeededFor
-                newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
-                newNode
-              else generateSymbols node[childName], usedSymbols, nsCounters
+              handleNode node[childName], usedSymbols, nsCounters
         node
 
     defaultRule = ->
@@ -428,5 +412,4 @@ class exports.Compiler
     (ast) ->
       rules = @rules
       jsAST = walk.call ast, -> (rules[@className] ? defaultRule).apply this, arguments
-      # TODO: maybe generate declarations here instead?
       generateSymbols jsAST, collectIdentifiers jsAST

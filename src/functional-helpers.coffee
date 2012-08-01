@@ -34,3 +34,5 @@
   listA.concat (b for b in (nub listB) when b not in listA)
 
 @flip = (fn) -> (b, a) -> fn.call this, a, b
+
+@owns = do (hop = {}.hasOwnProperty) -> (a, b) -> hop.call a, b

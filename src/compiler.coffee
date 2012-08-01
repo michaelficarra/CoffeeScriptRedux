@@ -268,7 +268,7 @@ class exports.Compiler
         throw new Error "compile: AssignOp: unassignable assignee: #{@assignee.className}"
     ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
-    [CS.NewOp, ({constructor, arguments: args}) -> new JS.NewExpression constructor, args]
+    [CS.NewOp, ({ctor, arguments: args}) -> new JS.NewExpression ctor, args]
     [CS.ConcatOp, ({left, right, ancestry}) ->
       plusOp = new JS.BinaryExpression '+', left, right
       unless ancestry[0].instanceof CS.ConcatOp

@@ -96,7 +96,7 @@ createNodes
       DeleteOp: null # :: MemberAccessOps -> DeleteOp
       DoOp: null # :: Exprs -> DoOp
       LogicalNotOp: null # :: Exprs -> LogicalNotOp
-      NewOp: [['constructor', 'arguments']] # :: Exprs -> [Arguments] -> NewOp
+      NewOp: [['ctor', 'arguments']] # :: Exprs -> [Arguments] -> NewOp
       PreDecrementOp: null # :: Exprs -> PreDecrementOp
       PreIncrementOp: null # :: Exprs -> PreIncrementOp
       PostDecrementOp: null # :: Exprs -> PostDecrementOp

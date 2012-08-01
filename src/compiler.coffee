@@ -136,6 +136,10 @@ forceBlock = (node) ->
   else new JS.BlockStatement [node]
 
 makeVarDeclaration = (vars) ->
+  vars.sort (a, b) ->
+    a = a.name.toLowerCase()
+    b = b.name.toLowerCase()
+    if a < b then -1 else if a > b then 1 else 0
   decls = for v in vars
     new JS.VariableDeclarator v
   new JS.VariableDeclaration 'var', decls
@@ -278,6 +282,18 @@ class exports.Compiler
       else new JS.MemberExpression no, expression, new JS.Identifier @memberName
     ]
     [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> new JS.MemberExpression yes, expression, indexingExpr]
+    [CS.SoakedMemberAccessOp, ({expression, inScope}) ->
+      e = if needsCaching @expression then genSym 'cache' else expression
+      condition = new JS.BinaryExpression '!==', (new JS.Literal null), e
+      if (e.instanceof JS.Identifier) and e.name not in inScope
+        condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
+      access =
+        if @memberName in jsReserved then new JS.MemberExpression yes, e, new JS.Literal @memberName
+        else new JS.MemberExpression no, e, new JS.Identifier @memberName
+      node = new JS.ConditionalExpression condition, access, helpers.undef()
+      if e is expression then node
+      else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]
+    ]
     [CS.UnaryExistsOp, ({expression, inScope, compile}) ->
       nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression
       if (expression.instanceof JS.Identifier) and expression.name not in inScope
@@ -331,7 +347,16 @@ class exports.Compiler
 
     # primitives
     [CS.Identifier, -> new JS.Identifier @data]
-    [CS.GenSym, -> genSym @data]
+    [CS.GenSym, do ->
+      symbols = []
+      memos = []
+      ->
+        if this in symbols then memos[symbols.indexOf this]
+        else
+          symbols.push this
+          memos.push memo = genSym @data
+          memo
+    ]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]
     [CS.Undefined, -> helpers.undef()]

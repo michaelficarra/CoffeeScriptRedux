@@ -284,15 +284,25 @@ class exports.Compiler
     [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> new JS.MemberExpression yes, expression, indexingExpr]
     [CS.SoakedMemberAccessOp, ({expression, inScope}) ->
       e = if needsCaching @expression then genSym 'cache' else expression
-      condition = new JS.BinaryExpression '!==', (new JS.Literal null), e
+      condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
       if (e.instanceof JS.Identifier) and e.name not in inScope
         condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
       access =
+        # TODO: DRY
         if @memberName in jsReserved then new JS.MemberExpression yes, e, new JS.Literal @memberName
         else new JS.MemberExpression no, e, new JS.Identifier @memberName
       node = new JS.ConditionalExpression condition, access, helpers.undef()
       if e is expression then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]
+    ]
+    [CS.ExistsOp, ({left, right, inScope}) ->
+      e = if needsCaching @left then genSym 'cache' else left
+      condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
+      if (e.instanceof JS.Identifier) and e.name not in inScope
+        condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
+      node = new JS.ConditionalExpression condition, e, right
+      if e is left then node
+      else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, left), node]
     ]
     [CS.UnaryExistsOp, ({expression, inScope, compile}) ->
       nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression

@@ -401,11 +401,13 @@ class exports.Compiler
           usedSymbols.push newNode.name
           newNode
         else if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration
-          _usedSymbols = usedSymbols[..]
+          params = concatMap node.params, collectIdentifiers
+          _usedSymbols = nub [usedSymbols..., params...]
           _nsCounters = {}
           _nsCounters[k] = v for own k, v of nsCounters
           newNode = generateSymbols node, _usedSymbols, _nsCounters
-          decls = nub concatMap newNode.body.body, declarationsNeededFor
+          declNames = map (concatMap newNode.body.body, declarationsNeededFor), (id) -> id.name
+          decls = map (nub difference declNames, params), (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
         else generateSymbols node, usedSymbols, nsCounters

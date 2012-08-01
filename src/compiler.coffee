@@ -1,4 +1,4 @@
-{any, concatMap, difference, foldl1, map, union} = require './functional-helpers'
+{any, concatMap, difference, foldl1, map, nub, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -36,50 +36,14 @@ statementNodes = [
 ]
 
 
-helpers =
-  isOwn: ->
-    hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
-    params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
-    functionBody = forceBlock makeReturn new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), args
-    new JS.FunctionDeclaration (new JS.Identifier 'isOwn'), params, functionBody
-
-enabledHelpers = []
-for h, fn of helpers
-  helpers[h] = do (h, fn) -> ->
-    enabledHelpers.push fn()
-    (helpers[h] = -> new JS.CallExpression (new JS.Identifier "__#{h}"), arguments).apply this, arguments
-
-inlineHelpers =
-  undef: -> new JS.UnaryExpression 'void', new JS.Literal 0
-
-for h, fn of inlineHelpers
-  helpers[h] = fn
-  helpers[h].inline = yes
-
-
 genSym = do ->
   genSymCounters = {}
-  format = (pre, n) -> "#{pre}$#{n}"
   (pre) ->
-    for own existingPre, value of genSymCounters when pre is existingPre
-      ++genSymCounters[pre]
-      return format pre, value
-    format pre, genSymCounters[pre] = 0
+    new JS.GenSym pre,
+      if {}.hasOwnProperty.call genSymCounters, pre
+      then ++genSymCounters[pre]
+      else genSymCounters[pre] = 0
 
-makeReturn = (node) ->
-  return new JS.ReturnStatement helpers.undef() unless node?
-  if node.instanceof JS.BlockStatement
-    new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
-  else if node.instanceof JS.SequenceExpression
-    new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
-  else new JS.ReturnStatement expr node
-
-# TODO: something like Optimiser.mayHaveSideEffects
-needsCaching = (node) ->
-  (envEnrichments node, []).length > 0 or
-  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp) or
-  (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
-  (any node.listMembers, (n) -> any node[n], needsCaching)
 
 stmt = (e) ->
   return e unless e?
@@ -104,8 +68,9 @@ expr = (s) ->
       when 0 then helpers.undef()
       when 1 then expr s.body[0]
       else new JS.SequenceExpression map s.body, expr
-  else if s.instanceof JS.BreakStatement
-    # TODO: throw error?
+  else if s.instanceof JS.BreakStatement, JS.ContinueStatement, JS.ReturnStatement
+    # TODO: better error
+    throw new Error "pure statement in an expression"
   else if s.instanceof JS.ExpressionStatement
     s.expression
   else if s.instanceof JS.IfStatement
@@ -113,7 +78,7 @@ expr = (s) ->
     alternate = expr (s.alternate ? helpers.undef())
     new JS.ConditionalExpression s.test, consequent, alternate
   else if s.instanceof JS.ForInStatement, JS.WhileStatement
-    accum = new JS.Identifier genSym 'accum'
+    accum = genSym 'accum'
     s.body = forceBlock s.body
     push = new JS.MemberExpression no, accum, new JS.Identifier 'push'
     s.body.body[s.body.body.length - 1] = stmt new JS.CallExpression push, [expr s.body.body[-1..][0]]
@@ -124,11 +89,84 @@ expr = (s) ->
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"
 
+
+declarationsNeededFor = (node) ->
+  return [] unless node?
+  nub if (node.instanceof JS.AssignmentExpression) and node.operator is '=' and node.left.instanceof JS.Identifier
+    union [node.left], declarationsNeededFor node.right
+  else if node.instanceof JS.ForInStatement then union [node.left], concatMap [node.right, node.body], declarationsNeededFor
+  #TODO: else if node.instanceof JS.CatchClause then union [node.param], declarationsNeededFor node.body
+  else if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration then []
+  else concatMap node.childNodes, (childName) ->
+    # TODO: this should make use of an fmap method
+    return [] unless node[childName]?
+    if childName in node.listMembers
+      concatMap node[childName], declarationsNeededFor
+    else
+      declarationsNeededFor node[childName]
+
+collectIdentifiers = (node) -> nub switch
+  when node.instanceof JS.Identifier then [node.name]
+  when (node.instanceof JS.MemberExpression) and not node.computed
+    collectIdentifiers node.object
+  else concatMap node.childNodes, (childName) ->
+    return [] unless node[childName]?
+    if childName in node.listMembers
+      concatMap node[childName], collectIdentifiers
+    else
+      collectIdentifiers node[childName]
+
+makeReturn = (node) ->
+  return new JS.ReturnStatement helpers.undef() unless node?
+  if node.instanceof JS.BlockStatement
+    new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
+  else if node.instanceof JS.SequenceExpression
+    new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
+  else new JS.ReturnStatement expr node
+
+# TODO: something like Optimiser.mayHaveSideEffects
+needsCaching = (node) ->
+  (envEnrichments node, []).length > 0 or
+  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp) or
+  (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
+  (any node.listMembers, (n) -> any node[n], needsCaching)
+
 forceBlock = (node) ->
   return node unless node?
   node = stmt node
   if node.instanceof JS.BlockStatement then node
   else new JS.BlockStatement [node]
+
+makeVarDeclaration = (vars) ->
+  decls = for v in vars
+    new JS.VariableDeclarator v
+  declarator = new JS.VariableDeclaration decls
+  declarator.kind = 'var'
+  declarator
+
+
+helperNames = {}
+helpers =
+  isOwn: ->
+    hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
+    params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
+    functionBody = forceBlock makeReturn new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), args
+    new JS.FunctionDeclaration helperNames.isOwn, params, functionBody
+
+enabledHelpers = []
+for h, fn of helpers
+  helperNames[h] = genSym h
+  helpers[h] = do (h, fn) -> ->
+    enabledHelpers.push fn()
+    (helpers[h] = -> new JS.CallExpression helperNames[h], arguments).apply this, arguments
+
+
+inlineHelpers =
+  undef: -> new JS.UnaryExpression 'void', new JS.Literal 0
+
+for h, fn of inlineHelpers
+  helpers[h] = fn
+
 
 
 class exports.Compiler
@@ -143,17 +181,15 @@ class exports.Compiler
       block =
         if block.instanceof JS.BlockStatement then block.body
         else [block]
-      # declare everything
-      if inScope.length > 0
-        declarations = for v in inScope
-          new JS.VariableDeclarator new JS.Identifier v
-        declarator = new JS.VariableDeclaration declarations
-        declarator.kind = 'var'
-        block.unshift declarator
       # helpers
       [].push.apply block, enabledHelpers
+      # function wrapper
       # TODO: respect bare option
       block = [stmt new JS.CallExpression (new JS.FunctionExpression null, [], new JS.BlockStatement block), []]
+      # declare everything
+      decls = nub concatMap block, declarationsNeededFor
+      block.unshift makeVarDeclaration decls if decls.length > 0
+      # generate node
       program = new JS.Program block
       program.comments = [
         type: 'Line'
@@ -188,9 +224,7 @@ class exports.Compiler
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
-    [CS.Function, ({parameters, block}) ->
-      new JS.FunctionExpression null, parameters, forceBlock makeReturn block
-    ]
+    [CS.Function, ({parameters, block}) -> new JS.FunctionExpression null, parameters, forceBlock makeReturn block]
 
     # more complex operations
     [CS.AssignOp, ({assignee, expression, compile}) -> switch
@@ -198,7 +232,7 @@ class exports.Compiler
         assignments = []
         e = @expression
         if needsCaching @expression
-          e = new CS.GenSym genSym 'cache'
+          e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m, new CS.DynamicMemberAccessOp e, new CS.Int i
@@ -208,7 +242,7 @@ class exports.Compiler
         assignments = []
         e = @expression
         if needsCaching @expression
-          e = new CS.GenSym genSym 'cache'
+          e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m.expression, new CS.MemberAccessOp e, m.key.data
@@ -285,7 +319,8 @@ class exports.Compiler
     [CS.LogicalNotOp, ({expression: e}) -> new JS.UnaryExpression '!', expr e]
 
     # primitives
-    [CS.Identifier, CS.GenSym, -> new JS.Identifier @data]
+    [CS.Identifier, -> new JS.Identifier @data]
+    [CS.GenSym, -> genSym @data]
     [CS.Bool, CS.Int, CS.Float, CS.String, -> new JS.Literal @data]
     [CS.Null, -> new JS.Literal null]
     [CS.Undefined, -> helpers.undef()]
@@ -335,9 +370,63 @@ class exports.Compiler
       do ancestry.shift
       fn.call this, children
 
+    generateSymbols = do ->
+      # TODO: clean these up and comment them
+      generatedSymbols = {}
+      format = (a, b) -> "#{a}$#{b or ''}"
+      replaceGenSym = (node, usedSymbols, nsCounters) ->
+        key = "#{node.ns}$#{node.uniqueId}"
+        replacement =
+          if key of generatedSymbols then replacement = generatedSymbols[key]
+          else
+            if {}.hasOwnProperty.call nsCounters, node.ns
+            then ++nsCounters[node.ns]
+            else nsCounters[node.ns] = 0
+            ++nsCounters[node.ns] while (formatted = format node.ns, nsCounters[node.ns]) in usedSymbols
+            generatedSymbols[key] = formatted
+        new JS.Identifier replacement
+      (node, usedSymbols = [], nsCounters = {}) ->
+        # TODO: fmap?
+        for childName in node.childNodes
+          continue unless node[childName]?
+          node[childName] =
+            # TODO: there is obviously a ton of duplicated code here
+            if childName in node.listMembers
+              for n in node[childName]
+                if n.instanceof JS.GenSym
+                  newNode = replaceGenSym n, usedSymbols, nsCounters
+                  usedSymbols.push newNode.name
+                  newNode
+                else if n.instanceof JS.FunctionExpression, JS.FunctionDeclaration
+                  _usedSymbols = (s for s in usedSymbols)
+                  _nsCounters = {}
+                  _nsCounters[k] = v for own k, v of nsCounters
+                  newNode = generateSymbols n, _usedSymbols, _nsCounters
+                  decls = nub concatMap newNode.body.body, declarationsNeededFor
+                  newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
+                  newNode
+                else generateSymbols n, usedSymbols, nsCounters
+            else
+              if node[childName].instanceof JS.GenSym
+                newNode = replaceGenSym node[childName], usedSymbols, nsCounters
+                usedSymbols.push newNode.name
+                newNode
+              else if node[childName].instanceof JS.FunctionExpression, JS.FunctionDeclaration
+                _usedSymbols = (s for s in usedSymbols)
+                _nsCounters = {}
+                _nsCounters[k] = v for own k, v of nsCounters
+                newNode = generateSymbols node[childName], _usedSymbols, _nsCounters
+                decls = nub concatMap newNode.body.body, declarationsNeededFor
+                newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
+                newNode
+              else generateSymbols node[childName], usedSymbols, nsCounters
+        node
+
     defaultRule = ->
       throw new Error "compile: Non-exhaustive patterns in case: #{@className}"
 
     (ast) ->
       rules = @rules
-      walk.call ast, -> (rules[@className] ? defaultRule).apply this, arguments
+      jsAST = walk.call ast, -> (rules[@className] ? defaultRule).apply this, arguments
+      # TODO: maybe generate declarations here instead?
+      generateSymbols jsAST, collectIdentifiers jsAST

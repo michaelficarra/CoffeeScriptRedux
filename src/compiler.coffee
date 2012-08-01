@@ -146,8 +146,24 @@ helpers =
   isOwn: ->
     hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
     params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
-    functionBody = forceBlock makeReturn new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), args
-    new JS.FunctionDeclaration helperNames.isOwn, params, functionBody
+    functionBody = [new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), args]
+    new JS.FunctionDeclaration helperNames.isOwn, params, makeReturn new JS.BlockStatement map functionBody, stmt
+  indexOf: ->
+    member = new JS.Identifier 'member'
+    list = new JS.Identifier 'list'
+    i = genSym 'i'
+    length = genSym 'length'
+    varDeclaration = new JS.VariableDeclaration [
+      new JS.VariableDeclarator i, new JS.Literal 0
+      new JS.VariableDeclarator length, new JS.MemberExpression no, list, new JS.Identifier 'length'
+    ]
+    varDeclaration.kind = 'var'
+    loopBody = new JS.IfStatement (new JS.BinaryExpression '&&', (new JS.BinaryExpression 'in', i, list), (new JS.BinaryExpression '===', (new JS.MemberExpression yes, list, i), member)), new JS.ReturnStatement i
+    functionBody = [
+      new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), loopBody
+      new JS.UnaryExpression '-', new JS.Literal 1
+    ]
+    new JS.FunctionDeclaration helperNames.indexOf, [member, list], makeReturn new JS.BlockStatement map functionBody, stmt
 
 enabledHelpers = []
 for h, fn of helpers
@@ -210,7 +226,7 @@ class exports.Compiler
       if @valAssignee?
         block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, expression, keyAssignee
       if @isOwn
-        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn(expression, keyAssignee)), new JS.ContinueStatement
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn (expr expression), keyAssignee), new JS.ContinueStatement
       new JS.ForInStatement keyAssignee, (expr expression), block
     ]
     [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
@@ -291,6 +307,7 @@ class exports.Compiler
     [CS.SubtractOp, ({left, right}) -> new JS.BinaryExpression '-', (expr left), expr right]
 
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
+    [CS.InOp, ({left, right}) -> helpers.indexOf (expr left), expr right]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 
     [CS.LogicalAndOp, ({left, right}) -> new JS.BinaryExpression '&&', (expr left), expr right]

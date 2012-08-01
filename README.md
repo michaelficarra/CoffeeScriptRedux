@@ -34,7 +34,7 @@ yet, you should check that out to find out more about this.
 
 ### Development
 
-    make build
+    make -j build test
 
 ### Notable Contributors
 

@@ -138,9 +138,7 @@ forceBlock = (node) ->
 makeVarDeclaration = (vars) ->
   decls = for v in vars
     new JS.VariableDeclarator v
-  declarator = new JS.VariableDeclaration decls
-  declarator.kind = 'var'
-  declarator
+  new JS.VariableDeclaration 'var', decls
 
 
 helperNames = {}
@@ -155,11 +153,10 @@ helpers =
     list = new JS.Identifier 'list'
     i = genSym 'i'
     length = genSym 'length'
-    varDeclaration = new JS.VariableDeclaration [
+    varDeclaration = new JS.VariableDeclaration 'var', [
       new JS.VariableDeclarator i, new JS.Literal 0
       new JS.VariableDeclarator length, new JS.MemberExpression no, list, new JS.Identifier 'length'
     ]
-    varDeclaration.kind = 'var'
     loopBody = new JS.IfStatement (new JS.BinaryExpression '&&', (new JS.BinaryExpression 'in', i, list), (new JS.BinaryExpression '===', (new JS.MemberExpression yes, list, i), member)), new JS.ReturnStatement i
     functionBody = [
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), loopBody

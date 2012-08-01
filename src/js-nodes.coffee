@@ -63,7 +63,7 @@ nodeData = [
   ['TryStatement'         , ['block', 'handlers', 'finalizer']]
   ['UnaryExpression'      , ['operator', 'argument']]
   ['UpdateExpression'     , ['operator', 'prefix', 'argument']]
-  ['VariableDeclaration'  , ['declarations']]
+  ['VariableDeclaration'  , ['kind', 'declarations']]
   ['VariableDeclarator'   , ['id', 'init']]
   ['WhileStatement'       , ['test', 'body']]
   ['WithStatement'        , ['object', 'body']]
@@ -78,7 +78,7 @@ for [node, params] in nodeData
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
   MemberExpression, UpdateExpression, AssignmentExpression, GenSym,
-  FunctionDeclaration
+  FunctionDeclaration, VariableDeclaration
 } = exports
 
 ## Nodes that contain primitive properties
@@ -99,6 +99,7 @@ handlePrimitives Literal, ['value']
 handlePrimitives MemberExpression, ['computed']
 handlePrimitives UnaryExpression, ['operator']
 handlePrimitives UpdateExpression, ['operator', 'prefix']
+handlePrimitives VariableDeclaration, ['kind']
 
 
 ## Nodes that contain list properties

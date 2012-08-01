@@ -383,7 +383,7 @@ class exports.Compiler
       generatedSymbols = {}
       format = (pre, counter) -> "#{pre}$#{counter or ''}"
 
-      generateName = (node, usedSymbols, nsCounters) ->
+      generateName = (node, {usedSymbols, nsCounters}) ->
         if owns generatedSymbols, node.uniqueId
           # if we've already generated a name for this symbol, use it
           generatedSymbols[node.uniqueId]
@@ -395,33 +395,37 @@ class exports.Compiler
           # save the name for future reference
           generatedSymbols[node.uniqueId] = formatted
 
-      handleNode = (node, usedSymbols, nsCounters) ->
-        if node.instanceof JS.GenSym
-          newNode = new JS.Identifier generateName node, usedSymbols, nsCounters
+      # TODO: comments
+      handleNode = (node, state) ->
+        {declaredSymbols, usedSymbols, nsCounters} = state
+        newNode = if node.instanceof JS.GenSym
+          newNode = new JS.Identifier generateName node, state
           usedSymbols.push newNode.name
           newNode
         else if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration
           params = concatMap node.params, collectIdentifiers
-          _usedSymbols = nub [usedSymbols..., params...]
-          _nsCounters = {}
-          _nsCounters[k] = v for own k, v of nsCounters
-          newNode = generateSymbols node, _usedSymbols, _nsCounters
-          declNames = map (concatMap newNode.body.body, declarationsNeededFor), (id) -> id.name
-          decls = map (nub difference declNames, params), (name) -> new JS.Identifier name
+          state.usedSymbols = nub [usedSymbols..., params...]
+          state.nsCounters = {}
+          state.nsCounters[k] = v for own k, v of nsCounters
+          newNode = generateSymbols node, state
+          declNames = nub difference (map (concatMap node.body.body, declarationsNeededFor), (id) -> id.name), declaredSymbols
+          decls = map declNames, (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
-        else generateSymbols node, usedSymbols, nsCounters
+        else generateSymbols node, state
+        state.declaredSymbols = union declaredSymbols, map (declarationsNeededFor newNode), (id) -> id.name
+        newNode
 
-      (node, usedSymbols = [], nsCounters = {}) ->
+      (node, state) ->
         # TODO: fmap?
         for childName in node.childNodes
           continue unless node[childName]?
           node[childName] =
             if childName in node.listMembers
               for n in node[childName]
-                handleNode n, usedSymbols, nsCounters
+                handleNode n, state
             else
-              handleNode node[childName], usedSymbols, nsCounters
+              handleNode node[childName], state
         node
 
     defaultRule = ->
@@ -430,4 +434,7 @@ class exports.Compiler
     (ast) ->
       rules = @rules
       jsAST = walk.call ast, -> (rules[@className] ? defaultRule).apply this, arguments
-      generateSymbols jsAST, collectIdentifiers jsAST
+      generateSymbols jsAST,
+        declaredSymbols: []
+        usedSymbols: collectIdentifiers jsAST
+        nsCounters: {}

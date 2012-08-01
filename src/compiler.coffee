@@ -185,7 +185,7 @@ class exports.Compiler
       [].push.apply block, enabledHelpers
       # function wrapper
       # TODO: respect bare option
-      block = [stmt new JS.CallExpression (new JS.FunctionExpression null, [], new JS.BlockStatement block), []]
+      block = [stmt new JS.CallExpression (new JS.MemberExpression no, (new JS.FunctionExpression null, [], new JS.BlockStatement block), new JS.Identifier 'call'), [new JS.ThisExpression]]
       # declare everything
       decls = nub concatMap block, declarationsNeededFor
       block.unshift makeVarDeclaration decls if decls.length > 0

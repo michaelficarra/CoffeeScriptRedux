@@ -96,12 +96,12 @@ mayHaveSideEffects =
       (not isTruthy @condition) and mayHaveSideEffects @elseBlock, inScope
     ]
     [[CS.DoOp], (inScope) ->
-      return yes unless @expression.instanceof CS.Function, CS.BoundFunction
+      return yes unless @expression.instanceof CS.Functions
       newScope = difference inScope, concatMap @expression.parameters, beingDeclared
       args = for p in @expression.parameters
         if p.instanceof CS.AssignOp then p.expression else p
       return yes if any args, (a) -> mayHaveSideEffects a, newScope
-      mayHaveSideEffects @expression, newScope
+      mayHaveSideEffects @expression.block, newScope
     ]
     [[CS.ExistsOp], (inScope) ->
       return yes if mayHaveSideEffects @left, inScope
@@ -283,7 +283,7 @@ class exports.Optimiser
       switch
         when @expression.instanceof CS.Int, CS.Float, CS.String, CS.Bool
           (new Bool !@expression.data).g()
-        when @expression.instanceof CS.Function, CS.BoundFunction then (new CS.Bool false).g()
+        when @expression.instanceof CS.Functions then (new CS.Bool false).g()
         when @expression.instanceof CS.Null, CS.Undefined then (new CS.Bool true).g()
         when @expression.instanceof CS.ArrayInitialiser, CS.ObjectInitialiser
           if mayHaveSideEffects @expression, inScope then this
@@ -300,7 +300,7 @@ class exports.Optimiser
         when @expression.instanceof CS.Int, CS.Float, CS.UnaryNegateOp, CS.UnaryPlusOp
           (new String 'number').g()
         when @expression.instanceof CS.String then (new CS.String 'string').g()
-        when @expression.instanceof CS.Function, CS.BoundFunction then (new CS.String 'function').g()
+        when @expression.instanceof CS.Functions then (new CS.String 'function').g()
         when @expression.instanceof CS.Undefined then (new CS.String 'undefined').g()
         # TODO: comprehensive
         else this

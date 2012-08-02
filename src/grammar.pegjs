@@ -761,7 +761,6 @@ regexp
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
       if(!flags) flags = [];
-      inspect(es);
       var interp = createInterpolation(foldl(function(memo, e){ return memo.concat(e); }, [], es));
       if(interp instanceof CS.String) return new CS.RegExp(interp.data, flags).p(line, column);
       return new CS.HeregExp(interp, flags).p(line, column);
@@ -772,14 +771,15 @@ regexp
       return new CS.RegExp(d ? d.join('') : '', flags || []).p(line, column);;
     }
   regexpData
-    = "[" d:([^\\\]] / regexpData)* "]" { return "[" + (d ? d.join('') : '') + "]"; }
+    = "[" d:(regexpData / [^\\\]])* "]" { return "[" + d.join('') + "]"; }
     / "\\" c:. { return c; }
   hereregexpData
     = "[" d:
       ( h:hereregexpData { return h[0]; }
-      / s:[^\\/\] { return new CS.String(s).p(line, column); }]
+      / s:[^\\/\]] { return new CS.String(s).p(line, column); }
       )* "]" {
-        return [new CS.String("[").p(line, column)].concat(d || []).concat([new CS.String("]").p(line, column)]); }
+        return [new CS.String("[").p(line, column)].concat(d || []).concat([new CS.String("]").p(line, column)]);
+      }
     / "\\" c:. { return [new CS.String(c).p(line, column)]; }
     / s:("/" "/"? !"/") { return [new CS.String(s.join('')).p(line, column)]; }
     / c:"#" !"{" { return [new CS.String(c).p(line, column)]; }

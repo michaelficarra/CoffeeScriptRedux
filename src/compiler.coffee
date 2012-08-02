@@ -1,4 +1,4 @@
-{any, concatMap, difference, foldl1, map, nub, owns, union} = require './functional-helpers'
+{any, concat, concatMap, difference, foldl1, map, nub, owns, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -234,6 +234,22 @@ class exports.Compiler
       new JS.ForInStatement keyAssignee, (expr expression), block
     ]
     [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
+    [CS.Switch, ({expression, cases, elseBlock}) ->
+      cases = concat cases
+      if elseBlock?
+        cases.push new JS.SwitchCase null, [stmt elseBlock]
+      for c in cases[...-1] when c.consequent.length > 0
+        c.consequent.push new JS.BreakStatement
+      new JS.SwitchStatement expression, cases
+    ]
+    [CS.SwitchCase, ({conditions, block}) ->
+      cases = map conditions, (c) ->
+        new JS.SwitchCase c, []
+      block = stmt block
+      block = if block.instanceof JS.BlockStatement then block.body else [block]
+      cases[cases.length - 1].consequent = block
+      cases
+    ]
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]
 
     # data structures
@@ -335,6 +351,7 @@ class exports.Compiler
       compile new CS.FunctionApplication @expression, args
     ]
     [CS.Return, ({expression: e}) -> new JS.ReturnStatement expr e]
+    [CS.Break, -> new JS.BreakStatement]
     [CS.Continue, -> new JS.ContinueStatement]
 
     # straightforward operators
@@ -345,6 +362,7 @@ class exports.Compiler
     [CS.SubtractOp, ({left, right}) -> new JS.BinaryExpression '-', (expr left), expr right]
 
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
+    # TODO: InOp with a short array as the right operand
     [CS.InOp, ({left, right}) -> helpers.indexOf (expr left), expr right]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 

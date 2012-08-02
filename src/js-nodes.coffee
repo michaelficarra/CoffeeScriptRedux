@@ -56,7 +56,7 @@ nodeData = [
   ['Property'             , ['key', 'value']]
   ['ReturnStatement'      , ['argument']]
   ['SequenceExpression'   , ['expressions']]
-  ['SwitchStatement'      , ['descriminant', 'cases']]
+  ['SwitchStatement'      , ['discriminant', 'cases']]
   ['SwitchCase'           , ['test', 'consequent']]
   ['ThisExpression'       , []]
   ['ThrowStatement'       , ['argument']]
@@ -78,7 +78,7 @@ for [node, params] in nodeData
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
   MemberExpression, UpdateExpression, AssignmentExpression, GenSym,
-  FunctionDeclaration, VariableDeclaration
+  FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase
 } = exports
 
 ## Nodes that contain primitive properties
@@ -115,4 +115,7 @@ handleLists NewExpression, ['arguments']
 handleLists ObjectExpression, ['properties']
 handleLists Program, ['body']
 handleLists SequenceExpression, ['expressions']
+handleLists SwitchCase, ['consequent']
+console.log SwitchCase::listMembers, SwitchCase::childNodes
+handleLists SwitchStatement, ['cases']
 handleLists VariableDeclaration, ['declarations']

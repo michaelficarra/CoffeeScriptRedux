@@ -269,12 +269,17 @@ class exports.Compiler
     ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
     [CS.NewOp, ({ctor, arguments: args}) -> new JS.NewExpression ctor, args]
+    [CS.HeregExp, ({expression}) ->
+      flags = (flag for flag in ['g', 'i', 'm', 'y'] when @flags[flag]).join ''
+      new JS.NewExpression (new JS.Identifier 'RegExp'), [expression, new JS.Literal flags]
+    ]
     [CS.ConcatOp, ({left, right, ancestry}) ->
       plusOp = new JS.BinaryExpression '+', left, right
       unless ancestry[0].instanceof CS.ConcatOp
         leftmost = plusOp
         leftmost = leftmost.left while leftmost.left?.left
-        leftmost.left = new JS.BinaryExpression '+', (new JS.Literal ''), leftmost.left
+        unless leftmost.left.instanceof JS.Literal
+          leftmost.left = new JS.BinaryExpression '+', (new JS.Literal ''), leftmost.left
       plusOp
     ]
     [CS.MemberAccessOp, ({expression}) ->

@@ -120,6 +120,7 @@ makeReturn = (node) ->
     new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
   else if node.instanceof JS.IfStatement
     new JS.IfStatement node.test, (makeReturn node.consequent), makeReturn node.alternate
+  else if node.instanceof JS.ThrowStatement then node
   else new JS.ReturnStatement expr node
 
 # TODO: something like Optimiser.mayHaveSideEffects
@@ -233,6 +234,7 @@ class exports.Compiler
       new JS.ForInStatement keyAssignee, (expr expression), block
     ]
     [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
+    [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]
 
     # data structures
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]

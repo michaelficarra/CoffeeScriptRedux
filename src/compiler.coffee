@@ -273,6 +273,12 @@ class exports.Compiler
       flags = (flag for flag in ['g', 'i', 'm', 'y'] when @flags[flag]).join ''
       new JS.NewExpression (new JS.Identifier 'RegExp'), [expression, new JS.Literal flags]
     ]
+    [CS.RegExp, ->
+      flags = (flag for flag in ['g', 'i', 'm', 'y'] when @flags[flag]).join ''
+      # TODO: try/catch for invalid regexps
+      re = new RegExp @data, flags
+      new JS.Literal re
+    ]
     [CS.ConcatOp, ({left, right, ancestry}) ->
       plusOp = new JS.BinaryExpression '+', left, right
       unless ancestry[0].instanceof CS.ConcatOp

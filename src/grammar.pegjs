@@ -771,12 +771,12 @@ regexp
       return new CS.RegExp(d ? d.join('') : '', flags || []).p(line, column);;
     }
   regexpData
-    = "[" d:(regexpData / [^\\\]])* "]" { return "[" + d.join('') + "]"; }
+    = "[" d:([^\\\]] / regexpData)* "]" { return "[" + d.join('') + "]"; }
     / "\\" c:. { return c; }
   hereregexpData
     = "[" d:
-      ( h:hereregexpData { return h[0]; }
-      / s:[^\\/\]] { return new CS.String(s).p(line, column); }
+      ( s:[^\\/\]] { return new CS.String(s).p(line, column); }
+      / h:hereregexpData { return h[0]; }
       )* "]" {
         return [new CS.String("[").p(line, column)].concat(d || []).concat([new CS.String("]").p(line, column)]);
       }

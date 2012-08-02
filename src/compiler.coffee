@@ -227,7 +227,7 @@ class exports.Compiler
       if @filterExpr?
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
       if @valAssignee?
-        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, expression, keyAssignee
+        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, (expr expression), keyAssignee
       if @isOwn
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn (expr expression), keyAssignee), new JS.ContinueStatement
       new JS.ForInStatement keyAssignee, (expr expression), block
@@ -283,8 +283,8 @@ class exports.Compiler
       plusOp
     ]
     [CS.MemberAccessOp, ({expression}) ->
-      if @memberName in jsReserved then new JS.MemberExpression yes, expression, new JS.Literal @memberName
-      else new JS.MemberExpression no, expression, new JS.Identifier @memberName
+      if @memberName in jsReserved then new JS.MemberExpression yes, (expr expression), new JS.Literal @memberName
+      else new JS.MemberExpression no, (expr expression), new JS.Identifier @memberName
     ]
     [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> new JS.MemberExpression yes, expression, indexingExpr]
     [CS.SoakedMemberAccessOp, ({expression, inScope}) ->
@@ -294,8 +294,8 @@ class exports.Compiler
         condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
       access =
         # TODO: DRY
-        if @memberName in jsReserved then new JS.MemberExpression yes, e, new JS.Literal @memberName
-        else new JS.MemberExpression no, e, new JS.Identifier @memberName
+        if @memberName in jsReserved then new JS.MemberExpression yes, (expr e), new JS.Literal @memberName
+        else new JS.MemberExpression no, (expr e), new JS.Identifier @memberName
       node = new JS.ConditionalExpression condition, access, helpers.undef()
       if e is expression then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]

@@ -13,29 +13,6 @@ jsReserved = [
   'typeof', 'var', 'void', 'while', 'with', 'yield'
 ]
 
-# TODO: move to js-nodes.coffee as isStatement proto property
-statementNodes = [
-  JS.BlockStatement
-  JS.BreakStatement
-  JS.ContinueStatement
-  JS.DebuggerStatement
-  JS.DoWhileStatement
-  JS.EmptyStatement
-  JS.ExpressionStatement
-  JS.ForInStatement
-  JS.ForStatement
-  JS.FunctionDeclaration
-  JS.IfStatement
-  JS.LabeledStatement
-  JS.ReturnStatement
-  JS.SwitchStatement
-  JS.ThrowStatement
-  JS.TryStatement
-  JS.VariableDeclaration
-  JS.WhileStatement
-  JS.WithStatement
-]
-
 
 genSym = do ->
   genSymCounter = 0
@@ -44,7 +21,7 @@ genSym = do ->
 
 stmt = (e) ->
   return e unless e?
-  if e.instanceof statementNodes... then e
+  if e.isStatement then e
   else if e.instanceof JS.SequenceExpression
     walk = (seq) ->
       concatMap seq.expressions, (e) ->
@@ -59,7 +36,7 @@ stmt = (e) ->
 
 expr = (s) ->
   return s unless s?
-  if not s.instanceof statementNodes... then s
+  if s.isExpression then s
   else if s.instanceof JS.BlockStatement
     switch s.body.length
       when 0 then helpers.undef()

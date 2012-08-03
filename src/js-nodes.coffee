@@ -116,6 +116,5 @@ handleLists ObjectExpression, ['properties']
 handleLists Program, ['body']
 handleLists SequenceExpression, ['expressions']
 handleLists SwitchCase, ['consequent']
-console.log SwitchCase::listMembers, SwitchCase::childNodes
 handleLists SwitchStatement, ['cases']
 handleLists VariableDeclaration, ['declarations']

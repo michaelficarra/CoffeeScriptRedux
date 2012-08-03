@@ -13,6 +13,7 @@ jsReserved = [
   'typeof', 'var', 'void', 'while', 'with', 'yield'
 ]
 
+# TODO: move to js-nodes.coffee as isStatement proto property
 statementNodes = [
   JS.BlockStatement
   JS.BreakStatement
@@ -159,6 +160,24 @@ makeVarDeclaration = (vars) ->
 
 helperNames = {}
 helpers =
+  extends: ->
+    protoAccess = (e) -> new JS.MemberExpression no, e, new JS.Identifier 'prototype'
+    child = new JS.Identifier 'child'
+    parent = new JS.Identifier 'parent'
+    ctor = new JS.Identifier 'ctor'
+    key = new JS.Identifier 'key'
+    block = [
+      new JS.ForInStatement key, parent, new JS.IfStatement (helpers.isOwn parent, key),
+        stmt new JS.AssignmentExpression '=', (new JS.MemberExpression yes, child, key), new JS.MemberExpression yes, parent, key
+      new JS.FunctionDeclaration ctor, [], new JS.BlockStatement [
+        stmt new JS.AssignmentExpression '=', (new JS.MemberExpression no, new JS.ThisExpression, new JS.Identifier 'constructor'), child
+      ]
+      new JS.AssignmentExpression '=', (protoAccess ctor), protoAccess parent
+      new JS.AssignmentExpression '=', (protoAccess child), new JS.NewExpression ctor, []
+      new JS.AssignmentExpression '=', (new JS.MemberExpression no, child, new JS.Identifier '__super__'), protoAccess parent
+      makeReturn child
+    ]
+    new JS.FunctionDeclaration helperNames.extends, [child, parent], new JS.BlockStatement map block, stmt
   isOwn: ->
     hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
     params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
@@ -272,11 +291,13 @@ class exports.Compiler
       args = []
       params = []
       parentRef = genSym 'super'
+      block = forceBlock block
+      name = compile @name
       if parent?
         params.push parentRef
         args.push parent
-      block = forceBlock block
-      block.body.push new JS.ReturnStatement compile @name
+        block.body.unshift stmt helpers.extends name, parentRef
+      block.body.push new JS.ReturnStatement name
       iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
       if nameAssignee then new JS.AssignmentExpression '=', nameAssignee, iife else iife
     ]
@@ -519,9 +540,9 @@ class exports.Compiler
           state.nsCounters = {}
           state.nsCounters[k] = v for own k, v of nsCounters
           newNode = generateSymbols node, state
+          newNode.body = forceBlock newNode.body
           declNames = nub difference (map (concatMap node.body.body, declarationsNeededFor), (id) -> id.name), declaredSymbols
           decls = map declNames, (name) -> new JS.Identifier name
-          newNode.body = forceBlock newNode.body
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
         else generateSymbols node, state

@@ -31,6 +31,7 @@ yet, you should check that out to find out more about this.
 
     make deps
     make test
+    bin/coffee --help
 
 ### Development
 

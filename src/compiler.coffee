@@ -104,7 +104,7 @@ makeReturn = (node) ->
     return node unless node.consequent.length
     stmts = if node.consequent[-1..][0].instanceof JS.BreakStatement then node.consequent[...-1] else node.consequent
     new JS.SwitchCase node.test, [stmts[...-1]..., makeReturn stmts[-1..][0]]
-  else if node.instanceof JS.ThrowStatement then node
+  else if node.instanceof JS.ThrowStatement, JS.ReturnStatement then node
   else new JS.ReturnStatement expr node
 
 
@@ -268,6 +268,40 @@ class exports.Compiler
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
     [CS.Function, ({parameters, block}) -> new JS.FunctionExpression null, parameters, forceBlock makeReturn block]
+    [CS.Class, ({nameAssignee, parent, block, compile}) ->
+      args = []
+      params = []
+      parentRef = genSym 'super'
+      if parent?
+        params.push parentRef
+        args.push parent
+      block = forceBlock block
+      block.body.push new JS.ReturnStatement compile @name
+      iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
+      if nameAssignee then new JS.AssignmentExpression '=', nameAssignee, iife else iife
+    ]
+    [CS.ClassProtoAssignOp, ({assignee, expression, ancestry, compile}) ->
+      parentClass = null
+      for a in ancestry
+        if a.instanceof CS.Class
+          parentClass = a
+          break
+        unless a.instanceof CS.SeqOp, CS.Block
+          throw new Error "ClassProtoAssignOp must be within a Class, not #{a.className}"
+      unless parentClass?
+        throw new Error "ClassProtoAssignOp must be within a Class"
+      if @assignee.data is 'constructor'
+        name = compile parentClass.name
+        if @expression.instanceof CS.Functions
+          new JS.FunctionDeclaration name, expression.params, forceBlock compile @expression.block
+        else
+          # TODO: make your own constructor
+          new JS.FunctionDeclaration name, [], forceBlock new JS.EmtpyStatement
+      else
+        # TODO: genericise (memberAccess target, <member>), switch on type of <member>
+        protoMember = new CS.MemberAccessOp (new CS.MemberAccessOp parentClass.name, 'prototype'), @assignee.data
+        compile new CS.AssignOp protoMember, @expression
+    ]
 
     # more complex operations
     [CS.AssignOp, ({assignee, expression, compile}) -> switch
@@ -487,6 +521,7 @@ class exports.Compiler
           newNode = generateSymbols node, state
           declNames = nub difference (map (concatMap node.body.body, declarationsNeededFor), (id) -> id.name), declaredSymbols
           decls = map declNames, (name) -> new JS.Identifier name
+          newNode.body = forceBlock newNode.body
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
         else generateSymbols node, state

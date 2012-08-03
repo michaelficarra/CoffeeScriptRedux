@@ -88,7 +88,7 @@ mayHaveSideEffects =
     ], -> yes]
     [[CS.Class], (inScope) ->
       (mayHaveSideEffects @parent, inScope) or
-      @nameAssignment? and (@name or (beingDeclared @nameAssignment).length > 0)
+      @nameAssignee? and (@name or (beingDeclared @nameAssignee).length > 0)
     ]
     [[CS.Conditional], (inScope) ->
       (mayHaveSideEffects @condition, inScope) or

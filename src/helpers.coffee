@@ -49,7 +49,7 @@ envEnrichments_ = (inScope = []) ->
     when @instanceof CS.AssignOp then nub beingDeclared @assignee
     when @instanceof CS.Class
       nub concat [
-        beingDeclared @nameAssignment
+        beingDeclared @nameAssignee
         beingDeclared @parent
         if name? then [name] else []
       ]

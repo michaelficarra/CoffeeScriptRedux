@@ -144,7 +144,7 @@ createNodes
     ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
     ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
-    Class: [['nameAssignment', 'parent', 'block']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
+    Class: [['nameAssignee', 'parent', 'block']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
     Functions: [ ['parameters', 'block'],
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
       BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction
@@ -182,7 +182,7 @@ createNodes
   ArrayInitialiser, ObjectInitialiser, NegatedConditional, Conditional,
   Identifier, ForOf, Functions, While, Class, Block, NewOp, Bool,
   FunctionApplications, RegExps, RegExp, HeregExp, Super, Slice, Switch,
-  Identifiers, SwitchCase
+  Identifiers, SwitchCase, GenSym
 } = exports
 
 
@@ -259,16 +259,15 @@ handleLists SwitchCase, ['conditions']
 Block.wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
 
 Class::initialise = ->
-  # TODO: factor this out, as it's useful elsewhere: short object literal members, NFEs from assignee, etc.
-  @name =
-    if @nameAssignment?
-      switch
-        when @nameAssignment.instanceof Identifier
-          @nameAssignment.data
-        when @nameAssignment.instanceof StaticMemberAccessOps
-          @nameAssignment.memberName
-        else null
-    else null
+  @name = new GenSym 'class'
+  if @nameAssignee?
+    # TODO: factor this out, as it's useful elsewhere: short object literal members, NFEs from assignee, etc.
+    @name = switch
+      when @nameAssignee.instanceof Identifier
+        new Identifier @nameAssignee.data
+      when @nameAssignee.instanceof StaticMemberAccessOps
+        new Identifier @nameAssignee.memberName
+      else @name
 
 ObjectInitialiser::keys = -> map @members, (m) -> m.key
 ObjectInitialiser::vals = -> map @members, (m) -> m.expression

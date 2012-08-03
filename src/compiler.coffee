@@ -75,15 +75,37 @@ expr = (s) ->
     new JS.ConditionalExpression s.test, consequent, alternate
   else if s.instanceof JS.ForInStatement, JS.WhileStatement
     accum = genSym 'accum'
+    # TODO: remove accidental mutation like this in these helpers
     s.body = forceBlock s.body
     push = new JS.MemberExpression no, accum, new JS.Identifier 'push'
     s.body.body[s.body.body.length - 1] = stmt new JS.CallExpression push, [expr s.body.body[-1..][0]]
     block = new JS.BlockStatement [s, new JS.ReturnStatement accum]
     iife = new JS.FunctionExpression null, [accum], block
     new JS.CallExpression iife, [new JS.ArrayExpression []]
+  else if s.instanceof JS.SwitchStatement
+    block = new JS.BlockStatement [makeReturn s]
+    iife = new JS.FunctionExpression null, [], block
+    new JS.CallExpression iife, []
   else
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"
+
+makeReturn = (node) ->
+  return new JS.ReturnStatement helpers.undef() unless node?
+  if node.instanceof JS.BlockStatement
+    new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
+  else if node.instanceof JS.SequenceExpression
+    new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
+  else if node.instanceof JS.IfStatement
+    new JS.IfStatement node.test, (makeReturn node.consequent), makeReturn node.alternate
+  else if node.instanceof JS.SwitchStatement
+    new JS.SwitchStatement node.discriminant, map node.cases, makeReturn
+  else if node.instanceof JS.SwitchCase
+    return node unless node.consequent.length
+    stmts = if node.consequent[-1..][0].instanceof JS.BreakStatement then node.consequent[...-1] else node.consequent
+    new JS.SwitchCase node.test, [stmts[...-1]..., makeReturn stmts[-1..][0]]
+  else if node.instanceof JS.ThrowStatement then node
+  else new JS.ReturnStatement expr node
 
 
 declarationsNeededFor = (node) ->
@@ -111,17 +133,6 @@ collectIdentifiers = (node) -> nub switch
       concatMap node[childName], collectIdentifiers
     else
       collectIdentifiers node[childName]
-
-makeReturn = (node) ->
-  return new JS.ReturnStatement helpers.undef() unless node?
-  if node.instanceof JS.BlockStatement
-    new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
-  else if node.instanceof JS.SequenceExpression
-    new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
-  else if node.instanceof JS.IfStatement
-    new JS.IfStatement node.test, (makeReturn node.consequent), makeReturn node.alternate
-  else if node.instanceof JS.ThrowStatement then node
-  else new JS.ReturnStatement expr node
 
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->

@@ -51,7 +51,7 @@ expr = (s) ->
     consequent = expr (s.consequent ? helpers.undef())
     alternate = expr (s.alternate ? helpers.undef())
     new JS.ConditionalExpression s.test, consequent, alternate
-  else if s.instanceof JS.ForInStatement, JS.WhileStatement
+  else if s.instanceof JS.ForInStatement, JS.ForStatement, JS.WhileStatement
     accum = genSym 'accum'
     # TODO: remove accidental mutation like this in these helpers
     s.body = forceBlock s.body
@@ -226,19 +226,40 @@ class exports.Compiler
         else new JS.BlockStatement map statements, stmt
     ]
     [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
-    [CS.Conditional, ({condition, block, elseBlock, compile}) ->
+    [CS.Conditional, ({condition, block, elseBlock}) ->
       new JS.IfStatement (expr condition), (forceBlock block), forceBlock elseBlock
     ]
-    [CS.ForOf, ({keyAssignee, valAssignee, expression, filterExpr, block, compile}) ->
-      # TODO: cache expression if isOwn
+    [CS.ForIn, ({valAssignee, keyAssignee, expression, step, filterExpr, block}) ->
+      i = genSym 'i'
+      length = genSym 'length'
       block = forceBlock block
+      e = if needsCaching @expression then genSym 'cache' else expression
+      varDeclaration = new JS.VariableDeclaration 'var', [
+        new JS.VariableDeclarator i, new JS.Literal 0
+        new JS.VariableDeclarator length, new JS.MemberExpression no, e, new JS.Identifier 'length'
+      ]
+      unless e is expression
+        varDeclaration.declarations.unshift new JS.VariableDeclarator e, expression
       if @filterExpr?
+        # TODO: if block only has a single statement, wrap it instead of continuing
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
-      if @valAssignee?
-        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, (expr expression), keyAssignee
+      if keyAssignee?
+        block.body.unshift stmt new JS.AssignmentExpression '=', keyAssignee, i
+      block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, e, i
+      new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), block
+    ]
+    [CS.ForOf, ({keyAssignee, valAssignee, expression, filterExpr, block}) ->
+      block = forceBlock block
+      e = if @isOwn and needsCaching @expression then genSym 'cache' else expr expression
+      if @filterExpr?
+        # TODO: if block only has a single statement, wrap it instead of continuing
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
+      if valAssignee?
+        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, e, keyAssignee
       if @isOwn
-        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn (expr expression), keyAssignee), new JS.ContinueStatement
-      new JS.ForInStatement keyAssignee, (expr expression), block
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn e, keyAssignee), new JS.ContinueStatement
+      right = if e is expression then e else new JS.AssignmentExpression '=', e, expression
+      new JS.ForInStatement keyAssignee, right, block
     ]
     [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
     [CS.Switch, ({expression, cases, elseBlock}) ->
@@ -376,7 +397,7 @@ class exports.Compiler
       if e is left then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, left), node]
     ]
-    [CS.UnaryExistsOp, ({expression, inScope, compile}) ->
+    [CS.UnaryExistsOp, ({expression, inScope}) ->
       nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression
       if (expression.instanceof JS.Identifier) and expression.name not in inScope
         typeofTest = new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', expression

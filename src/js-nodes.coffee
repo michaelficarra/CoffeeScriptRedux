@@ -103,7 +103,6 @@ handlePrimitives UnaryExpression, ['operator']
 handlePrimitives UpdateExpression, ['operator', 'prefix']
 handlePrimitives VariableDeclaration, ['kind']
 
-
 ## Nodes that contain list properties
 
 handleLists = (ctor, listProps) -> ctor::listMembers = listProps

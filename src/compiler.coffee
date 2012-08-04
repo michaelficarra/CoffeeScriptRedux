@@ -82,7 +82,7 @@ makeReturn = (node) ->
     return node unless node.consequent.length
     stmts = if node.consequent[-1..][0].instanceof JS.BreakStatement then node.consequent[...-1] else node.consequent
     new JS.SwitchCase node.test, [stmts[...-1]..., makeReturn stmts[-1..][0]]
-  else if node.instanceof JS.ThrowStatement, JS.ReturnStatement then node
+  else if node.instanceof JS.ThrowStatement, JS.ReturnStatement, JS.BreakStatement, JS.ContinueStatement then node
   else new JS.ReturnStatement expr node
 
 

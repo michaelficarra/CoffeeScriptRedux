@@ -291,27 +291,38 @@ class exports.Compiler
       parentRef = genSym 'super'
       block = forceBlock block
       name = compile @name
-      # TODO: this is hacky, find something better
-      for fd, pos in block.body when fd.instanceof JS.FunctionDeclaration
-        ctor = (block.body.splice pos, 1)[0]
+      # TODO: rewrite `this` to `name` using the same mechanism that bound functions use
+      # TODO: collect bound functions for binding to each instance in the ctor
+      for fd in block.body when fd.instanceof JS.FunctionDeclaration
+        ctor = fd
+        ctor.id = name
         break
-      ctor ?= new JS.FunctionDeclaration name, [], new JS.BlockStatement []
-      ctor = new JS.FunctionExpression name, ctor.params, ctor.body
-      args.unshift ctor
+      unless ctor?
+        block.body.unshift ctor = new JS.FunctionDeclaration name, [], new JS.BlockStatement []
       if parent?
         params.push parentRef
         args.push parent
-        block.body.unshift stmt helpers.extends new JS.ThisExpression, parentRef
+        block.body.unshift stmt helpers.extends name, parentRef
       block.body.push new JS.ReturnStatement new JS.ThisExpression
-      iife = new JS.CallExpression (new JS.MemberExpression no, (new JS.FunctionExpression null, params, block), new JS.Identifier 'call'), args
+      iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
       if nameAssignee? then new JS.AssignmentExpression '=', nameAssignee, iife else iife
     ]
     [CS.ClassProtoAssignOp, ({assignee, expression, ancestry, compile}) ->
       if @assignee.data is 'constructor' and @expression.instanceof CS.Functions
         new JS.FunctionDeclaration (genSym 'class'), expression.params, forceBlock compile @expression.block
       else
+        # TODO: this is a little hacky; move this info to the parser?
+        parentClass = null
+        for a in ancestry
+          if a.instanceof CS.Class
+            parentClass = a
+            break
+          unless a.instanceof CS.SeqOp, CS.Block
+            throw new Error "ClassProtoAssignOp must be within a Class, not #{a.className}"
+        unless parentClass?
+          throw new Error "ClassProtoAssignOp must be within a Class"
         # TODO: genericise (memberAccess target, <member>), switch on type of <member>
-        protoMember = new CS.MemberAccessOp (new CS.MemberAccessOp new CS.This, 'prototype'), @assignee.data
+        protoMember = new CS.MemberAccessOp (new CS.MemberAccessOp parentClass.name, 'prototype'), @assignee.data
         compile new CS.AssignOp protoMember, @expression
     ]
 

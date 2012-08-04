@@ -349,6 +349,27 @@ class exports.Compiler
       else
         throw new Error "compile: AssignOp: unassignable assignee: #{@assignee.className}"
     ]
+    [CS.CompoundAssignOp, ({assignee, expression}) ->
+      op = switch @op
+        when CS.AndOp                then '&&'
+        when CS.OrOp                 then '||'
+        when CS.BitOrOp              then '|'
+        when CS.BitXorOp             then '^'
+        when CS.BitAndOp             then '&'
+        when CS.LeftShiftOp          then '<<'
+        when CS.SignedRightShiftOp   then '>>'
+        when CS.UnsignedRightShiftOp then '>>>'
+        when CS.PlusOp               then '+'
+        when CS.SubtractOp           then '-'
+        when CS.MultiplyOp           then '*'
+        when CS.DivideOp             then '/'
+        when CS.RemOp                then '%'
+        else throw new Error 'Unrecognised compound assignment operator'
+      if op in ['&&', '||']
+        # TODO: if assignee is an identifier, fail unless assignee is in scope
+        new JS.BinaryExpression op, assignee, new JS.AssignmentExpression '=', assignee, expression
+      else new JS.AssignmentExpression "#{op}=", assignee, expression
+    ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
     [CS.NewOp, ({ctor, arguments: args}) -> new JS.NewExpression ctor, args]
     [CS.HeregExp, ({expression}) ->

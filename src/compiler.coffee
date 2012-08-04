@@ -59,11 +59,11 @@ expr = (s) ->
     s.body.body[s.body.body.length - 1] = stmt new JS.CallExpression push, [expr s.body.body[-1..][0]]
     block = new JS.BlockStatement [s, new JS.ReturnStatement accum]
     iife = new JS.FunctionExpression null, [accum], block
-    new JS.CallExpression iife, [new JS.ArrayExpression []]
+    new JS.CallExpression (new JS.MemberExpression no, iife, new JS.Identifier 'call'), [new JS.ThisExpression, new JS.ArrayExpression []]
   else if s.instanceof JS.SwitchStatement
     block = new JS.BlockStatement [makeReturn s]
     iife = new JS.FunctionExpression null, [], block
-    new JS.CallExpression iife, []
+    new JS.CallExpression (new JS.MemberExpression no, iife, new JS.Identifier 'call'), [new JS.ThisExpression]
   else
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"

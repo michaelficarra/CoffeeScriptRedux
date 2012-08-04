@@ -765,22 +765,22 @@ regexp
       if(interp instanceof CS.String) return new CS.RegExp(interp.data, flags).p(line, column);
       return new CS.HeregExp(interp, flags).p(line, column);
     }
-  / "/" d:(d:[^/\\[]+ { return d.join(''); } / regexpData)* "/" flags:[gimy]* {
+  / "/" d:(regexpData / d:[^/\\[]+ { return d.join(''); })* "/" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
       return new CS.RegExp(d ? d.join('') : '', flags || []).p(line, column);;
     }
   regexpData
     = "[" d:([^\\\]] / regexpData)* "]" { return "[" + d.join('') + "]"; }
-    / "\\" c:. { return c; }
+    / "\\" c:. { return '\\' + c; }
   hereregexpData
     = "[" d:
-      ( s:[^\\/\]] { return new CS.String(s).p(line, column); }
-      / h:hereregexpData { return h[0]; }
+      ( h:hereregexpData { return h[0]; }
+      / s:[^\\/\]] { return new CS.String(s).p(line, column); }
       )* "]" {
         return [new CS.String("[").p(line, column)].concat(d || []).concat([new CS.String("]").p(line, column)]);
       }
-    / "\\" c:. { return [new CS.String(c).p(line, column)]; }
+    / "\\" c:. { return [new CS.String('\\' + c).p(line, column)]; }
     / s:("/" "/"? !"/") { return [new CS.String(s.join('')).p(line, column)]; }
     / c:"#" !"{" { return [new CS.String(c).p(line, column)]; }
     / "#{" _ e:expression _ "}" { return [e]; }

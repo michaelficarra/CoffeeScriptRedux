@@ -69,7 +69,7 @@ expr = (s) ->
     throw new Error "expr: #{s.type}"
 
 makeReturn = (node) ->
-  return new JS.ReturnStatement helpers.undef() unless node?
+  return node unless node?
   if node.instanceof JS.BlockStatement
     new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
   else if node.instanceof JS.SequenceExpression
@@ -83,6 +83,7 @@ makeReturn = (node) ->
     stmts = if node.consequent[-1..][0].instanceof JS.BreakStatement then node.consequent[...-1] else node.consequent
     new JS.SwitchCase node.test, [stmts[...-1]..., makeReturn stmts[-1..][0]]
   else if node.instanceof JS.ThrowStatement, JS.ReturnStatement, JS.BreakStatement, JS.ContinueStatement then node
+  else if (node.instanceof JS.UnaryExpression) and node.operator is 'void' then new JS.ReturnStatement
   else new JS.ReturnStatement expr node
 
 
@@ -120,7 +121,7 @@ needsCaching = (node) ->
   (any node.listMembers, (n) -> any node[n], needsCaching)
 
 forceBlock = (node) ->
-  return node unless node?
+  return new JS.BlockStatement [] unless node?
   node = stmt node
   if node.instanceof JS.BlockStatement then node
   else new JS.BlockStatement [node]
@@ -284,7 +285,13 @@ class exports.Compiler
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
-    [CS.Function, ({parameters, block}) -> new JS.FunctionExpression null, parameters, forceBlock makeReturn block]
+    [CS.Function, ({parameters, block}) ->
+      block = forceBlock makeReturn block
+      last = block.body[-1..][0]
+      if (last?.instanceof JS.ReturnStatement) and not last.argument?
+        block.body = block.body[...-1]
+      new JS.FunctionExpression null, parameters, block
+    ]
     [CS.Class, ({nameAssignee, parent, block, compile}) ->
       args = []
       params = []

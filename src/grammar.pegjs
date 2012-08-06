@@ -793,8 +793,8 @@ throw
 return
   = RETURN maybeExpression:(__ secondaryExpression)? {
       var ws = maybeExpression ? maybeExpression[0] : '',
-          e = maybeExpression ? maybeExpression[1] : (new CS.Undefined).r('').g();
-      return new CS.Return(e).r('return' + ws + e.raw).p(line, column);
+          e = maybeExpression ? maybeExpression[1] : null;
+      return new CS.Return(e).r('return' + ws + (e ? e.raw : '')).p(line, column);
     }
 continue = CONTINUE { return (new CS.Continue).r('continue').p(line, column); }
 break = BREAK { return (new CS.Break).r('break').p(line, column); }

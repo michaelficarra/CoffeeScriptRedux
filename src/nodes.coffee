@@ -88,7 +88,7 @@ createNodes
     Statements: [ [],
       Break: null # :: Break
       Continue: null # :: Continue
-      Return: [['expression']] # :: Exprs -> Return
+      Return: [['expression']] # :: Maybe Exprs -> Return
       Throw: [['expression']] # :: Exprs -> Throw
     ]
 

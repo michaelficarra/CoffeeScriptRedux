@@ -306,6 +306,28 @@ class exports.Optimiser
         else this
     ]
 
+    # simplify trailing `return`/`undefined` in function bodies
+    [CS.SeqOp, (_, ancestors) ->
+      return this unless ancestors[0]?.instanceof CS.Functions
+      if (@right.instanceof CS.Return) and @right.expression?
+        new CS.SeqOp @left, @right.expression
+      else if @right.instanceof CS.Undefined
+        new CS.SeqOp @left, new CS.Return
+      else this
+    ]
+
+    # get rid of function bodies that are simply `return` or `undefined`
+    [CS.Function, CS.BoundFunction, ->
+      return this unless @block? and (
+        (@block.instanceof CS.Undefined) or
+        (@block.instanceof CS.Return) and not @block.expression?
+      )
+      new @constructor @parameters, null
+    ]
+
+    # `return undefined` -> `return`, everywhere
+    [CS.Return, -> if @expression?.instanceof CS.Undefined then new CS.Return else this]
+
   ]
 
   constructor: ->
@@ -345,6 +367,9 @@ class exports.Optimiser
       walk.call ast, ->
         # not a fold for efficiency's sake
         memo = this
-        for rule in rules[@className] ? []
-          memo = rule.apply memo, arguments
+        oldClassName = null
+        while oldClassName isnt memo.className
+          for rule in rules[oldClassName = memo.className] ? []
+            memo = rule.apply memo, arguments
+            break unless oldClassName is memo.className
         memo

@@ -69,7 +69,7 @@ expr = (s) ->
     throw new Error "expr: #{s.type}"
 
 makeReturn = (node) ->
-  return node unless node?
+  return new JS.ReturnStatement unless node?
   if node.instanceof JS.BlockStatement
     new JS.BlockStatement [node.body[...-1]..., makeReturn node.body[-1..][0]]
   else if node.instanceof JS.SequenceExpression
@@ -103,6 +103,7 @@ declarationsNeededFor = (node) ->
       declarationsNeededFor node[childName]
 
 collectIdentifiers = (node) -> nub switch
+  when !node? then []
   when node.instanceof JS.Identifier then [node.name]
   when (node.instanceof JS.MemberExpression) and not node.computed
     collectIdentifiers node.object
@@ -228,7 +229,10 @@ class exports.Compiler
     ]
     [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
     [CS.Conditional, ({condition, block, elseBlock}) ->
-      new JS.IfStatement (expr condition), (forceBlock block), forceBlock elseBlock
+      if elseBlock?
+        throw new Error 'Conditional with non-null elseBlock requires non-null block' unless block?
+        elseBlock = forceBlock elseBlock
+      new JS.IfStatement (expr condition), (forceBlock block), elseBlock
     ]
     [CS.ForIn, ({valAssignee, keyAssignee, expression, step, filterExpr, block}) ->
       i = genSym 'i'

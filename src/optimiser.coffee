@@ -169,6 +169,7 @@ class exports.Optimiser
     ]
 
     # Reject unused and inconsequential expressions
+    # TODO: comments
     [CS.SeqOp, (inScope, ancestors) ->
       canDropLast = not usedAsExpression this, ancestors
       if mayHaveSideEffects @left, inScope
@@ -191,6 +192,8 @@ class exports.Optimiser
           declarationsFor this, inScope
         else @right
     ]
+
+    # TODO: everything after a CS.Return in a CS.SeqOp
 
     # Push assignments through sequences
     [CS.AssignOp, ->

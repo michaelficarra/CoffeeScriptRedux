@@ -20,7 +20,7 @@ createNode = (type, props) ->
     json.leadingComments = @leadingComments if @leadingComments?
     for child in @childNodes
       if child in @listMembers
-        json[child] = (p.toJSON() for p in @[child])
+        json[child] = (p?.toJSON() for p in @[child])
       else
         json[child] = @[child]?.toJSON()
     json

@@ -4,14 +4,13 @@ path = require 'path'
 {Preprocessor} = require './preprocessor'
 {Optimiser} = require './optimiser'
 {Compiler} = require './compiler'
-parser = require './parser'
+Parser = require './parser'
+CoffeeScript = require './module'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
 uglifyjs = try require 'uglify-js'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
-
-cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
 
 humanReadable = (str) ->
   (str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)'
@@ -24,17 +23,6 @@ numberLines = (input, startLine = 1) ->
     pad = (Array(padSize + 1).join '0')[currLine.length..]
     "#{pad}#{currLine} : #{lines[i]}"
   numbered.join '\n'
-
-printParserError = (e) ->
-  if e.found?
-    line = (input.split '\n')[e.line - 1]
-    e.column = (cleanMarkers ("#{line}\n").slice 0, e.column).length
-  console.error humanReadable """
-    Syntax error on line #{e.line}, column #{e.column}: unexpected #{if e.found? then inspect e.found else 'end of input'}
-    """
-  if e.found?
-    console.error cleanMarkers line
-    console.error "#{(Array e.column).join '-'}^"
 
 
 # clone args
@@ -271,9 +259,9 @@ else
       console.error numberLines humanReadable input.trim()
 
     # parse
-    try result = parser.parse input
+    try result = Parser.parse input
     catch e
-      throw e unless e instanceof parser.SyntaxError
+      throw e unless e instanceof Parser.SyntaxError
       printParserError e
       process.exit 1
 
@@ -328,17 +316,7 @@ else
       console.error inspect result.toJSON()
 
     # js code gen
-    try
-      result = escodegen.generate result,
-        comment: yes
-        format:
-          indent:
-            style: '  '
-            base: 0
-          renumber: yes
-          hexadecimal: yes
-          quotes: 'auto'
-          parentheses: no
+    try result = CoffeeScript.js result
     catch e
       console.error (e.stack || e.message)
       process.exit 1

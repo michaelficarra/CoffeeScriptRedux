@@ -3,8 +3,6 @@ path = require 'path'
 {concat, foldl} = require './functional-helpers'
 {Preprocessor} = require './preprocessor'
 {Optimiser} = require './optimiser'
-{Compiler} = require './compiler'
-Parser = require './parser'
 CoffeeScript = require './module'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
@@ -249,32 +247,20 @@ else
     if 0xFEFF is input.charCodeAt 0 then input = input[1..]
 
     # preprocess
-    try input = Preprocessor.processSync input
-    catch e
-      console.error (e.stack or e.message)
-      process.exit 1
-
     if options.debug
+      Preprocessor.processSync input
       console.error '### PREPROCESSED CS-AST ###'
       console.error numberLines humanReadable input.trim()
 
     # parse
-    try result = Parser.parse input
-    catch e
-      throw e unless e instanceof Parser.SyntaxError
-      printParserError e
-      process.exit 1
-
+    result = CoffeeScript.parse input, optimise: no
     if options.debug and options.optimise and result?
       console.error '### PARSED CS-AST ###'
       console.error inspect result.toJSON()
 
     # optimise
     if options.optimise and result?
-      try result = Optimiser.optimise result
-      catch e
-        console.error (e.stack || e.message)
-        process.exit 1
+      result = Optimiser.optimise result
 
     # --parse
     if options.parse
@@ -299,10 +285,7 @@ else
       else process.exit 1
 
     # compile
-    try result = Compiler.compile result
-    catch e
-      console.error (e.stack || e.message)
-      process.exit 1
+    result = CoffeeScript.compile result
 
     # --compile
     if options.compile
@@ -316,7 +299,7 @@ else
       console.error inspect result.toJSON()
 
     # js code gen
-    try result = CoffeeScript.js result
+    try result = CoffeeScript.js result, minify: no
     catch e
       console.error (e.stack || e.message)
       process.exit 1

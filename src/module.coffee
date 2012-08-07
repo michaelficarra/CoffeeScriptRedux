@@ -34,15 +34,17 @@ module.exports =
 
   VERSION: packageJSON.version
 
-  parse: (coffee) ->
-    try Parser.parse Preprocessor.processSync coffee
+  parse: (coffee, options = {}) ->
+    options.optimise ?= yes
+    try
+      parsed = Parser.parse Preprocessor.processSync coffee
+      if options.optimise then Optimiser.optimise parsed else parsed
     catch e
       throw e unless e instanceof Parser.SyntaxError
       throw new Error formatParserError e
 
-  compile: (csAst, options) ->
-    # TODO: opt: optimise (default: yes)
-    Compiler.compile Optimiser.optimise csAst
+  compile: (csAst) ->
+    Compiler.compile csAst
 
   cs: (csAst, options) ->
     # TODO: opt: format (default: nice defaults)

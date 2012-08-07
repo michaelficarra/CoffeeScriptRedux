@@ -517,6 +517,8 @@ class exports.Compiler
     [CS.PostDecrementOp, ({expression: e}) -> new JS.UpdateExpression '--', no, expr e]
     [CS.PostIncrementOp, ({expression: e}) -> new JS.UpdateExpression '++', no, expr e]
     [CS.LogicalNotOp, ({expression: e}) -> new JS.UnaryExpression '!', expr e]
+    [CS.TypeofOp, ({expression: e}) -> new JS.UnaryExpression 'typeof', expr e]
+    [CS.DeleteOp, ({expression: e}) -> new JS.UnaryExpression 'delete', expr e]
 
     # primitives
     [CS.Identifier, -> new JS.Identifier @data]

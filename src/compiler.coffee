@@ -4,6 +4,8 @@ CS = require './nodes'
 JS = require './js-nodes'
 exports = module?.exports ? this
 
+# TODO: this whole file could use a general cleanup
+
 
 jsReserved = [
   'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do',
@@ -86,6 +88,17 @@ makeReturn = (node) ->
   else if (node.instanceof JS.UnaryExpression) and node.operator is 'void' then new JS.ReturnStatement
   else new JS.ReturnStatement expr node
 
+
+generateMutatingWalker = (fn) -> (node, args...) ->
+  for childName in node.childNodes
+    continue unless node[childName]?
+    node[childName] =
+      if childName in node.listMembers
+        for n in node[childName]
+          fn.apply n, args
+      else
+        fn.apply node[childName], args
+  node
 
 declarationsNeededFor = (node) ->
   return [] unless node?
@@ -296,13 +309,34 @@ class exports.Compiler
         block.body = block.body[...-1]
       new JS.FunctionExpression null, parameters, block
     ]
+    [CS.BoundFunction, ({parameters, block}) ->
+      block = forceBlock makeReturn block
+      last = block.body[-1..][0]
+      if (last?.instanceof JS.ReturnStatement) and not last.argument?
+        block.body = block.body[...-1]
+      newThis = genSym 'this'
+      performedRewrite = no
+      rewriteThis = generateMutatingWalker ->
+        if @instanceof JS.ThisExpression
+          performedRewrite = yes
+          newThis
+        else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
+        else rewriteThis this
+      rewriteThis block
+      fn = new JS.FunctionExpression null, parameters, block
+      if performedRewrite
+        new JS.SequenceExpression [
+          new JS.AssignmentExpression '=', newThis, new JS.ThisExpression
+          fn
+        ]
+      else fn
+    ]
     [CS.Class, ({nameAssignee, parent, block, compile}) ->
       args = []
       params = []
       parentRef = genSym 'super'
       block = forceBlock block
       name = compile @name
-      # TODO: rewrite `this` to `name` using the same mechanism that bound functions use
       # TODO: collect bound functions for binding to each instance in the ctor
       for fd in block.body when fd.instanceof JS.FunctionDeclaration
         ctor = fd
@@ -315,6 +349,11 @@ class exports.Compiler
         args.push parent
         block.body.unshift stmt helpers.extends name, parentRef
       block.body.push new JS.ReturnStatement new JS.ThisExpression
+      rewriteThis = generateMutatingWalker (n) ->
+        if @instanceof JS.ThisExpression then name
+        else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
+        else rewriteThis this
+      rewriteThis block
       iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
       if nameAssignee? then new JS.AssignmentExpression '=', nameAssignee, iife else iife
     ]
@@ -517,6 +556,7 @@ class exports.Compiler
     @rules[ctor] = handler
     this
 
+  # TODO: comment
   compile: do ->
     walk = (fn, inScope = [], ancestry = []) ->
 
@@ -565,38 +605,26 @@ class exports.Compiler
           generatedSymbols[node.uniqueId] = formatted
 
       # TODO: comments
-      handleNode = (node, state) ->
+      generateMutatingWalker (state) ->
         {declaredSymbols, usedSymbols, nsCounters} = state
-        newNode = if node.instanceof JS.GenSym
-          newNode = new JS.Identifier generateName node, state
+        newNode = if @instanceof JS.GenSym
+          newNode = new JS.Identifier generateName this, state
           usedSymbols.push newNode.name
           newNode
-        else if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration
-          params = concatMap node.params, collectIdentifiers
+        else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration
+          params = concatMap @params, collectIdentifiers
           state.usedSymbols = nub [usedSymbols..., params...]
           state.nsCounters = {}
           state.nsCounters[k] = v for own k, v of nsCounters
-          newNode = generateSymbols node, state
+          newNode = generateSymbols this, state
           newNode.body = forceBlock newNode.body
-          declNames = nub difference (map (concatMap node.body.body, declarationsNeededFor), (id) -> id.name), declaredSymbols
+          declNames = nub difference (map (concatMap @body.body, declarationsNeededFor), (id) -> id.name), declaredSymbols
           decls = map declNames, (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
-        else generateSymbols node, state
+        else generateSymbols this, state
         state.declaredSymbols = union declaredSymbols, map (declarationsNeededFor newNode), (id) -> id.name
         newNode
-
-      (node, state) ->
-        # TODO: fmap?
-        for childName in node.childNodes
-          continue unless node[childName]?
-          node[childName] =
-            if childName in node.listMembers
-              for n in node[childName]
-                handleNode n, state
-            else
-              handleNode node[childName], state
-        node
 
     defaultRule = ->
       throw new Error "compile: Non-exhaustive patterns in case: #{@className}"

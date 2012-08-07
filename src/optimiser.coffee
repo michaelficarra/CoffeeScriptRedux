@@ -170,6 +170,7 @@ class exports.Optimiser
 
     # Reject unused and inconsequential expressions
     # TODO: comments
+    # TODO: review this whole thing with Aaron
     [CS.SeqOp, (inScope, ancestors) ->
       canDropLast = not usedAsExpression this, ancestors
       if mayHaveSideEffects @left, inScope
@@ -201,22 +202,24 @@ class exports.Optimiser
       new CS.SeqOp @expression.left, new CS.AssignOp @assignee, @expression.right
     ]
 
-    # A falsey condition with side effects -> the condition
-    # A falsey condition without side effects -> the undefined value
+    # A falsey condition with side effects -> (the condition; [])
+    # A falsey condition without side effects -> []
     # A truthy condition without side effects -> a loop
     [CS.While, (inScope) ->
       if isFalsey @condition
-        return if mayHaveSideEffects @condition, inScope
-          @condition
-        else
-          if block? then declarationsFor @block, inScope
-          else (new CS.Undefined).g()
-      if isTruthy @condition
-        unless mayHaveSideEffects @condition, inScope
-          return (new CS.Undefined).g() unless @block?
-          return this if this instanceof CS.Loop
-          return (new CS.Loop @block).g()
-      this
+        new CS.Block [
+          if mayHaveSideEffects @condition, inScope
+            new CS.SeqOp @condition, declarationsFor @block
+          else
+            if block? then declarationsFor @block, inScope else new CS.Undefined
+          new CS.ArrayInitialiser []
+        ]
+      else if isTruthy @condition
+        if mayHaveSideEffects @condition, inScope then this
+        else if @block?
+          if this instanceof CS.Loop then this else (new CS.Loop @block).g()
+        else new CS.ArrayInitialiser []
+      else this
     ]
 
     # Produce the consequent when the condition is truthy
@@ -239,22 +242,19 @@ class exports.Optimiser
     # for-in over an empty list produces an empty list
     [CS.ForIn, (inScope, ancestors) ->
       return this unless (@expression.instanceof CS.ArrayInitialiser) and @expression.members.length is 0
-      retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
-      new CS.SeqOp (declarationsFor this, inScope), retVal.g()
+      new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-own-of over empty object produces an empty list
     [CS.ForOf, (inScope, ancestors) ->
-      return this unless (@expression.instanceof CS.ObjectInitialiser) and @expression.isOwn and @expression.members.length is 0
-      retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
-      new CS.SeqOp (declarationsFor this, inScope), retVal.g()
+      return this unless @isOwn and (@expression.instanceof CS.ObjectInitialiser) and @expression.members.length is 0
+      new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-in or for-of with falsey filter
     [CS.ForIn, CS.ForOf, (inScope, ancestors) ->
       return this unless isFalsey @filterExpr
-      retVal = if usedAsExpression this, ancestors then new CS.ArrayInitialiser [] else new CS.Undefined
-      new CS.SeqOp (declarationsFor this, inScope), retVal.g()
+      new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-in or for-of with truthy filter

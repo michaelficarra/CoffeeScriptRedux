@@ -11,4 +11,5 @@ suite 'Parser', ->
   test 'simple error', -> @shouldNotParse '0+'
 
   test 'deeply nested expressions', ->
-    @shouldParse '(((((((((((((((((((((((((0)))))))))))))))))))))))))'
+    @shouldParse '((((((((((((((((((((0))))))))))))))))))))'
+    @shouldParse '++++++++++++++++++++0'

@@ -9,7 +9,7 @@ ROOT = $(shell pwd)
 # TODO: use `node_modules/.bin/<binary>`
 COFFEE = node_modules/coffee-script/bin/coffee
 PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
-MOCHA = node_modules/mocha/bin/mocha --compilers coffee:coffee-script -u tdd
+MOCHA = node_modules/mocha/bin/mocha --compilers coffee:. -u tdd
 MINIFIER = node_modules/uglify-js/bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
 
 all: $(LIB)

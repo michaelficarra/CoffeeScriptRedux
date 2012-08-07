@@ -361,18 +361,8 @@ class exports.Compiler
       if @assignee.data is 'constructor' and @expression.instanceof CS.Functions
         new JS.FunctionDeclaration (genSym 'class'), expression.params, forceBlock compile @expression.block
       else
-        # TODO: this is a little hacky; move this info to the parser?
-        parentClass = null
-        for a in ancestry
-          if a.instanceof CS.Class
-            parentClass = a
-            break
-          unless a.instanceof CS.SeqOp, CS.Block
-            throw new Error "ClassProtoAssignOp must be within a Class, not #{a.className}"
-        unless parentClass?
-          throw new Error "ClassProtoAssignOp must be within a Class"
         # TODO: genericise (memberAccess target, <member>), switch on type of <member>
-        protoMember = new CS.MemberAccessOp (new CS.MemberAccessOp parentClass.name, 'prototype'), @assignee.data
+        protoMember = new CS.MemberAccessOp (new CS.MemberAccessOp new CS.This, 'prototype'), @assignee.data
         compile new CS.AssignOp protoMember, @expression
     ]
 

@@ -21,7 +21,7 @@ var CS = require("./nodes"),
       , '<': CS.LTOp
       , '>': CS.GTOp
       , extends: CS.ExtendsOp
-      , instancef: CS.InstanceofOp
+      , instanceof: CS.InstanceofOp
       , in: CS.InOp
       , of: CS.OfOp
       , '<<': CS.LeftShiftOp

@@ -236,7 +236,7 @@ assignmentExpression
         return new CS.AssignOp(left, right.expr).r(raw).p(line, column);
       }
   CompoundAssignmentOperators
-    = "*" / "/" / "%" / "+" / "-" / "<<" / ">>" / ">>>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||" / "?"
+    = "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||" / "?"
   compoundAssignmentOp
     = all:(Assignable _ CompoundAssignmentOperators "=" _ secondaryExpression) {
         var raw = all[0].raw + all[1] + all[2] + '=' + all[4] + all[5].raw;
@@ -347,8 +347,8 @@ prefixExpression
   = postfixExpression
   / "++" ws:_ e:(functionLiteral / prefixExpression) { return new CS.PreIncrementOp(e).r('++' + ws + e.raw).p(line, column); }
   / "--" ws:_ e:(functionLiteral / prefixExpression) { return new CS.PreDecrementOp(e).r('--' + ws + e.raw).p(line, column); }
-  / "+" e:(functionLiteral / prefixExpression) { return new CS.UnaryPlusOp(e).r('+' + e.raw).p(line, column); }
-  / "-" e:(functionLiteral / prefixExpression) { return new CS.UnaryNegateOp(e).r('-' + e.raw).p(line, column); }
+  / "+" ws:_ e:(functionLiteral / prefixExpression) { return new CS.UnaryPlusOp(e).r('+' + ws + e.raw).p(line, column); }
+  / "-" ws:_ e:(functionLiteral / prefixExpression) { return new CS.UnaryNegateOp(e).r('-' + ws + e.raw).p(line, column); }
   / o:("!" / NOT) ws:_ e:(functionLiteral / prefixExpression) { return new CS.LogicalNotOp(e).r(o + ws + e.raw).p(line, column); }
   / "~" _ (functionLiteral / prefixExpression) { return new CS.BitNotOp(e).r('~' + ws + e.raw).p(line, column); }
   / DO ws:_ e:(functionLiteral / prefixExpression) { return new CS.DoOp(e).r('do' + ws + e.raw).p(line, column); }

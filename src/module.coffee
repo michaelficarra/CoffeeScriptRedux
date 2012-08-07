@@ -1,5 +1,6 @@
 fs = require 'fs'
 path = require 'path'
+{inspect} = require 'util'
 
 {Preprocessor} = require './preprocessor'
 Parser = require './parser'
@@ -15,7 +16,7 @@ cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
 humanReadable = (str) ->
   (str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)'
 
-formatParserError = (e) ->
+formatParserError = (input, e) ->
   if e.found?
     line = (input.split '\n')[e.line - 1]
     e.column = (cleanMarkers ("#{line}\n").slice 0, e.column).length
@@ -41,7 +42,7 @@ module.exports =
       if options.optimise then Optimiser.optimise parsed else parsed
     catch e
       throw e unless e instanceof Parser.SyntaxError
-      throw new Error formatParserError e
+      throw new Error formatParserError coffee, e
 
   compile: (csAst) ->
     Compiler.compile csAst

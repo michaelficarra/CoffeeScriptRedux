@@ -517,6 +517,8 @@ class exports.Compiler
     [CS.PreIncrementOp, ({expression: e}) -> new JS.UpdateExpression '++', yes, expr e]
     [CS.PostDecrementOp, ({expression: e}) -> new JS.UpdateExpression '--', no, expr e]
     [CS.PostIncrementOp, ({expression: e}) -> new JS.UpdateExpression '++', no, expr e]
+    [CS.UnaryPlusOp, ({expression: e}) -> new JS.UnaryExpression '+', expr e]
+    [CS.UnaryNegateOp, ({expression: e}) -> new JS.UnaryExpression '-', expr e]
     [CS.LogicalNotOp, ({expression: e}) -> new JS.UnaryExpression '!', expr e]
     [CS.TypeofOp, ({expression: e}) -> new JS.UnaryExpression 'typeof', expr e]
     [CS.DeleteOp, ({expression: e}) -> new JS.UnaryExpression 'delete', expr e]

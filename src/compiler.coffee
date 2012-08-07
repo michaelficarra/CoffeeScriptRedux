@@ -57,15 +57,15 @@ expr = (s) ->
     accum = genSym 'accum'
     # TODO: remove accidental mutation like this in these helpers
     s.body = forceBlock s.body
-    push = new JS.MemberExpression no, accum, new JS.Identifier 'push'
+    push = memberAccess accum, 'push'
     s.body.body[s.body.body.length - 1] = stmt new JS.CallExpression push, [expr s.body.body[-1..][0]]
     block = new JS.BlockStatement [s, new JS.ReturnStatement accum]
     iife = new JS.FunctionExpression null, [accum], block
-    new JS.CallExpression (new JS.MemberExpression no, iife, new JS.Identifier 'call'), [new JS.ThisExpression, new JS.ArrayExpression []]
+    new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression, new JS.ArrayExpression []]
   else if s.instanceof JS.SwitchStatement
     block = new JS.BlockStatement [makeReturn s]
     iife = new JS.FunctionExpression null, [], block
-    new JS.CallExpression (new JS.MemberExpression no, iife, new JS.Identifier 'call'), [new JS.ThisExpression]
+    new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression]
   else
     # TODO: comprehensive
     throw new Error "expr: #{s.type}"
@@ -149,11 +149,16 @@ makeVarDeclaration = (vars) ->
     new JS.VariableDeclarator v
   new JS.VariableDeclaration 'var', decls
 
+memberAccess = (e, member) ->
+  if member in jsReserved
+  then new JS.MemberExpression yes, (expr e), new JS.Literal member
+  else new JS.MemberExpression no, (expr e), new JS.Identifier member
+
 
 helperNames = {}
 helpers =
   extends: ->
-    protoAccess = (e) -> new JS.MemberExpression no, e, new JS.Identifier 'prototype'
+    protoAccess = (e) -> memberAccess e, 'prototype'
     child = new JS.Identifier 'child'
     parent = new JS.Identifier 'parent'
     ctor = new JS.Identifier 'ctor'
@@ -162,18 +167,18 @@ helpers =
       new JS.ForInStatement key, parent, new JS.IfStatement (helpers.isOwn parent, key),
         stmt new JS.AssignmentExpression '=', (new JS.MemberExpression yes, child, key), new JS.MemberExpression yes, parent, key
       new JS.FunctionDeclaration ctor, [], new JS.BlockStatement [
-        stmt new JS.AssignmentExpression '=', (new JS.MemberExpression no, new JS.ThisExpression, new JS.Identifier 'constructor'), child
+        stmt new JS.AssignmentExpression '=', (memberAccess new JS.ThisExpression, 'constructor'), child
       ]
       new JS.AssignmentExpression '=', (protoAccess ctor), protoAccess parent
       new JS.AssignmentExpression '=', (protoAccess child), new JS.NewExpression ctor, []
-      new JS.AssignmentExpression '=', (new JS.MemberExpression no, child, new JS.Identifier '__super__'), protoAccess parent
+      new JS.AssignmentExpression '=', (memberAccess child, '__super__'), protoAccess parent
       makeReturn child
     ]
     new JS.FunctionDeclaration helperNames.extends, [child, parent], new JS.BlockStatement map block, stmt
   isOwn: ->
-    hop = new JS.MemberExpression no, (new JS.ObjectExpression []), new JS.Identifier 'hasOwnProperty'
+    hop = memberAccess (new JS.ObjectExpression []), 'hasOwnProperty'
     params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
-    functionBody = [new JS.CallExpression (new JS.MemberExpression no, hop, new JS.Identifier 'call'), args]
+    functionBody = [new JS.CallExpression (memberAccess hop, 'call'), args]
     new JS.FunctionDeclaration helperNames.isOwn, params, makeReturn new JS.BlockStatement map functionBody, stmt
   indexOf: ->
     member = new JS.Identifier 'member'
@@ -182,7 +187,7 @@ helpers =
     length = genSym 'length'
     varDeclaration = new JS.VariableDeclaration 'var', [
       new JS.VariableDeclarator i, new JS.Literal 0
-      new JS.VariableDeclarator length, new JS.MemberExpression no, list, new JS.Identifier 'length'
+      new JS.VariableDeclarator length, memberAccess list, 'length'
     ]
     loopBody = new JS.IfStatement (new JS.BinaryExpression '&&', (new JS.BinaryExpression 'in', i, list), (new JS.BinaryExpression '===', (new JS.MemberExpression yes, list, i), member)), new JS.ReturnStatement i
     functionBody = [
@@ -222,7 +227,7 @@ class exports.Compiler
       [].push.apply block, enabledHelpers
       # function wrapper
       # TODO: respect bare option
-      block = [stmt new JS.CallExpression (new JS.MemberExpression no, (new JS.FunctionExpression null, [], new JS.BlockStatement block), new JS.Identifier 'call'), [new JS.ThisExpression]]
+      block = [stmt new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
       # declare everything
       decls = nub concatMap block, declarationsNeededFor
       block.unshift makeVarDeclaration decls if decls.length > 0
@@ -254,7 +259,7 @@ class exports.Compiler
       e = if needsCaching @expression then genSym 'cache' else expression
       varDeclaration = new JS.VariableDeclaration 'var', [
         new JS.VariableDeclarator i, new JS.Literal 0
-        new JS.VariableDeclarator length, new JS.MemberExpression no, e, new JS.Identifier 'length'
+        new JS.VariableDeclarator length, memberAccess e, 'length'
       ]
       unless e is expression
         varDeclaration.declarations.unshift new JS.VariableDeclarator e, expression
@@ -435,9 +440,9 @@ class exports.Compiler
           leftmost.left = new JS.BinaryExpression '+', (new JS.Literal ''), leftmost.left
       plusOp
     ]
-    [CS.MemberAccessOp, ({expression}) ->
-      if @memberName in jsReserved then new JS.MemberExpression yes, (expr expression), new JS.Literal @memberName
-      else new JS.MemberExpression no, (expr expression), new JS.Identifier @memberName
+    [CS.MemberAccessOp, ({expression}) -> memberAccess expression, @memberName]
+    [CS.ProtoMemberAccessOp, ({expression}) ->
+      memberAccess (memberAccess expression, 'prototype'), @memberName
     ]
     [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> new JS.MemberExpression yes, expression, indexingExpr]
     [CS.SoakedMemberAccessOp, ({expression, inScope}) ->
@@ -445,11 +450,7 @@ class exports.Compiler
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
       if (e.instanceof JS.Identifier) and e.name not in inScope
         condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
-      access =
-        # TODO: DRY
-        if @memberName in jsReserved then new JS.MemberExpression yes, (expr e), new JS.Literal @memberName
-        else new JS.MemberExpression no, (expr e), new JS.Identifier @memberName
-      node = new JS.ConditionalExpression condition, access, helpers.undef()
+      node = new JS.ConditionalExpression condition, (memberAccess e, @memberName), helpers.undef()
       if e is expression then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]
     ]

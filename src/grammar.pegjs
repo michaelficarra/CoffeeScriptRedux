@@ -162,10 +162,10 @@ expressionworthy
 
 // begin expression waterfall
 seqExpression
-  = left:postfixControlFlowExpression right:(_ ";" _ expression)? {
+  = left:postfixControlFlowExpression right:(_ ";" TERMINATOR? _ expression)? {
       if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[2] + right[3].raw;
-      return new CS.SeqOp(left, right[3]).r(raw).p(line, column);
+      var raw = left.raw + right[0] + right[1] + right[2] + right[3] + right[4].raw;
+      return new CS.SeqOp(left, right[4]).r(raw).p(line, column);
     }
 postfixControlFlowOp
   = kw:(IF / UNLESS) ws:_ e:assignmentExpression { return {type: kw, cond: e, raw: kw + ws + e.raw}; }
@@ -228,11 +228,11 @@ assignmentExpression
   / compoundAssignmentOp
   / logicalOrExpression
   assignmentOp
-    = left:Assignable ws0:_ "=" !"=" ws1:_ right:
+    = left:Assignable ws0:_ "=" !"=" t:TERMINATOR? ws1:_ right:
       ( e:secondaryExpression { return {raw: e.raw, expr: e} }
-      / t:TERMINDENT e:secondaryExpression d:DEDENT { return {raw: t + e.raw + d, expr: e} }
+      / i:INDENT e:secondaryExpression d:DEDENT { return {raw: i + e.raw + d, expr: e} }
       ) {
-        var raw = left.raw + ws0 + '=' + ws1 + right.raw;
+        var raw = left.raw + ws0 + '=' + t + ws1 + right.raw;
         return new CS.AssignOp(left, right.expr).r(raw).p(line, column);
       }
   CompoundAssignmentOperators
@@ -243,7 +243,7 @@ assignmentExpression
         return new CS.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(line, column);
       }
 logicalOrExpression
-  = left:logicalAndExpression rights:(_ ("||" / OR) !"=" INDENT? _ (functionLiteral / logicalAndExpression))* {
+  = left:logicalAndExpression rights:(_ ("||" / OR) !"=" TERMINATOR? _ (functionLiteral / logicalAndExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
@@ -251,7 +251,7 @@ logicalOrExpression
       }, left, rights);
     }
 logicalAndExpression
-  = left:bitwiseOrExpression rights:(_ ("&&" / AND) !"=" INDENT? _ (functionLiteral / bitwiseOrExpression))* {
+  = left:bitwiseOrExpression rights:(_ ("&&" / AND) !"=" TERMINATOR? _ (functionLiteral / bitwiseOrExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
@@ -259,49 +259,49 @@ logicalAndExpression
       }, left, rights);
     }
 bitwiseOrExpression
-  = left:bitwiseXorExpression rights:(_ "|" !"=" _ (functionLiteral / bitwiseXorExpression))* {
+  = left:bitwiseXorExpression rights:(_ "|" !"=" TERMINATOR? _ (functionLiteral / bitwiseXorExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-        return new CS.BitOrOp(expr, right[4]).r(raw).p(line, column);
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+        return new CS.BitOrOp(expr, right[5]).r(raw).p(line, column);
       }, left, rights);
     }
 bitwiseXorExpression
-  = left:bitwiseAndExpression rights:(_ "^" !"=" _ (functionLiteral / bitwiseAndExpression))* {
+  = left:bitwiseAndExpression rights:(_ "^" !"=" TERMINATOR? _ (functionLiteral / bitwiseAndExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-        return new CS.BitXorOp(expr, right[4]).r(raw).p(line, column);
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+        return new CS.BitXorOp(expr, right[5]).r(raw).p(line, column);
       }, left, rights);
     }
 bitwiseAndExpression
-  = left:existentialExpression rights:(_ "&" !"=" _ (functionLiteral / existentialExpression))* {
+  = left:existentialExpression rights:(_ "&" !"=" TERMINATOR? _ (functionLiteral / existentialExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-        return new CS.BitAndOp(expr, right[4]).r(raw).p(line, column);
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+        return new CS.BitAndOp(expr, right[5]).r(raw).p(line, column);
       }, left, rights);
     }
 existentialExpression
-  = left:equalityExpression right:(_ "?" !"=" _ (functionLiteral / existentialExpression))? {
+  = left:equalityExpression right:(_ "?" !"=" TERMINATOR? _ (functionLiteral / existentialExpression))? {
       if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-      return new CS.ExistsOp(left, right[4]).r(raw).p(line, column);
+      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+      return new CS.ExistsOp(left, right[5]).r(raw).p(line, column);
     }
 equalityExpression
-  = left:relationalExpression rights:(_ ("==" / IS / "!=" / ISNT) _ (functionLiteral / relationalExpression))* {
+  = left:relationalExpression rights:(_ ("==" / IS / "!=" / ISNT) TERMINATOR? _ (functionLiteral / relationalExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1] + right[2] + right[3].raw;
-        return new constructorLookup[right[1]](expr, right[3]).r(raw).p(line, column);
+        var raw = expr.raw + right[0] + right[1] + right[2] + right[3] + right[4].raw;
+        return new constructorLookup[right[1]](expr, right[4]).r(raw).p(line, column);
       }, left, rights);
     }
 relationalExpression
-  = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator _ (functionLiteral / bitwiseShiftExpression))* {
+  = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (functionLiteral / bitwiseShiftExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1].raw + right[2] + right[3].raw;
-        return right[1](expr, right[3], raw, line, column);
+        var raw = expr.raw + right[0] + right[1].raw + right[2] + right[3] + right[4].raw;
+        return right[1](expr, right[4], raw, line, column);
       }, left, rights);
     }
   relationalExpressionOperator
@@ -320,27 +320,27 @@ relationalExpression
         return fn;
       }
 bitwiseShiftExpression
-  = left:additiveExpression rights:(_ ("<<" / ">>>" / ">>") !"=" _ (functionLiteral / additiveExpression))* {
+  = left:additiveExpression rights:(_ ("<<" / ">>>" / ">>") !"=" TERMINATOR? _ (functionLiteral / additiveExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-        return new constructorLookup[right[1]](expr, right[4]).r(raw).p(line, column);
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+        return new constructorLookup[right[1]](expr, right[5]).r(raw).p(line, column);
       }, left, rights);
     }
 additiveExpression
-  = left:multiplicativeExpression rights:(_ ("+" ![+=] / "-" ![-=]) _ (functionLiteral / multiplicativeExpression))* {
+  = left:multiplicativeExpression rights:(_ ("+" ![+=] / "-" ![-=]) TERMINATOR? _ (functionLiteral / multiplicativeExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1][0] + right[2] + right[3].raw;
-        return new constructorLookup[right[1][0]](expr, right[3]).r(raw).p(line, column);
+        var raw = expr.raw + right[0] + right[1][0] + right[2] + right[3] + right[4].raw;
+        return new constructorLookup[right[1][0]](expr, right[4]).r(raw).p(line, column);
       }, left, rights);
     }
 multiplicativeExpression
-  = left:prefixExpression rights:(_ [*/%] !"=" _ (functionLiteral / prefixExpression))* {
+  = left:prefixExpression rights:(_ [*/%] !"=" TERMINATOR? _ (functionLiteral / prefixExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4].raw;
-        return new constructorLookup[right[1]](expr, right[4]).r(raw).p(line, column);
+        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+        return new constructorLookup[right[1]](expr, right[5]).r(raw).p(line, column);
       }, left, rights);
     }
 prefixExpression

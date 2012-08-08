@@ -7,7 +7,7 @@ suite 'Operators', ->
   # * [not] in/of
   # * Chained Comparison
 
-  test "binary maths operators do not require spaces", ->
+  test 'binary maths operators do not require spaces', ->
     a = 1
     b = -1
     eq 1, a*-b
@@ -15,19 +15,19 @@ suite 'Operators', ->
     eq 1, a/-b
     eq -1, a/b
 
-  #test "operators should respect new lines as spaced", ->
-  #  a = 123 +
-  #  456
-  #  eq 579, a
-  #
-  #  b = "1#{2}3" +
-  #  "456"
-  #  eq '123456', b
+  test 'operators should respect new lines as spaced', ->
+    a = 123 +
+    456
+    eq 579, a
 
-  test "multiple operators should space themselves", ->
+    b = "1#{2}3" +
+    '456'
+    eq '123456', b
+
+  test 'multiple operators should space themselves', ->
     eq (+ +1), (- -1)
 
-  test "bitwise operators", ->
+  test 'bitwise operators', ->
     eq  2, (10 &   3)
     eq 11, (10 |   3)
     eq  9, (10 ^   3)
@@ -40,24 +40,21 @@ suite 'Operators', ->
     num = 10; eq 80, (num <<=  3)
     num = 10; eq  1, (num >>=  3)
     num = 10; eq  1, (num >>>= 3)
-  #
-  #test "`instanceof`", ->
-  #  ok new String instanceof String
-  #  ok new Boolean instanceof Boolean
-  #  # `instanceof` supports negation by prefixing the operator with `not`
-  #  ok new Number not instanceof String
-  #  ok new Array not instanceof Boolean
-  #
-  #test "use `::` operator on keywords `this` and `@`", ->
-  #  nonce = {}
-  #  obj =
-  #    withAt:   -> @::prop
-  #    withThis: -> this::prop
-  #  obj.prototype = prop: nonce
-  #  eq nonce, obj.withAt()
-  #  eq nonce, obj.withThis()
-  #
-  #
+
+  test 'instanceof', ->
+    ok new String instanceof String
+    ok new Boolean instanceof Boolean
+
+  test 'not instanceof', ->
+    ok new Number not instanceof String
+    ok new Array not instanceof Boolean
+
+  test "use `::` operator on keywords `this` and `@`", ->
+    obj = prototype: prop: nonce = {}
+    eq nonce, (-> @::prop).call obj
+    eq nonce, (-> this::prop).call obj
+
+
   ## Existential Operator (Binary)
   #
   #test "binary existential operator", ->

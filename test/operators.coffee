@@ -7,6 +7,9 @@ suite 'Operators', ->
   # * [not] in/of
   # * Chained Comparison
 
+  # TODO: sort these
+  # TODO: basic functionality of all binary and unary operators
+
   test 'binary maths operators do not require spaces', ->
     a = 1
     b = -1
@@ -124,91 +127,80 @@ suite 'Operators', ->
   #  ok a isnt 1 and b != 0
   #  ok a != b
   #  ok a isnt b
-  #
-  #
-  ## [not] in/of
-  #
-  ## - `in` should check if an array contains a value using `indexOf`
-  ## - `of` should check if a property is defined on an object using `in`
-  #test "in, of", ->
-  #  arr = [1]
-  #  ok 0 of arr
-  #  ok 1 in arr
-  #  # prefixing `not` to `in and `of` should negate them
-  #  ok 1 not of arr
-  #  ok 0 not in arr
-  #
-  #test "`in` should be able to operate on an array literal", ->
-  #  ok 2 in [0, 1, 2, 3]
-  #  ok 4 not in [0, 1, 2, 3]
-  #  arr = [0, 1, 2, 3]
-  #  ok 2 in arr
-  #  ok 4 not in arr
-  #  # should cache the value used to test the array
-  #  arr = [0]
-  #  val = 0
-  #  ok val++ in arr
-  #  ok val++ not in arr
-  #  val = 0
-  #  ok val++ of arr
-  #  ok val++ not of arr
-  #
-  #test "`of` and `in` should be able to operate on instance variables", ->
-  #  obj = {
-  #    list: [2,3]
-  #    in_list: (value) -> value in @list
-  #    not_in_list: (value) -> value not in @list
-  #    of_list: (value) -> value of @list
-  #    not_of_list: (value) -> value not of @list
-  #  }
-  #  ok obj.in_list 3
-  #  ok obj.not_in_list 1
-  #  ok obj.of_list 0
-  #  ok obj.not_of_list 2
-  #
-  #test "#???: `in` with cache and `__indexOf` should work in argument lists", ->
-  #  eq 1, [Object() in Array()].length
-  #
-  #test "#737: `in` should have higher precedence than logical operators", ->
-  #  eq 1, 1 in [1] and 1
-  #
-  #test "#768: `in` should preserve evaluation order", ->
-  #  share = 0
-  #  a = -> share++ if share is 0
-  #  b = -> share++ if share is 1
-  #  c = -> share++ if share is 2
-  #  ok a() not in [b(),c()]
-  #  eq 3, share
-  #
-  #test "#1099: empty array after `in` should compile to `false`", ->
-  #  eq 1, [5 in []].length
-  #  eq false, do -> return 0 in []
-  #
-  #test "#1354: optimized `in` checks should not happen when splats are present", ->
-  #  a = [6, 9]
-  #  eq 9 in [3, a...], true
-  #
-  #test "#1100: precedence in or-test compilation of `in`", ->
-  #  ok 0 in [1 and 0]
-  #  ok 0 in [1, 1 and 0]
-  #  ok not (0 in [1, 0 or 1])
-  #
-  #test "#1630: `in` should check `hasOwnProperty`", ->
-  #  ok undefined not in length: 1
-  #
-  #test "#1714: lexer bug with raw range `for` followed by `in`", ->
-  #  0 for [1..2]
-  #  ok not ('a' in ['b'])
-  #
-  #  0 for [1..2]; ok not ('a' in ['b'])
-  #
-  #  0 for [1..10] # comment ending
-  #  ok not ('a' in ['b'])
-  #
-  #test "#1099: statically determined `not in []` reporting incorrect result", ->
-  #  ok 0 not in []
-  #
-  #
+
+
+  suite '[not] in/of', ->
+    # - `in` should check if an array contains a value using `indexOf`
+    # - `of` should check if a property is defined on an object using `in`
+
+    test "in, of", ->
+      arr = [1]
+      ok 0 of arr
+      ok 1 in arr
+
+    test 'not in, not of', ->
+      arr = [1]
+      ok 1 not of arr
+      ok 0 not in arr
+
+    test "`in` should be able to operate on an array literal", ->
+      ok 2 in [0, 1, 2, 3]
+      ok 4 not in [0, 1, 2, 3]
+      arr = [0, 1, 2, 3]
+      ok 2 in arr
+      ok 4 not in arr
+      # should cache the value used to test the array
+      arr = [0]
+      val = 0
+      ok val++ in arr
+      ok val++ not in arr
+      val = 0
+      ok val++ of arr
+      ok val++ not of arr
+
+    test "#???: `in` with cache and `__indexOf` should work in argument lists", ->
+      eq 1, [Object() in Array()].length
+
+    test "#737: `in` should have higher precedence than logical operators", ->
+      eq 1, 1 in [1] and 1
+
+    test "#768: `in` should preserve evaluation order", ->
+      share = 0
+      a = -> share++ if share is 0
+      b = -> share++ if share is 1
+      c = -> share++ if share is 2
+      ok a() not in [b(),c()]
+      eq 3, share
+
+    test "#1099: empty array after `in` should compile to `false`", ->
+      eq 1, [5 in []].length
+      eq false, do -> return 0 in []
+
+    #test "#1354: optimized `in` checks should not happen when splats are present", ->
+    #  a = [6, 9]
+    #  eq 9 in [3, a...], true
+
+    test "#1100: precedence in or-test compilation of `in`", ->
+      ok 0 in [1 and 0]
+      ok 0 in [1, 1 and 0]
+      ok not (0 in [1, 0 or 1])
+
+    test "#1630: `in` should check `hasOwnProperty`", ->
+      ok undefined not in {length: 1}
+
+    #test "#1714: lexer bug with raw range `for` followed by `in`", ->
+    #  0 for [1..2]
+    #  ok not ('a' in ['b'])
+
+    #  0 for [1..2]; ok not ('a' in ['b'])
+
+    #  0 for [1..10] # comment ending
+    #  ok not ('a' in ['b'])
+
+    test "#1099: statically determined `not in []` reporting incorrect result", ->
+      ok 0 not in []
+
+
   ## Chained Comparison
   #
   #test "chainable operators", ->
@@ -271,10 +263,10 @@ suite 'Operators', ->
   #  func = -> x ?= (-> if true then 'hi')
   #  func()
   #  eq x(), 'hi'
-  #  
+  #
   #test "#2197: Existential existential double trouble", ->
   #  counter = 0
   #  func = -> counter++
   #  func()? ? 100
   #  eq counter, 1
-  #  
+  #

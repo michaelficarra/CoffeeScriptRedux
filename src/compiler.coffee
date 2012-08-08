@@ -180,7 +180,7 @@ helpers =
     params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
     functionBody = [new JS.CallExpression (memberAccess hop, 'call'), args]
     new JS.FunctionDeclaration helperNames.isOwn, params, makeReturn new JS.BlockStatement map functionBody, stmt
-  indexOf: ->
+  in: ->
     member = new JS.Identifier 'member'
     list = new JS.Identifier 'list'
     i = genSym 'i'
@@ -189,12 +189,12 @@ helpers =
       new JS.VariableDeclarator i, new JS.Literal 0
       new JS.VariableDeclarator length, memberAccess list, 'length'
     ]
-    loopBody = new JS.IfStatement (new JS.BinaryExpression '&&', (new JS.BinaryExpression 'in', i, list), (new JS.BinaryExpression '===', (new JS.MemberExpression yes, list, i), member)), new JS.ReturnStatement i
+    loopBody = new JS.IfStatement (new JS.BinaryExpression '&&', (new JS.BinaryExpression 'in', i, list), (new JS.BinaryExpression '===', (new JS.MemberExpression yes, list, i), member)), new JS.ReturnStatement new JS.Literal yes
     functionBody = [
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), loopBody
-      new JS.UnaryExpression '-', new JS.Literal 1
+      new JS.Literal no
     ]
-    new JS.FunctionDeclaration helperNames.indexOf, [member, list], makeReturn new JS.BlockStatement map functionBody, stmt
+    new JS.FunctionDeclaration helperNames.in, [member, list], makeReturn new JS.BlockStatement map functionBody, stmt
 
 enabledHelpers = []
 for h, fn of helpers
@@ -493,7 +493,7 @@ class exports.Compiler
 
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
     # TODO: InOp with a short array as the right operand
-    [CS.InOp, ({left, right}) -> helpers.indexOf (expr left), expr right]
+    [CS.InOp, ({left, right}) -> helpers.in (expr left), expr right]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 
     [CS.LogicalAndOp, ({left, right}) -> new JS.BinaryExpression '&&', (expr left), expr right]

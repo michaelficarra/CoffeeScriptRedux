@@ -911,13 +911,13 @@ WHEN = w:"when" !identifierPart { return w; }
 WHILE = w:"while" !identifierPart { return w; }
 YES = w:"yes" !identifierPart { return w; }
 
-JSKeywords
+SharedKeywords
   = ("true" / "false" / "null" / "this" / "new" / "delete" / "typeof" /
-  "instanceof" / "in" / "return" / "throw" / "break" / "continue" / "debugger"
-  / "if" / "else" / "switch" / "for" / "while" / "do" / "try" / "catch" /
+  "instanceof" / "in" / "return" / "throw" / "break" / "continue" / "debugger" /
+  "if" / "else" / "switch" / "for" / "while" / "do" / "try" / "catch" /
   "finally" / "class" / "extends" / "super") !identifierPart
 
-UnusedJSKeywords
+JSKeywords
   = ("case" / "default" / "function" / "var" / "void" / "with" / "const" /
   "let" / "enum" / "export" / "import" / "native" / "implements" / "interface" /
   "package" / "private" / "protected" / "public" / "static" / "yield") !identifierPart
@@ -927,9 +927,9 @@ CSKeywords
   "and" / "or" / "isnt" / "is" / "not" / "yes" / "no" / "on" / "of") !identifierPart
 
 reserved
-  = JSKeywords
+  = SharedKeywords
   / CSKeywords
-  / UnusedJSKeywords
+  / JSKeywords
 
 
 // unicode

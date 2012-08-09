@@ -58,75 +58,75 @@ suite 'Operators', ->
     eq nonce, (-> this::prop).call obj
 
 
-  ## Existential Operator (Binary)
-  #
-  #test "binary existential operator", ->
-  #  nonce = {}
-  #
-  #  b = a ? nonce
-  #  eq nonce, b
-  #
-  #  a = null
-  #  b = undefined
-  #  b = a ? nonce
-  #  eq nonce, b
-  #
-  #  a = false
-  #  b = a ? nonce
-  #  eq false, b
-  #
-  #  a = 0
-  #  b = a ? nonce
-  #  eq 0, b
-  #
-  #test "binary existential operator conditionally evaluates second operand", ->
-  #  i = 1
-  #  func = -> i -= 1
-  #  result = func() ? func()
-  #  eq result, 0
-  #
-  #test "binary existential operator with negative number", ->
-  #  a = null ? - 1
-  #  eq -1, a
-  #
-  #
-  ## Existential Operator (Unary)
-  #
-  #test "postfix existential operator", ->
-  #  ok (if nonexistent? then false else true)
-  #  defined = true
-  #  ok defined?
-  #  defined = false
-  #  ok defined?
-  #
-  #test "postfix existential operator only evaluates its operand once", ->
-  #  semaphore = 0
-  #  fn = ->
-  #    ok false if semaphore
-  #    ++semaphore
-  #  ok(if fn()? then true else false)
-  #
-  #test "negated postfix existential operator", ->
-  #  ok !nothing?.value
-  #
-  #test "postfix existential operator on expressions", ->
-  #  eq true, (1 or 0)?, true
-  #
-  #
-  ## `is`,`isnt`,`==`,`!=`
-  #
-  #test "`==` and `is` should be interchangeable", ->
-  #  a = b = 1
-  #  ok a is 1 and b == 1
-  #  ok a == b
-  #  ok a is b
-  #
-  #test "`!=` and `isnt` should be interchangeable", ->
-  #  a = 0
-  #  b = 1
-  #  ok a isnt 1 and b != 0
-  #  ok a != b
-  #  ok a isnt b
+  suite 'Existential Operator (Binary)', ->
+
+    test "binary existential operator", ->
+      nonce = {}
+
+      b = a ? nonce
+      eq nonce, b
+
+      a = null
+      b = undefined
+      b = a ? nonce
+      eq nonce, b
+
+      a = false
+      b = a ? nonce
+      eq false, b
+
+      a = 0
+      b = a ? nonce
+      eq 0, b
+
+    test "binary existential operator conditionally evaluates second operand", ->
+      i = 1
+      func = -> i -= 1
+      result = func() ? func()
+      eq result, 0
+
+    test "binary existential operator with negative number", ->
+      a = null ? - 1
+      eq -1, a
+
+
+  suite 'Existential Operator (Unary)', ->
+
+    test "postfix existential operator", ->
+      ok (if nonexistent? then false else true)
+      defined = true
+      ok defined?
+      defined = false
+      ok defined?
+
+    test "postfix existential operator only evaluates its operand once", ->
+      semaphore = 0
+      fn = ->
+        ok false if semaphore
+        ++semaphore
+      ok(if fn()? then true else false)
+
+    test "negated postfix existential operator", ->
+      ok !nothing?.value
+
+    test "postfix existential operator on expressions", ->
+      eq true, (1 or 0)?, true
+
+
+  suite '`is`,`isnt`,`==`,`!=`', ->
+
+    test "`==` and `is` should be interchangeable", ->
+      a = b = 1
+      ok a is 1 and b == 1
+      ok a == b
+      ok a is b
+
+    test "`!=` and `isnt` should be interchangeable", ->
+      a = 0
+      b = 1
+      ok a isnt 1 and b != 0
+      ok a != b
+      ok a isnt b
 
 
   suite '[not] in/of', ->
@@ -244,29 +244,27 @@ suite 'Operators', ->
   #  arr = []
   #  eq nonce, C::method arr... # should be applied to `C::`
   #
-  #test "#1102: String literal prevents line continuation", ->
-  #  eq "': '", '' +
-  #     "': '"
-  #
+  test "#1102: String literal prevents line continuation", ->
+    eq "': '", '' +
+    "': '"
+
   #test "#1703, ---x is invalid JS", ->
   #  x = 2
   #  eq (- --x), -1
-  #
+
   #test "Regression with implicit calls against an indented assignment", ->
   #  eq 1, a =
   #    1
-  #
   #  eq a, 1
-  #
-  #test "#2155 ... conditional assignment to a closure", ->
+
+  #test "#2155: conditional assignment to a closure", ->
   #  x = null
   #  func = -> x ?= (-> if true then 'hi')
   #  func()
   #  eq x(), 'hi'
-  #
-  #test "#2197: Existential existential double trouble", ->
-  #  counter = 0
-  #  func = -> counter++
-  #  func()? ? 100
-  #  eq counter, 1
-  #
+
+  test "#2197: Existential existential double trouble", ->
+    counter = 0
+    func = -> counter++
+    func()? ? 100
+    eq counter, 1

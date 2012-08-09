@@ -229,8 +229,8 @@ assignmentExpression
   / logicalOrExpression
   assignmentOp
     = left:Assignable ws0:_ "=" !"=" t:TERMINATOR? ws1:_ right:
-      ( e:secondaryExpression { return {raw: e.raw, expr: e} }
-      / i:INDENT e:secondaryExpression d:DEDENT { return {raw: i + e.raw + d, expr: e} }
+      ( i:INDENT e:secondaryExpression d:DEDENT { return {raw: i + e.raw + d, expr: e} }
+      / e:secondaryExpression { return {raw: e.raw, expr: e} }
       ) {
         var raw = left.raw + ws0 + '=' + t + ws1 + right.raw;
         return new CS.AssignOp(left, right.expr).r(raw).p(line, column);

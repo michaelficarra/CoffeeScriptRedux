@@ -226,12 +226,13 @@ class exports.Compiler
         else [block]
       # helpers
       [].push.apply block, enabledHelpers
-      # function wrapper
-      # TODO: respect bare option
-      block = [stmt new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
-      # declare everything
       decls = nub concatMap block, declarationsNeededFor
-      block.unshift makeVarDeclaration decls if decls.length > 0
+      if decls.length > 0
+        # add a function wrapper
+        # TODO: respect bare option
+        block = [stmt new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
+        # declare everything
+        block.unshift makeVarDeclaration decls
       # generate node
       program = new JS.Program block
       program.leadingComments = [

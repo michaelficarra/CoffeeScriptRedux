@@ -379,7 +379,7 @@ callExpression
         return new CS.FunctionApplication(fn, args[2] ? args[2].list : []).r(raw).p(line, column);
       }, fn, args);
     }
-  / fn:memberExpression ws:__ args:secondaryArgumentList {
+  / fn:memberExpression ws:__ !([+-] __) args:secondaryArgumentList {
       var raw = fn.raw + ws + args.raw;
       return new CS.FunctionApplication(fn, args.list).r(raw).p(line, column);
     }

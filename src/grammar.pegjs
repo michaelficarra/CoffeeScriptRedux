@@ -4,10 +4,10 @@ var CS = require("./nodes"),
     constructorLookup =
       { ';': CS.SeqOp
       , '=': CS.AssignOp
-      , '&&': CS.AndOp
-      , and: CS.AndOp
-      , '||': CS.OrOp
-      , or: CS.OrOp
+      , '&&': CS.LogicalAndOp
+      , and: CS.LogicalAndOp
+      , '||': CS.LogicalOrOp
+      , or: CS.LogicalOrOp
       , '|': CS.BitOrOp
       , '^': CS.BitXorOp
       , '&': CS.BitAndOp
@@ -237,7 +237,7 @@ assignmentExpression
         return new CS.AssignOp(left, right.expr).r(raw).p(line, column);
       }
   CompoundAssignmentOperators
-    = "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||"
+    = "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / AND / OR / "&&" / "||" / "&" / "^" / "|"
   compoundAssignmentOp
     = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
         var raw = left.raw + ws0 + op + '=' + ws1 + right.raw;

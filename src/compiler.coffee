@@ -401,8 +401,8 @@ class exports.Compiler
     ]
     [CS.CompoundAssignOp, ({assignee, expression}) ->
       op = switch @op
-        when CS.AndOp                then '&&'
-        when CS.OrOp                 then '||'
+        when CS.LogicalAndOp         then '&&'
+        when CS.LogicalOrOp          then '||'
         when CS.BitOrOp              then '|'
         when CS.BitXorOp             then '^'
         when CS.BitAndOp             then '&'

@@ -226,6 +226,7 @@ postfixControlFlowExpression
 assignmentExpression
   = assignmentOp
   / compoundAssignmentOp
+  / existsAssignmentOp
   / logicalOrExpression
   assignmentOp
     = left:Assignable ws0:_ "=" !"=" t:TERMINATOR? ws1:_ right:
@@ -236,11 +237,16 @@ assignmentExpression
         return new CS.AssignOp(left, right.expr).r(raw).p(line, column);
       }
   CompoundAssignmentOperators
-    = "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||" / "?"
+    = "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||"
   compoundAssignmentOp
-    = all:(Assignable _ CompoundAssignmentOperators "=" _ secondaryExpression) {
-        var raw = all[0].raw + all[1] + all[2] + '=' + all[4] + all[5].raw;
-        return new CS.CompoundAssignOp(constructorLookup[all[2]], all[0], all[5]).r(raw).p(line, column);
+    = left:Assignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
+        var raw = left.raw + ws0 + op + '=' + ws1 + right.raw;
+        return new CS.CompoundAssignOp(constructorLookup[op], left, right).r(raw).p(line, column);
+      }
+  existsAssignmentOp
+    = left:Assignable ws0:_ "?=" ws1:_ right:secondaryExpression {
+        var raw = left.raw + ws0 + '?=' + ws1 + right.raw;
+        return new CS.ExistsAssignOp(left, right).r(raw).p(line, column);
       }
 logicalOrExpression
   = left:logicalAndExpression rights:(_ ("||" / OR) !"=" TERMINATOR? _ (functionLiteral / logicalAndExpression))* {

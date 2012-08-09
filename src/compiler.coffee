@@ -507,6 +507,7 @@ class exports.Compiler
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
     # TODO: InOp with a short array as the right operand
     [CS.InOp, ({left, right}) -> helpers.in (expr left), expr right]
+    [CS.ExtendsOp, ({left, right}) -> helpers.extends (expr left), expr right]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 
     [CS.LogicalAndOp, ({left, right}) -> new JS.BinaryExpression '&&', (expr left), expr right]

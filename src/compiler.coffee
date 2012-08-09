@@ -151,7 +151,7 @@ makeVarDeclaration = (vars) ->
   new JS.VariableDeclaration 'var', decls
 
 memberAccess = (e, member) ->
-  if member in jsReserved
+  if member in jsReserved or +member.toString()[0] in [0..9]
   then new JS.MemberExpression yes, (expr e), new JS.Literal member
   else new JS.MemberExpression no, (expr e), new JS.Identifier member
 
@@ -377,7 +377,7 @@ class exports.Compiler
       when @assignee.instanceof CS.ArrayInitialiser
         assignments = []
         e = @expression
-        if needsCaching @expression
+        if @assignee.members.length > 1 and needsCaching @expression
           e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
@@ -387,7 +387,7 @@ class exports.Compiler
       when @assignee.instanceof CS.ObjectInitialiser
         assignments = []
         e = @expression
-        if needsCaching @expression
+        if @assignee.members.length > 1 and needsCaching @expression
           e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
@@ -448,10 +448,12 @@ class exports.Compiler
       plusOp
     ]
     [CS.MemberAccessOp, ({expression}) -> memberAccess expression, @memberName]
-    [CS.ProtoMemberAccessOp, ({expression}) ->
-      memberAccess (memberAccess expression, 'prototype'), @memberName
+    [CS.ProtoMemberAccessOp, ({expression}) -> memberAccess (memberAccess expression, 'prototype'), @memberName]
+    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) ->
+      if (indexingExpr.instanceof JS.Literal) and typeof indexingExpr.value is 'string'
+      then memberAccess expression, indexingExpr.value
+      else new JS.MemberExpression yes, expression, indexingExpr
     ]
-    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> new JS.MemberExpression yes, expression, indexingExpr]
     [CS.SoakedMemberAccessOp, ({expression, inScope}) ->
       e = if needsCaching @expression then genSym 'cache' else expression
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e

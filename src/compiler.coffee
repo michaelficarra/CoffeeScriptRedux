@@ -131,7 +131,7 @@ collectIdentifiers = (node) -> nub switch
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->
   (envEnrichments node, []).length > 0 or
-  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp) or
+  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp) or
   (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
   (any node.listMembers, (n) -> any node[n], needsCaching)
 
@@ -374,27 +374,30 @@ class exports.Compiler
     ]
 
     # more complex operations
-    [CS.AssignOp, ({assignee, expression, compile}) -> switch
+    [CS.AssignOp, ({assignee, expression, ancestry, compile}) -> switch
+      # TODO: DRY?
       when @assignee.instanceof CS.ArrayInitialiser
         assignments = []
         e = @expression
-        if @assignee.members.length > 1 and needsCaching @expression
+        if @assignee.members.length > 1 or needsCaching @expression
           e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m, new CS.DynamicMemberAccessOp e, new CS.Int i
         return helpers.undef() unless assignments.length
-        compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
+        assignSeq = foldl1 assignments, (a, b) -> new CS.SeqOp a, b
+        compile if usedAsExpression this, ancestry then new CS.SeqOp assignSeq, e else assignSeq
       when @assignee.instanceof CS.ObjectInitialiser
         assignments = []
         e = @expression
-        if @assignee.members.length > 1 and needsCaching @expression
+        if @assignee.members.length > 1 or needsCaching @expression
           e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m.expression, new CS.MemberAccessOp e, m.key.data
         return helpers.undef() unless assignments.length
-        compile foldl1 assignments, (a, b) -> new CS.SeqOp a, b
+        assignSeq = foldl1 assignments, (a, b) -> new CS.SeqOp a, b
+        compile if usedAsExpression this, ancestry then new CS.SeqOp assignSeq, e else assignSeq
       when @assignee.instanceof CS.Identifier, CS.GenSym, CS.MemberAccessOps
         new JS.AssignmentExpression '=', assignee, expr expression
       else

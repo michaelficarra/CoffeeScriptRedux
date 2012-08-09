@@ -248,9 +248,9 @@ suite 'Operators', ->
     eq "': '", '' +
     "': '"
 
-  #test "#1703, ---x is invalid JS", ->
-  #  x = 2
-  #  eq (- --x), -1
+  test "#1703, ---x is invalid JS", ->
+    x = 2
+    eq (- --x), -1
 
   #test "Regression with implicit calls against an indented assignment", ->
   #  eq 1, a =

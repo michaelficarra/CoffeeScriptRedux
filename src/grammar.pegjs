@@ -239,12 +239,12 @@ assignmentExpression
   CompoundAssignmentOperators
     = "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / "&" / "^" / "|" / "and" / "or" / "&&" / "||"
   compoundAssignmentOp
-    = left:Assignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
+    = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
         var raw = left.raw + ws0 + op + '=' + ws1 + right.raw;
         return new CS.CompoundAssignOp(constructorLookup[op], left, right).r(raw).p(line, column);
       }
   existsAssignmentOp
-    = left:Assignable ws0:_ "?=" ws1:_ right:secondaryExpression {
+    = left:ExistsAssignable ws0:_ "?=" ws1:_ right:secondaryExpression {
         var raw = left.raw + ws0 + '?=' + ws1 + right.raw;
         return new CS.ExistsAssignOp(left, right).r(raw).p(line, column);
       }
@@ -811,6 +811,11 @@ null = NULL { return (new CS.Null).r('null').p(line, column); }
 
 
 unassignable = ("arguments" / "eval") !identifierPart
+CompoundAssignable
+  = memberAccess
+  / !unassignable i:identifier { return i; }
+  / contextVar
+ExistsAssignable = CompoundAssignable
 Assignable
   = memberAccess
   / !unassignable i:identifier { return i; }

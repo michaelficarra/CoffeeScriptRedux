@@ -227,13 +227,13 @@ class exports.Optimiser
     # Prepend the condition if it has side effects
     [CS.Conditional, (inScope) ->
       if isFalsey @condition
-        decls = declarationsFor @block, inScope
-        block = if @elseBlock? then new CS.SeqOp decls, @elseBlock else decls
+        block = @elseBlock
       else if isTruthy @condition
-        decls = declarationsFor @elseBlock, inScope
-        block = if @block? then new CS.SeqOp @block, decls else decls
+        block = @block
       else
         return this
+      decls = declarationsFor block, inScope
+      block = if block? then new CS.SeqOp decls, block else decls
       if mayHaveSideEffects @condition, inScope
         block = new CS.SeqOp @condition, block
       block

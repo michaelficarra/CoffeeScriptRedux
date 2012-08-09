@@ -33,6 +33,7 @@ stmt = (e) ->
   #else if (e.instanceof JS.BinaryExpression) and e.operator is '&&'
   #  new JS.IfStatement (expr e.left), stmt e.right
   else if e.instanceof JS.ConditionalExpression
+    # TODO: drop either the consequent or the alternate if they don't have side effects
     new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternate
   else new JS.ExpressionStatement e
 
@@ -77,7 +78,7 @@ makeReturn = (node) ->
   else if node.instanceof JS.SequenceExpression
     new JS.SequenceExpression [node.expressions[...-1]..., makeReturn node.expressions[-1..][0]]
   else if node.instanceof JS.IfStatement
-    new JS.IfStatement node.test, (makeReturn node.consequent), makeReturn node.alternate
+    new JS.IfStatement node.test, (makeReturn node.consequent), if node.alternate? then makeReturn node.alternate else null
   else if node.instanceof JS.SwitchStatement
     new JS.SwitchStatement node.discriminant, map node.cases, makeReturn
   else if node.instanceof JS.SwitchCase
@@ -418,6 +419,12 @@ class exports.Compiler
         # TODO: if assignee is an identifier, fail unless assignee is in scope
         new JS.BinaryExpression op, assignee, new JS.AssignmentExpression '=', assignee, expression
       else new JS.AssignmentExpression "#{op}=", assignee, expression
+    ]
+    [CS.ExistsAssignOp, ({assignee, expression, inScope}) ->
+      if (assignee.instanceof JS.Identifier) and assignee.name not in inScope
+        throw new Error "the variable \"#{assignee.name}\" can't be assigned with ?= because it has not been defined."
+      condition = new JS.BinaryExpression '!=', (new JS.Literal null), assignee
+      new JS.ConditionalExpression condition, assignee, new JS.AssignmentExpression '=', assignee, expr expression
     ]
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
     [CS.NewOp, ({ctor, arguments: args}) -> new JS.NewExpression ctor, args]

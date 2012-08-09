@@ -356,7 +356,7 @@ prefixExpression
   / "+" ws:_ e:(functionLiteral / prefixExpression) { return new CS.UnaryPlusOp(e).r('+' + ws + e.raw).p(line, column); }
   / "-" ws:_ e:(functionLiteral / prefixExpression) { return new CS.UnaryNegateOp(e).r('-' + ws + e.raw).p(line, column); }
   / o:("!" / NOT) ws:_ e:(functionLiteral / prefixExpression) { return new CS.LogicalNotOp(e).r(o + ws + e.raw).p(line, column); }
-  / "~" _ (functionLiteral / prefixExpression) { return new CS.BitNotOp(e).r('~' + ws + e.raw).p(line, column); }
+  / "~" ws:_ e:(functionLiteral / prefixExpression) { return new CS.BitNotOp(e).r('~' + ws + e.raw).p(line, column); }
   / DO ws:_ e:(functionLiteral / prefixExpression) { return new CS.DoOp(e).r('do' + ws + e.raw).p(line, column); }
   / TYPEOF ws:_ e:(functionLiteral / prefixExpression) { return new CS.TypeofOp(e).r('typeof' + ws + e.raw).p(line, column); }
   / DELETE ws:_ e:(functionLiteral / prefixExpression) { return new CS.DeleteOp(e).r('delete' + ws + e.raw).p(line, column); }

@@ -534,6 +534,7 @@ class exports.Compiler
     [CS.UnaryPlusOp, ({expression: e}) -> new JS.UnaryExpression '+', expr e]
     [CS.UnaryNegateOp, ({expression: e}) -> new JS.UnaryExpression '-', expr e]
     [CS.LogicalNotOp, ({expression: e}) -> new JS.UnaryExpression '!', expr e]
+    [CS.BitNotOp, ({expression: e}) -> new JS.UnaryExpression '~', expr e]
     [CS.TypeofOp, ({expression: e}) -> new JS.UnaryExpression 'typeof', expr e]
     [CS.DeleteOp, ({expression: e}) -> new JS.UnaryExpression 'delete', expr e]
 

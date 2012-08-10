@@ -228,11 +228,11 @@ class exports.Compiler
       [].push.apply block, enabledHelpers
       decls = nub concatMap block, declarationsNeededFor
       if decls.length > 0
-        # add a function wrapper
-        # TODO: respect bare option
-        block = [stmt new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
-        # declare everything
-        block.unshift makeVarDeclaration decls
+        if options.bare
+          block.unshift makeVarDeclaration decls
+        else
+          # add a function wrapper
+          block = [stmt new JS.UnaryExpression 'void', new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
       # generate node
       program = new JS.Program block
       program.leadingComments = [
@@ -578,7 +578,7 @@ class exports.Compiler
 
   # TODO: comment
   compile: do ->
-    walk = (fn, inScope = [], ancestry = []) ->
+    walk = (fn, inScope, ancestry, options) ->
 
       if (ancestry[0]?.instanceof CS.Function, CS.BoundFunction) and this is ancestry[0].block
         inScope = union inScope, concatMap ancestry[0].parameters, beingDeclared
@@ -601,6 +601,7 @@ class exports.Compiler
 
       children.inScope = inScope
       children.ancestry = ancestry
+      children.options = options
       children.compile = (node) ->
         walk.call node.g(), fn, inScope, ancestry
 
@@ -649,9 +650,10 @@ class exports.Compiler
     defaultRule = ->
       throw new Error "compile: Non-exhaustive patterns in case: #{@className}"
 
-    (ast) ->
+    (ast, options = {}) ->
+      options.bare ?= no
       rules = @rules
-      jsAST = walk.call ast, -> (rules[@className] ? defaultRule).apply this, arguments
+      jsAST = walk.call ast, (-> (rules[@className] ? defaultRule).apply this, arguments), [], [], options
       generateSymbols jsAST,
         declaredSymbols: []
         usedSymbols: collectIdentifiers jsAST

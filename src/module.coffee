@@ -44,8 +44,8 @@ module.exports =
       throw e unless e instanceof Parser.SyntaxError
       throw new Error formatParserError coffee, e
 
-  compile: (csAst) ->
-    Compiler.compile csAst
+  compile: (csAst, options) ->
+    Compiler.compile csAst, options
 
   cs: (csAst, options) ->
     # TODO: opt: format (default: nice defaults)

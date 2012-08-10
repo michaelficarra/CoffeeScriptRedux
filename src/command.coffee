@@ -285,7 +285,7 @@ else
       else process.exit 1
 
     # compile
-    result = CoffeeScript.compile result
+    result = CoffeeScript.compile result, bare: options.bare
 
     # --compile
     if options.compile

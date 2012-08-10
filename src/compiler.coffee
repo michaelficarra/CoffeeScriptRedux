@@ -248,11 +248,13 @@ class exports.Compiler
         else new JS.BlockStatement map statements, stmt
     ]
     [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
-    [CS.Conditional, ({condition, block, elseBlock}) ->
+    [CS.Conditional, ({condition, block, elseBlock, ancestry}) ->
       if elseBlock?
         throw new Error 'Conditional with non-null elseBlock requires non-null block' unless block?
-        elseBlock = forceBlock elseBlock
-      new JS.IfStatement (expr condition), (forceBlock block), elseBlock
+        elseBlock = forceBlock elseBlock unless elseBlock.instanceof JS.IfStatement
+      if elseBlock? or ancestry[0]?.instanceof CS.Conditional
+        block = forceBlock block
+      new JS.IfStatement (expr condition), (stmt block), elseBlock
     ]
     [CS.ForIn, ({valAssignee, keyAssignee, expression, step, filterExpr, block}) ->
       i = genSym 'i'

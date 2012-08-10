@@ -131,8 +131,13 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
             @context.observe tok
             continue
 
-          if tok = @scan /"""|'''|\/\/\/|###|["'/`[({\\]/
+          if tok = @scan /"""|'''|\/\/\/|###|["'`[({\\]/
             @context.observe tok
+          else if tok = @scan /\//
+            continue if '=' is @ss.peek 1
+            # unfortunately, we must look behind us to determine if this is a regexp or division
+            # TODO
+            @context.observe '/'
           else if @ss.scan /// [#{ws}]* \# ///
             @context.observe '#'
 

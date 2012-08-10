@@ -104,11 +104,11 @@ suite 'Assignment', ->
       num *= 10
       eq 50, num
 
-    #  num /= 10
-    #  eq 5, num
-    #
-    #  num %= 3
-    #  eq 2, num
+      num /= 10
+      eq 5, num
+
+      num %= 3
+      eq 2, num
 
     #test "more compound assignment", ->
     #  a = {}

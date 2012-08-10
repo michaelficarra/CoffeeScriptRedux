@@ -379,25 +379,27 @@ class exports.Compiler
       when @assignee.instanceof CS.ArrayInitialiser
         assignments = []
         e = @expression
-        if @assignee.members.length > 1 or needsCaching @expression
+        valueUsed = usedAsExpression this, ancestry
+        if @assignee.members.length > 1 and (needsCaching e) or valueUsed
           e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m, new CS.DynamicMemberAccessOp e, new CS.Int i
         return helpers.undef() unless assignments.length
         assignSeq = foldl1 assignments, (a, b) -> new CS.SeqOp a, b
-        compile if usedAsExpression this, ancestry then new CS.SeqOp assignSeq, e else assignSeq
+        compile (if valueUsed then new CS.SeqOp assignSeq, e else assignSeq)
       when @assignee.instanceof CS.ObjectInitialiser
         assignments = []
         e = @expression
-        if @assignee.members.length > 1 or needsCaching @expression
+        valueUsed = usedAsExpression this, ancestry
+        if @assignee.members.length > 1 and (needsCaching e) or valueUsed
           e = new CS.GenSym 'cache'
           assignments.push new CS.AssignOp e, @expression
         for m, i in @assignee.members
           assignments.push new CS.AssignOp m.expression, new CS.MemberAccessOp e, m.key.data
         return helpers.undef() unless assignments.length
         assignSeq = foldl1 assignments, (a, b) -> new CS.SeqOp a, b
-        compile if usedAsExpression this, ancestry then new CS.SeqOp assignSeq, e else assignSeq
+        compile (if valueUsed then new CS.SeqOp assignSeq, e else assignSeq)
       when @assignee.instanceof CS.Identifier, CS.GenSym, CS.MemberAccessOps
         new JS.AssignmentExpression '=', assignee, expr expression
       else

@@ -331,6 +331,13 @@ class exports.Optimiser
     # `return undefined` -> `return`, everywhere
     [CS.Return, -> if @expression?.instanceof CS.Undefined then new CS.Return else this]
 
+    [CS.Slice, ->
+      if (@left?.instanceof CS.Int, CS.String) and +@left.data is 0
+        new CS.Slice @expression, @isInclusive, null, @right
+      else if @isInclusive and (@right?.instanceof CS.UnaryNegateOp) and (@right.expression.instanceof CS.Int) and @right.expression.data is 1
+        new CS.Slice @expression, yes, @left, null
+      else this
+    ]
   ]
 
   constructor: ->

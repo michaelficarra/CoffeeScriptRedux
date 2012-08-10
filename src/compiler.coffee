@@ -467,6 +467,16 @@ class exports.Compiler
       if e is expression then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]
     ]
+    [CS.Slice, ({expression, left, right}) ->
+      args = if left? then [left] else if right? then [new JS.Literal 0] else []
+      if right?
+        args.push if @isInclusive
+          if (right.instanceof JS.Literal) and typeof right.data is 'number'
+          then new JS.Literal right.data + 1
+          else new JS.BinaryExpression '+', (new JS.UnaryExpression '+', right), new JS.Literal 1
+        else right
+      new JS.CallExpression (memberAccess expression, 'slice'), args
+    ]
     [CS.ExistsOp, ({left, right, inScope}) ->
       e = if needsCaching @left then genSym 'cache' else left
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e

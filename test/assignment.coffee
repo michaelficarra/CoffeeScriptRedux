@@ -110,24 +110,24 @@ suite 'Assignment', ->
       num %= 3
       eq 2, num
 
-    #test "more compound assignment", ->
-    #  a = {}
-    #  val = undefined
-    #  val ||= a
-    #  val ||= true
-    #  eq a, val
+    test "more compound assignment", ->
+      a = {}
+      val = undefined
+      val ||= a
+      val ||= true
+      eq a, val
 
-    #  b = {}
-    #  val &&= true
-    #  eq val, true
-    #  val &&= b
-    #  eq b, val
+      b = {}
+      val &&= true
+      eq val, true
+      val &&= b
+      eq b, val
 
-    #  c = {}
-    #  val = null
-    #  val ?= c
-    #  val ?= true
-    #  eq c, val
+      c = {}
+      val = null
+      val ?= c
+      val ?= true
+      eq c, val
 
 
   suite 'Destructuring Assignment', ->

@@ -771,7 +771,7 @@ regexp
       if(interp instanceof CS.String) return new CS.RegExp(interp.data, flags).p(line, column);
       return new CS.HeregExp(interp, flags).p(line, column);
     }
-  / "/" d:(regexpData / d:[^/\\[]+ { return d.join(''); })* "/" flags:[gimy]* {
+  / "/" !"=" !__ d:(regexpData / d:[^/\\[]+ { return d.join(''); })* "/" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
       return new CS.RegExp(d ? d.join('') : '', flags || []).p(line, column);;

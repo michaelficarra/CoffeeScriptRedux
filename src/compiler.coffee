@@ -517,8 +517,15 @@ class exports.Compiler
     [CS.SubtractOp, ({left, right}) -> new JS.BinaryExpression '-', (expr left), expr right]
 
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
-    # TODO: InOp with a short array as the right operand
-    [CS.InOp, ({left, right}) -> helpers.in (expr left), expr right]
+    [CS.InOp, ({left, right}) ->
+      if not (needsCaching left) and (@right.instanceof CS.ArrayInitialiser) and @right.members.length < 5 # TODO: and no splats
+        if right.elements.length is 0 then new JS.Literal false
+        else
+          comparisons = map right.elements, (e) -> new JS.BinaryExpression '===', left, e
+          foldl1 comparisons, (l, r) -> new JS.BinaryExpression '||', l, r
+      else
+        helpers.in (expr left), expr right
+    ]
     [CS.ExtendsOp, ({left, right}) -> helpers.extends (expr left), expr right]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 

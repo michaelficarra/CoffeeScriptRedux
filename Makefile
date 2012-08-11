@@ -50,7 +50,7 @@ coverage: $(LIB)
 	rm -rf instrumented
 	jscoverage -v lib instrumented
 	$(MOCHA) -R dot
-	$(MOCHA) $(LIB:lib/%.js=-r instrumented/%) -R html-cov > coverage.html
+	$(MOCHA) -r instrumented/coffee-script/compiler -R html-cov > coverage.html
 	@xdg-open coverage.html &> /dev/null
 
 install: $(LIB)

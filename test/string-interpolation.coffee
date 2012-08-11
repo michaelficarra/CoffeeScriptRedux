@@ -1,5 +1,4 @@
 suite 'String Interpolation', ->
-# ----------
 
   test 'interpolate one string variable', ->
     b = 'b'
@@ -25,6 +24,7 @@ suite 'String Interpolation', ->
   test 'interpolate a function call', ->
     b = -> 'b'
     eq 'abc', "a#{b()}c"
+    eq 'abc', "a#{b 0}c"
 
   test 'interpolate a math expression (add)', ->
     eq 'a5c', "a#{2 + 3}c"
@@ -58,3 +58,12 @@ suite 'String Interpolation', ->
     #{b}
     c
     "
+    eq """
+      a
+      b
+      c
+    """, """
+      a
+      #{b}
+      c
+    """

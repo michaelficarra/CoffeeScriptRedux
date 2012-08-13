@@ -379,7 +379,7 @@ callExpression
         return new CS.FunctionApplication(fn, args[2] ? args[2].list : []).r(raw).p(line, column);
       }, fn, args);
     }
-  / fn:memberExpression ws:__ !([+-] __) args:secondaryArgumentList {
+  / fn:memberExpression ws:__ !([+-/] __) args:secondaryArgumentList {
       var raw = fn.raw + ws + args.raw;
       return new CS.FunctionApplication(fn, args.list).r(raw).p(line, column);
     }
@@ -771,13 +771,13 @@ regexp
       if(interp instanceof CS.String) return new CS.RegExp(interp.data, flags).p(line, column);
       return new CS.HeregExp(interp, flags).p(line, column);
     }
-  / "/" !"=" !__ d:(regexpData / d:[^/\\[]+ { return d.join(''); })* "/" flags:[gimy]* {
+  / "/" d:(regexpData / d:[^/\\[\n]+ { return d.join(''); })* "/" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
       return new CS.RegExp(d ? d.join('') : '', flags || []).p(line, column);;
     }
   regexpData
-    = "[" d:([^\\\]] / regexpData)* "]" { return "[" + d.join('') + "]"; }
+    = "[" d:([^\\\]\n] / regexpData)* "]" { return "[" + d.join('') + "]"; }
     / "\\" c:. { return '\\' + c; }
   hereregexpData
     = "[" d:

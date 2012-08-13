@@ -134,10 +134,10 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
           if tok = @scan /"""|'''|\/\/\/|###|["'`[({\\]/
             @context.observe tok
           else if tok = @scan /\//
-            continue if /// [#{ws}=] ///.test @ss.peek 1
             # unfortunately, we must look behind us to determine if this is a regexp or division
-            # TODO
-            @context.observe '/'
+            pos = @ss.position()
+            if pos is 0 or /// [#{ws}] ///.test @ss.string()[pos - 1]
+              @context.observe '/'
           else if @ss.scan /// [#{ws}]* \# ///
             @context.observe '#'
 
@@ -219,7 +219,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
       @emit 'end'
       return
 
-    null
+    return
 
   processData: processInput no
   processEnd: processInput yes

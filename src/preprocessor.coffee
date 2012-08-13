@@ -65,7 +65,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
   processInput = (isEnd) -> (data) ->
     @ss.concat data unless isEnd
 
-    while @ss.rest().length > 0
+    until @ss.eos()
       switch @context.peek()
         when null, INDENT, '#{', '[', '(', '{'
           if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
@@ -136,7 +136,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
           else if tok = @scan /\//
             # unfortunately, we must look behind us to determine if this is a regexp or division
             pos = @ss.position()
-            if pos is 0 or /// [#{ws}] ///.test @ss.string()[pos - 1]
+            if pos is 1 or /// [#{ws}] ///.test @ss.string()[pos - 2]
               @context.observe '/'
           else if @ss.scan /// [#{ws}]* \# ///
             @context.observe '#'

@@ -136,7 +136,11 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
           else if tok = @scan /\//
             # unfortunately, we must look behind us to determine if this is a regexp or division
             pos = @ss.position()
-            if pos is 1 or /// [#{ws}] ///.test @ss.string()[pos - 2]
+            if pos > 1
+              lastChar = @ss.string()[pos - 2]
+              spaceBefore = ///[#{ws}]///.test lastChar
+              nonIdentifierBefore = /[\W_$]/.test lastChar # TODO: this should perform a real test
+            if pos is 1 or (if spaceBefore then not @ss.check /// [#{ws}=] /// else nonIdentifierBefore)
               @context.observe '/'
           else if @ss.scan /// [#{ws}]* \# ///
             @context.observe '#'

@@ -35,8 +35,6 @@ suite 'Regular Expressions', ->
     eq 0, a(/= b/i)
     eq 0, a a[/ b/i]
     eq 0, a(/ /)
-    eq 0, a /= /
-    eq 0, a /=/
     eq 1, +/ /.test ' '
     eq 1, +/=/.test '='
 

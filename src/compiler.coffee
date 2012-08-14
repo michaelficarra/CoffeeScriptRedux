@@ -437,8 +437,10 @@ class exports.Compiler
     [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
     [CS.NewOp, ({ctor, arguments: args}) -> new JS.NewExpression ctor, args]
     [CS.HeregExp, ({expression}) ->
-      flags = (flag for flag in ['g', 'i', 'm', 'y'] when @flags[flag]).join ''
-      new JS.NewExpression (new JS.Identifier 'RegExp'), [expression, new JS.Literal flags]
+      args = [expression]
+      if flags = (flag for flag in ['g', 'i', 'm', 'y'] when @flags[flag]).join ''
+        args.push new JS.Literal flags
+      new JS.NewExpression (new JS.Identifier 'RegExp'), args
     ]
     [CS.RegExp, ->
       flags = (flag for flag in ['g', 'i', 'm', 'y'] when @flags[flag]).join ''

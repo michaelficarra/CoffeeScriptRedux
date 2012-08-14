@@ -311,15 +311,19 @@ class exports.Compiler
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
-    [CS.Function, ({parameters, block}) ->
-      block = forceBlock makeReturn block
+    [CS.Function, ({parameters, block, ancestry}) ->
+      unless ancestry[0]?.instanceof CS.Constructor
+        block = makeReturn block
+      block = forceBlock block
       last = block.body[-1..][0]
       if (last?.instanceof JS.ReturnStatement) and not last.argument?
         block.body = block.body[...-1]
       new JS.FunctionExpression null, parameters, block
     ]
-    [CS.BoundFunction, ({parameters, block}) ->
-      block = forceBlock makeReturn block
+    [CS.BoundFunction, ({parameters, block, ancestry}) ->
+      unless ancestry[0]?.instanceof CS.Constructor
+        block = makeReturn block
+      block = forceBlock block
       last = block.body[-1..][0]
       if (last?.instanceof JS.ReturnStatement) and not last.argument?
         block.body = block.body[...-1]
@@ -340,36 +344,54 @@ class exports.Compiler
         ]
       else fn
     ]
-    [CS.Class, ({nameAssignee, parent, block, compile}) ->
+
+    [CS.Class, ({nameAssignee, parent, name, block}) ->
       args = []
       params = []
       parentRef = genSym 'super'
       block = forceBlock block
-      name = compile @name
-      # TODO: collect bound functions for binding to each instance in the ctor
+
+      # TODO: make this nicer somehow
       for fd in block.body when fd.instanceof JS.FunctionDeclaration
         ctor = fd
         ctor.id = name
         break
       unless ctor?
         block.body.unshift ctor = new JS.FunctionDeclaration name, [], new JS.BlockStatement []
+
+      if @boundMembers.length
+        instance = genSym 'instance'
+        for memberName in @boundMembers
+          member = memberAccess new JS.ThisExpression, memberName
+          protoMember = memberAccess (memberAccess name, 'prototype'), memberName
+          fn = new JS.FunctionExpression null, [], new JS.BlockStatement [
+            stmt new JS.CallExpression (memberAccess protoMember, 'apply'), [instance, new JS.Identifier 'arguments']
+          ]
+          ctor.body.body.unshift stmt new JS.AssignmentExpression '=', member, fn
+        ctor.body.body.unshift stmt new JS.AssignmentExpression '=', instance, new JS.ThisExpression
+
       if parent?
         params.push parentRef
         args.push parent
         block.body.unshift stmt helpers.extends name, parentRef
       block.body.push new JS.ReturnStatement new JS.ThisExpression
+
       rewriteThis = generateMutatingWalker ->
         if @instanceof JS.ThisExpression then name
         else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
         else rewriteThis this
       rewriteThis block
+
       iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
       if nameAssignee? then new JS.AssignmentExpression '=', nameAssignee, iife else iife
     ]
     [CS.Constructor, ({expression}) ->
+      tmpName = genSym 'class'
       if @expression.instanceof CS.Functions
-        new JS.FunctionDeclaration (genSym 'class'), expression.params, forceBlock expression.body
-      else expression
+        new JS.FunctionDeclaration tmpName, expression.params, forceBlock expression.body
+      else
+        # TODO: support external ctors
+        new JS.FunctionDeclaration tmpName, [], new JS.BlockStatement []
     ]
     [CS.ClassProtoAssignOp, ({assignee, expression, compile}) ->
       if @expression.instanceof CS.BoundFunction

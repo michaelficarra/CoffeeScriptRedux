@@ -144,7 +144,7 @@ createNodes
     ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
     ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
-    Class: [['nameAssignee', 'parent', 'block']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
+    Class: [['nameAssignee', 'parent', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> [string] -> Class
     Constructor: [['expression']] # :: Exprs -> Constructor
     Functions: [ ['parameters', 'block'],
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
@@ -229,6 +229,7 @@ handlePrimitives = (ctor, primitives) ->
       json[primitive] = @[primitive]
     json
 
+handlePrimitives Class, ['boundMembers']
 handlePrimitives CompoundAssignOp, ['op']
 handlePrimitives ForOf, ['isOwn']
 handlePrimitives HeregExp, ['flags']
@@ -269,6 +270,7 @@ Class::initialise = ->
       when @nameAssignee.instanceof StaticMemberAccessOps
         new Identifier @nameAssignee.memberName
       else @name
+Class::childNodes.push 'name'
 
 ObjectInitialiser::keys = -> map @members, (m) -> m.key
 ObjectInitialiser::vals = -> map @members, (m) -> m.expression

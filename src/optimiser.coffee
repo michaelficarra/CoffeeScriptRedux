@@ -5,6 +5,7 @@ exports = module?.exports ? this
 
 makeDispatcher = (defaultValue, handlers, defaultHandler = (->)) ->
   handlers_ = {}
+  # TODO: ctors...
   for [ctors, handler] in handlers
     handlers_[ctor::className] = handler for ctor in ctors
   (node, args...) ->
@@ -79,12 +80,12 @@ isFalsey =
 mayHaveSideEffects =
   makeDispatcher no, [
     [[
-      CS.ClassProtoAssignOp, CS.Function, CS.BoundFunction, CS.Null, CS.RegExp
-      CS.This, CS.Undefined
+      CS.Function, CS.BoundFunction, CS.Null, CS.RegExp, CS.This, CS.Undefined
     ], -> no]
     [[
       CS.Break, CS.Continue, CS.DeleteOp, CS.NewOp, CS.Return, CS.Super
       CS.PreDecrementOp, CS.PreIncrementOp, CS.PostDecrementOp, CS.PostIncrementOp
+      CS.ClassProtoAssignOp, CS.Constructor
     ], -> yes]
     [[CS.Class], (inScope) ->
       (mayHaveSideEffects @parent, inScope) or

@@ -509,7 +509,12 @@ class
         body.raw;
       name = name ? name[1] : null;
       parent = parent ? parent[3] : null;
-      return new CS.Class(name, parent, body.block).r(raw).p(line, column);
+      var boundMembers = foldl(function(memo, m) {
+        if(m.instanceof(CS.ClassProtoAssignOp) && m.expression.instanceof(CS.BoundFunction))
+          return memo.concat(m.assignee.data.toString());
+        return memo;
+      }, [], body.block.statements);
+      return new CS.Class(name, parent, body.block, boundMembers).r(raw).p(line, column);
     }
   classBody
     = ws:_ t:TERMINDENT b:classBlock d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }

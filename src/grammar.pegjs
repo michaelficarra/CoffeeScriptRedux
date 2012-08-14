@@ -529,7 +529,10 @@ class
     / expression
   classProtoAssignment
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:expression {
-        return new CS.ClassProtoAssignOp(key, e).r(key.raw + ws0 + ":" + ws1 + e.raw).p(line, column);
+        var raw = key.raw + ws0 + ":" + ws1 + e.raw;
+        if(key.instanceof(CS.String, CS.Identifier) && key.data === 'constructor')
+          return new CS.Constructor(e).r(raw).p(line, column);
+        return new CS.ClassProtoAssignOp(key, e).r(raw).p(line, column);
       }
 
 

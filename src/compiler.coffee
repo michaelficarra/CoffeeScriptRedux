@@ -358,7 +358,7 @@ class exports.Compiler
         args.push parent
         block.body.unshift stmt helpers.extends name, parentRef
       block.body.push new JS.ReturnStatement new JS.ThisExpression
-      rewriteThis = generateMutatingWalker (n) ->
+      rewriteThis = generateMutatingWalker ->
         if @instanceof JS.ThisExpression then name
         else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
         else rewriteThis this
@@ -366,13 +366,17 @@ class exports.Compiler
       iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
       if nameAssignee? then new JS.AssignmentExpression '=', nameAssignee, iife else iife
     ]
-    [CS.ClassProtoAssignOp, ({assignee, expression, ancestry, compile}) ->
-      if @assignee.data is 'constructor' and @expression.instanceof CS.Functions
-        new JS.FunctionDeclaration (genSym 'class'), expression.params, forceBlock compile @expression.block
+    [CS.Constructor, ({expression}) ->
+      if @expression.instanceof CS.Functions
+        new JS.FunctionDeclaration (genSym 'class'), expression.params, forceBlock expression.body
+      else expression
+    ]
+    [CS.ClassProtoAssignOp, ({assignee, expression, compile}) ->
+      if @expression.instanceof CS.BoundFunction
+        compile new CS.ClassProtoAssignOp @assignee, new CS.Function @expression.parameters, @expression.block
       else
-        # TODO: genericise (memberAccess target, <member>), switch on type of <member>
-        protoMember = new CS.MemberAccessOp (new CS.MemberAccessOp new CS.This, 'prototype'), @assignee.data
-        compile new CS.AssignOp protoMember, @expression
+        protoMember = memberAccess (memberAccess new JS.ThisExpression, 'prototype'), @assignee.data
+        new JS.AssignmentExpression '=', protoMember, expression
     ]
 
     # more complex operations

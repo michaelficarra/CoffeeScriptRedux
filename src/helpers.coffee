@@ -30,11 +30,9 @@ usedAsExpression_ = (ancestors) ->
     when (parent.instanceof CS.Block) and
     (parent.statements.indexOf this) isnt parent.statements.length - 1
       no
-    when (parent.instanceof CS.Function, CS.BoundFunction) and
+    when (parent.instanceof CS.Functions) and
     parent.body is this and
-    (grandparent?.instanceof CS.ClassProtoAssignOp) and
-    (grandparent.assignee.instanceof CS.String) and
-    grandparent.assignee.data is 'constructor'
+    grandparent?.instanceof CS.Constructor
       no
     else yes
 

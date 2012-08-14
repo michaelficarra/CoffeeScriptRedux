@@ -145,6 +145,7 @@ createNodes
     ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
     Class: [['nameAssignee', 'parent', 'block']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Class
+    Constructor: [['expression']] # :: Exprs -> Constructor
     Functions: [ ['parameters', 'block'],
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
       BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction

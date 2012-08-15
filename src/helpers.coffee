@@ -48,7 +48,7 @@ envEnrichments_ = (inScope = []) ->
     when @instanceof CS.Class
       nub concat [
         beingDeclared @nameAssignee
-        beingDeclared @parent
+        envEnrichments @parent
         if name? then [name] else []
       ]
     when @instanceof CS.ForIn, CS.ForOf

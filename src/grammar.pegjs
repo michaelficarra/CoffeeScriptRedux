@@ -516,7 +516,6 @@ class
         var m = stmts[i];
         if(m.instanceof(CS.Constructor)) {
           ctor = m;
-          stmts.splice(i, 1); --i; --l;
         } else if(m.instanceof(CS.ClassProtoAssignOp) && m.expression.instanceof(CS.BoundFunction)) {
           boundMembers.push(m);
         }

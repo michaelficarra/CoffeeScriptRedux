@@ -356,15 +356,22 @@ class exports.Compiler
       parentRef = genSym 'super'
       block = forceBlock block
 
-      unless ctor?
+      if ctor?
+        # TODO: I'd really like to avoid searching for the constructor like this
+        for c, i in block.body when c.instanceof JS.FunctionDeclaration
+          ctorIndex = i
+          break
+        block.body.splice ctorIndex, 1, ctor
+      else
         ctor = new JS.FunctionDeclaration name, [], new JS.BlockStatement []
+        ctorIndex = 0
+        block.body.unshift ctor
       ctor.id = name
       # handle external constructors
       if @ctor? and not @ctor.expression.instanceof CS.Functions
         ctorRef = genSym 'externalCtor'
         ctor.body.body.push makeReturn new JS.CallExpression (memberAccess ctorRef, 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
-        block.body.unshift stmt new JS.AssignmentExpression '=', ctorRef, compile @ctor.expression
-      block.body.unshift ctor
+        block.body.splice ctorIndex, 0, stmt new JS.AssignmentExpression '=', ctorRef, compile @ctor.expression
 
       if @boundMembers.length > 0
         instance = genSym 'instance'

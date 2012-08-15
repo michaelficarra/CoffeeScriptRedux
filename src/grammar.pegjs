@@ -396,7 +396,7 @@ callExpression
       }
 newExpression
   = memberExpression
-  / NEW ws0:__ e:memberAccess "(" ws1:_ args:(argumentList _)? ")" accesses:
+  / NEW ws0:__ e:(memberAccess / primaryExpression) "(" ws1:_ args:(argumentList _)? ")" accesses:
     ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {op: a.op, operands: a.operands, raw: ws + a.raw, line: a.line, column: a.column}; }
     / "(" _ a:(argumentList _)? ")" {
         return {op: CS.FunctionApplication, operands: [a ? a[0].list : []], raw: '(' + (a ? a[0].raw + a[1] : '') + ')', line: line, column: column};
@@ -407,8 +407,8 @@ newExpression
       e = new CS.NewOp(e, args).r(raw).p(line, column);
       return createMemberExpression(e, accesses || []);
     }
-  / NEW ws0:__ e:memberExpression ws1:__ args:secondaryArgumentList {
-      var raw = 'new' + ws0 + e + ws1 + args.raw;
+  / NEW ws0:__ e:memberAccess ws1:__ args:secondaryArgumentList {
+      var raw = 'new' + ws0 + e.raw + ws1 + args.raw;
       return new CS.NewOp(e, args.list).r(raw).p(line, column);
     }
   / NEW ws:__ e:newExpression {

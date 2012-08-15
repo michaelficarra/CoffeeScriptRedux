@@ -28,7 +28,7 @@ args = process.argv[1 + (process.argv[0] is 'node') ..]
 
 # ignore args after --
 additionalArgs = []
-if '--' in args then additionalArgs = args.splice (args.indexOf '--'), 9e9
+if '--' in args then additionalArgs = (args.splice (args.indexOf '--'), 9e9)[1..]
 
 
 # initialise options
@@ -109,19 +109,23 @@ while args.length
     options[optionMap[match[2]]] = if match[1]? then off else on
   else if match = (reShortParameter.exec arg) ? reLongParameter.exec arg
     options[optionMap[match[1]]] = args.shift()
+  else if match = /^(-.|--.*)$/.exec arg
+    console.error "Unrecognised option '#{match[0].replace /'/g, '\\\''}'"
+    process.exit 1
   else
     positionalArgs.push arg
 
 
 # input validation
 
+positionalArgs = positionalArgs.concat additionalArgs
 unless options.compile or options.js or options.parse or options.eval or options.cscodegen
   if not escodegen?
     options.compile = on
   else if positionalArgs.length
     options.eval = on
     options.input = positionalArgs.shift()
-    additionalArgs = [positionalArgs..., additionalArgs...]
+    additionalArgs = positionalArgs
   else
     options.repl = on
 
@@ -248,9 +252,10 @@ else
 
     # preprocess
     if options.debug
-      Preprocessor.processSync input
-      console.error '### PREPROCESSED CS-AST ###'
-      console.error numberLines humanReadable input.trim()
+      try
+        Preprocessor.processSync input
+        console.error '### PREPROCESSED CS-AST ###'
+        console.error numberLines humanReadable input.trim()
 
     # parse
     result = CoffeeScript.parse input, optimise: no

@@ -537,6 +537,7 @@ class
       }
   classStatement
     = classProtoAssignment
+    / staticAssignment
     / constructor
     / expression
   constructor
@@ -546,6 +547,11 @@ class
         if(e.instanceof(CS.BoundFunction))
           e = new CS.Function(e.parameters, e.block).r(e.raw).p(e.line, e.column);
         return new CS.Constructor(e).r(raw).p(line, column);
+      }
+  staticAssignment
+    = key:contextVar ws0:_ ":" ws1:_ e:expression {
+        var raw = key.raw + ws0 + ":" + ws1 + e.raw;
+        return new CS.AssignOp(key, e).r(raw).p(line, column);
       }
   classProtoAssignment
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:expression {

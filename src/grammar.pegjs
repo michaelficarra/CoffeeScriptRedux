@@ -511,7 +511,7 @@ class
       name = name ? name[1] : null;
       parent = parent ? parent[3] : null;
       var boundMembers = [];
-      var stmts = body.block != null ? body.block.statements : [];
+      var stmts = body.block != null ? body.block.statements || [body.block] : [];
       for(var i = 0, l = stmts.length; i < l; ++i) {
         var m = stmts[i];
         if(m.instanceof(CS.Constructor)) {

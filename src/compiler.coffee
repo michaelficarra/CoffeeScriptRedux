@@ -12,7 +12,7 @@ jsReserved = [
   'else', 'enum', 'export', 'extends', 'false', 'finally', 'for', 'function', 'if', 'implements',
   'import', 'in', 'instanceof', 'interface', 'let', 'native', 'new', 'null', 'package', 'private',
   'protected', 'public', 'return', 'static', 'super', 'switch', 'this', 'throw', 'true', 'try',
-  'typeof', 'var', 'void', 'while', 'with', 'yield'
+  'typeof', 'var', 'void', 'while', 'with', 'yield', 'arguments', 'eval'
 ]
 
 
@@ -355,6 +355,8 @@ class exports.Compiler
       params = []
       parentRef = genSym 'super'
       block = forceBlock block
+      if (name.instanceof JS.Identifier) and name.name in jsReserved
+        name = genSym name.name
 
       if ctor?
         # TODO: I'd really like to avoid searching for the constructor like this

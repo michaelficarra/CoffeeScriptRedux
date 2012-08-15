@@ -504,17 +504,24 @@ loop
 
 class
   = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ (functionLiteral / assignmentExpression))? body:classBody {
+      var ctor = null;
       var raw = 'class' + (name ? name[0] + name[1].raw : '') +
         (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
         body.raw;
       name = name ? name[1] : null;
       parent = parent ? parent[3] : null;
-      var boundMembers = foldl(function(memo, m) {
-        if(m.instanceof(CS.ClassProtoAssignOp) && m.expression.instanceof(CS.BoundFunction))
-          return memo.concat(m.assignee.data.toString());
-        return memo;
-      }, [], body.block.statements);
-      return new CS.Class(name, parent, body.block, boundMembers).r(raw).p(line, column);
+      var boundMembers = [];
+      var stmts = body.block.statements;
+      for(var i = 0, l = stmts.length; i < l; ++i) {
+        var m = stmts[i];
+        if(m.instanceof(CS.Constructor)) {
+          ctor = m;
+          stmts.splice(i, 1); --i; --l;
+        } else if(m.instanceof(CS.ClassProtoAssignOp) && m.expression.instanceof(CS.BoundFunction)) {
+          boundMembers.push(m.assignee.data.toString());
+        }
+      }
+      return new CS.Class(name, parent, ctor, body.block, boundMembers).r(raw).p(line, column);
     }
   classBody
     = ws:_ t:TERMINDENT b:classBlock d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }
@@ -531,12 +538,20 @@ class
       }
   classStatement
     = classProtoAssignment
+    / constructor
     / expression
+  constructor
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:expression {
+        if(!key.instanceof(CS.String, CS.Identifier) || key.data !== 'constructor') return null;
+        var raw = key.raw + ws0 + ":" + ws1 + e.raw;
+        if(e.instanceof(CS.BoundFunction))
+          e = new CS.Function(e.parameters, e.block).r(e.raw).p(e.line, e.column);
+        return new CS.Constructor(e).r(raw).p(line, column);
+      }
   classProtoAssignment
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:expression {
+        if(key.data === 'constructor') return null;
         var raw = key.raw + ws0 + ":" + ws1 + e.raw;
-        if(key.instanceof(CS.String, CS.Identifier) && key.data === 'constructor')
-          return new CS.Constructor(e).r(raw).p(line, column);
         return new CS.ClassProtoAssignOp(key, e).r(raw).p(line, column);
       }
 

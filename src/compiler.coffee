@@ -345,21 +345,23 @@ class exports.Compiler
       else fn
     ]
 
-    [CS.Class, ({nameAssignee, parent, name, block}) ->
+    [CS.Class, ({nameAssignee, parent, name, ctor, block, compile}) ->
       args = []
       params = []
       parentRef = genSym 'super'
       block = forceBlock block
 
-      # TODO: make this nicer somehow
-      for fd in block.body when fd.instanceof JS.FunctionDeclaration
-        ctor = fd
-        ctor.id = name
-        break
       unless ctor?
-        block.body.unshift ctor = new JS.FunctionDeclaration name, [], new JS.BlockStatement []
+        ctor = new JS.FunctionDeclaration name, [], new JS.BlockStatement []
+      ctor.id = name
+      # handle external constructors
+      if @ctor? and not @ctor.expression.instanceof CS.Functions
+        ctorRef = genSym 'externalCtor'
+        ctor.body.body.push makeReturn new JS.CallExpression (memberAccess ctorRef, 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
+        block.body.unshift stmt new JS.AssignmentExpression '=', ctorRef, compile @ctor.expression
+      block.body.unshift ctor
 
-      if @boundMembers.length
+      if @boundMembers? and @boundMembers.length > 0
         instance = genSym 'instance'
         for memberName in @boundMembers
           member = memberAccess new JS.ThisExpression, memberName
@@ -390,7 +392,6 @@ class exports.Compiler
       if @expression.instanceof CS.Functions
         new JS.FunctionDeclaration tmpName, expression.params, forceBlock expression.body
       else
-        # TODO: support external ctors
         new JS.FunctionDeclaration tmpName, [], new JS.BlockStatement []
     ]
     [CS.ClassProtoAssignOp, ({assignee, expression, compile}) ->

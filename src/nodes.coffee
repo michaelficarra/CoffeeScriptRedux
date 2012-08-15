@@ -136,7 +136,7 @@ createNodes
     ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'block']] # :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
     ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'block']] # :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
     Switch: [['expression', 'cases', 'elseBlock']] # :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
-    # TODO: test/consequent
+    # TODO: tests/consequent
     SwitchCase: [['conditions', 'block']] # :: [Exprs] -> Maybe Expr -> SwitchCase
     Try: [['block', 'catchAssignee', 'catchBlock', 'finallyBlock']] # :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
     While: [['condition', 'block']] # :: Exprs -> Maybe Exprs -> While
@@ -144,7 +144,7 @@ createNodes
     ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
     ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
-    Class: [['nameAssignee', 'parent', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> [string] -> Class
+    Class: [['nameAssignee', 'parent', 'ctor', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [string] -> Class
     Constructor: [['expression']] # :: Exprs -> Constructor
     Functions: [ ['parameters', 'block'],
       Function: null # :: [Parameters] -> Maybe Exprs -> Function

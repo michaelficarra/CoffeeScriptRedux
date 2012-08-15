@@ -13,3 +13,9 @@ suite 'Parser', ->
   test 'deeply nested expressions', ->
     @shouldParse '((((((((((((((((((((0))))))))))))))))))))'
     @shouldParse '++++++++++++++++++++0'
+	
+  test 'multiline program', ->
+    @shouldParse 'a\nb'
+  test 'indented expressions', ->
+    @shouldParse 'a or\n  b'
+    @shouldParse 'a or\n\tb'

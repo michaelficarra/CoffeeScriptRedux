@@ -369,7 +369,7 @@ class exports.Compiler
           member = memberAccess new JS.ThisExpression, memberName
           protoMember = memberAccess (memberAccess name, 'prototype'), memberName
           fn = new JS.FunctionExpression null, ps, new JS.BlockStatement [
-            stmt new JS.CallExpression (memberAccess protoMember, 'apply'), [instance, new JS.Identifier 'arguments']
+            makeReturn new JS.CallExpression (memberAccess protoMember, 'apply'), [instance, new JS.Identifier 'arguments']
           ]
           ctor.body.body.unshift stmt new JS.AssignmentExpression '=', member, fn
         ctor.body.body.unshift stmt new JS.AssignmentExpression '=', instance, new JS.ThisExpression

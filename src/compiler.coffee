@@ -155,6 +155,11 @@ memberAccess = (e, member) ->
   then new JS.MemberExpression yes, (expr e), new JS.Literal member
   else new JS.MemberExpression no, (expr e), new JS.Identifier member
 
+dynamicMemberAccess = (e, index) ->
+  if (index.instanceof JS.Literal) and typeof index.value is 'string'
+  then memberAccess e, index.value
+  else new JS.MemberExpression yes, e, index
+
 
 helperNames = {}
 helpers =
@@ -488,11 +493,8 @@ class exports.Compiler
     ]
     [CS.MemberAccessOp, ({expression}) -> memberAccess expression, @memberName]
     [CS.ProtoMemberAccessOp, ({expression}) -> memberAccess (memberAccess expression, 'prototype'), @memberName]
-    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) ->
-      if (indexingExpr.instanceof JS.Literal) and typeof indexingExpr.value is 'string'
-      then memberAccess expression, indexingExpr.value
-      else new JS.MemberExpression yes, expression, indexingExpr
-    ]
+    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess expression, indexingExpr]
+    [CS.DynamicProtoMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess (memberAccess expression, 'prototype'), indexingExpr]
     [CS.SoakedMemberAccessOp, ({expression, inScope}) ->
       e = if needsCaching @expression then genSym 'cache' else expression
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e

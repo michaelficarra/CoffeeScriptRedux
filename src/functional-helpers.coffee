@@ -36,3 +36,9 @@
 @flip = (fn) -> (b, a) -> fn.call this, a, b
 
 @owns = do (hop = {}.hasOwnProperty) -> (a, b) -> hop.call a, b
+
+@divMod = (a, b) ->
+  c = a % b
+  mod = if c < 0 then c + b else c
+  div = Math.floor a / b
+  [div, mod]

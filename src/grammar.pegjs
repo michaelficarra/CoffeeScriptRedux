@@ -511,14 +511,14 @@ class
       name = name ? name[1] : null;
       parent = parent ? parent[3] : null;
       var boundMembers = [];
-      var stmts = body.block.statements;
+      var stmts = body.block != null ? body.block.statements : [];
       for(var i = 0, l = stmts.length; i < l; ++i) {
         var m = stmts[i];
         if(m.instanceof(CS.Constructor)) {
           ctor = m;
           stmts.splice(i, 1); --i; --l;
         } else if(m.instanceof(CS.ClassProtoAssignOp) && m.expression.instanceof(CS.BoundFunction)) {
-          boundMembers.push(m.assignee.data.toString());
+          boundMembers.push(m);
         }
       }
       return new CS.Class(name, parent, ctor, body.block, boundMembers).r(raw).p(line, column);
@@ -613,7 +613,7 @@ switch
 
 
 functionLiteral
-  = params:("(" _ parameterList _ ")" _)? arrow:("->" / "=>") body:functionBody? {
+  = params:("(" _ parameterList? _ ")" _)? arrow:("->" / "=>") body:functionBody? {
       if(!body) body = {block: null, raw: ''};
       var raw =
         (params ? params[0] + params[1] + params[2].raw + params[3] + params[4] + params[5] : '') +
@@ -624,7 +624,7 @@ functionLiteral
         case '=>': constructor = CS.BoundFunction; break;
         default: throw new Error('parsed function arrow ("' + arrow + '") not associated with a constructor');
       }
-      params = params ? params[2].list : [];
+      params = params && params[2] ? params[2].list : [];
       return new constructor(params, body.block).r(raw).p(line, column);
     }
   functionBody

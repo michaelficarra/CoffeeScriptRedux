@@ -1,4 +1,4 @@
-{any, concat, concatMap, difference, foldl1, map, nub, owns, union} = require './functional-helpers'
+{any, concat, concatMap, difference, divMod, foldl1, map, nub, owns, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -361,12 +361,14 @@ class exports.Compiler
         block.body.unshift stmt new JS.AssignmentExpression '=', ctorRef, compile @ctor.expression
       block.body.unshift ctor
 
-      if @boundMembers? and @boundMembers.length > 0
+      if @boundMembers.length > 0
         instance = genSym 'instance'
-        for memberName in @boundMembers
+        for protoAssignOp in @boundMembers
+          memberName = protoAssignOp.assignee.data.toString()
+          ps = (genSym() for _ in protoAssignOp.expression.parameters)
           member = memberAccess new JS.ThisExpression, memberName
           protoMember = memberAccess (memberAccess name, 'prototype'), memberName
-          fn = new JS.FunctionExpression null, [], new JS.BlockStatement [
+          fn = new JS.FunctionExpression null, ps, new JS.BlockStatement [
             stmt new JS.CallExpression (memberAccess protoMember, 'apply'), [instance, new JS.Identifier 'arguments']
           ]
           ctor.body.body.unshift stmt new JS.AssignmentExpression '=', member, fn
@@ -651,7 +653,15 @@ class exports.Compiler
     generateSymbols = do ->
 
       generatedSymbols = {}
-      format = (pre, counter) -> "#{pre}$#{counter or ''}"
+      format = (pre, counter) ->
+        if pre
+          "#{pre}$#{counter or ''}"
+        else
+          if counter < 26
+            String.fromCharCode 0x61 + counter
+          else
+            [div, mod] = divMod counter, 26
+            (format pre, div - 1) + format pre, mod
 
       generateName = (node, {usedSymbols, nsCounters}) ->
         if owns generatedSymbols, node.uniqueId
@@ -696,5 +706,5 @@ class exports.Compiler
       jsAST = walk.call ast, (-> (rules[@className] ? defaultRule).apply this, arguments), [], [], options
       generateSymbols jsAST,
         declaredSymbols: []
-        usedSymbols: collectIdentifiers jsAST
+        usedSymbols: jsReserved[..]
         nsCounters: {}

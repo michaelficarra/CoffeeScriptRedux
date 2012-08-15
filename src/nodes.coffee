@@ -144,7 +144,7 @@ createNodes
     ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
     ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
-    Class: [['nameAssignee', 'parent', 'ctor', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [string] -> Class
+    Class: [['nameAssignee', 'parent', 'ctor', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [ClassProtoAssignOp] -> Class
     Constructor: [['expression']] # :: Exprs -> Constructor
     Functions: [ ['parameters', 'block'],
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
@@ -261,6 +261,7 @@ handleLists SwitchCase, ['conditions']
 Block.wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
 
 Class::initialise = ->
+  @boundMembers ?= []
   @name = new GenSym 'class'
   if @nameAssignee?
     # TODO: factor this out, as it's useful elsewhere: short object literal members, NFEs from assignee, etc.

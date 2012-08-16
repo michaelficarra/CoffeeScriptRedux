@@ -234,7 +234,8 @@ else if options.version
 
 else if options.repl
   # TODO: start repl
-  console.log 'TODO: REPL'
+  console.error 'TODO: REPL'
+  process.exit 1
 
 else
   # normal workflow
@@ -253,9 +254,8 @@ else
     # preprocess
     if options.debug
       try
-        Preprocessor.processSync input
         console.error '### PREPROCESSED CS-AST ###'
-        console.error numberLines humanReadable input.trim()
+        console.error numberLines humanReadable Preprocessor.processSync input
 
     # parse
     result = CoffeeScript.parse input, optimise: no

@@ -19,7 +19,7 @@ humanReadable = (str) ->
 formatParserError = (input, e) ->
   if e.found?
     line = (input.split '\n')[e.line - 1]
-    e.column = (cleanMarkers ("#{line}\n").slice 0, e.column).length
+    e.column = (cleanMarkers ("#{line}\n")[..e.column]).length - 1
   message = humanReadable """
     Syntax error on line #{e.line}, column #{e.column}: unexpected #{if e.found? then inspect e.found else 'end of input'}
     """

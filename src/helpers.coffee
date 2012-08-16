@@ -1,5 +1,44 @@
-{concat, concatMap, difference, foldl, nub} = require './functional-helpers'
+{concat, concatMap, difference, foldl, map, nub} = require './functional-helpers'
 CS = require './nodes'
+
+
+numberLines = (input, startLine = 1) ->
+  lines = input.split '\n'
+  padSize = ((lines.length + startLine - 1).toString 10).length
+  numbered = for line, i in lines
+    currLine = "#{i + startLine}"
+    pad = ((Array padSize + 1).join '0')[currLine.length..]
+    "#{pad}#{currLine} : #{lines[i]}"
+  numbered.join '\n'
+
+cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
+
+@humanReadable = humanReadable = (str) ->
+  (str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)'
+
+@formatParserError = (input, e) ->
+  if e.found?
+    lines = input.split '\n'
+    numLinesOfContext = 3
+    currentLineOffset = e.line - 1
+    startLine = currentLineOffset - numLinesOfContext
+    if startLine < 0 then startLine = 0
+    preLines = map lines[startLine ... currentLineOffset], cleanMarkers
+    line = lines[currentLineOffset]
+    postLines = map lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext], cleanMarkers
+    e.column = (cleanMarkers ("#{line}\n")[..e.column]).length - 1
+  unexpected = if e.found? then "'#{e.found.replace /'/g, '\\\''}'" else 'end of input'
+  message = humanReadable "Syntax error on line #{e.line}, column #{e.column}: unexpected #{unexpected}"
+  if e.found?
+    padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
+    message = [
+      message
+      numberLines ([preLines..., cleanMarkers line].join '\n'), startLine + 1
+      "#{(Array padSize + 1).join ' '} :-#{(Array e.column).join '-'}^"
+      numberLines (postLines.join '\n'), currentLineOffset + 2
+    ].join '\n'
+  message
+
 
 # these are the identifiers that need to be declared when the given value is
 # being used as the target of an assignment

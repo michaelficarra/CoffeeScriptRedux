@@ -2,7 +2,7 @@
 CS = require './nodes'
 
 
-numberLines = (input, startLine = 1) ->
+@numberLines = numberLines = (input, startLine = 1) ->
   lines = input.split '\n'
   padSize = ((lines.length + startLine - 1).toString 10).length
   numbered = for line, i in lines

@@ -43,7 +43,7 @@ lib/coffee-script/%.min.js: lib/coffee-script/%.js lib/coffee-script
 .PHONY: test coverage install loc clean
 
 test: $(LIB) $(TESTS)
-	$(MOCHA) -R spec
+	$(MOCHA) -R dot
 
 coverage: $(LIB)
 	@which jscoverage || (echo "install node-jscoverage"; exit 1)

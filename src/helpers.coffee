@@ -34,7 +34,7 @@ cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
     message = [
       message
       numberLines ([preLines..., cleanMarkers line].join '\n'), startLine + 1
-      "#{(Array padSize + 1).join ' '} :-#{(Array e.column).join '-'}^"
+      "#{(Array padSize + 1).join '^'} :>#{(Array e.column).join '~'}^"
       numberLines (postLines.join '\n'), currentLineOffset + 2
     ].join '\n'
   message

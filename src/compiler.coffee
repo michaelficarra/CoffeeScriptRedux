@@ -555,12 +555,19 @@ class exports.Compiler
     [CS.ProtoMemberAccessOp, ({expression}) -> memberAccess (memberAccess expression, 'prototype'), @memberName]
     [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess expression, indexingExpr]
     [CS.DynamicProtoMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess (memberAccess expression, 'prototype'), indexingExpr]
-    [CS.SoakedMemberAccessOp, ({expression, inScope}) ->
+    [CS.SoakedMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp, ({expression, indexingExpr, inScope}) ->
       e = if needsCaching @expression then genSym 'cache' else expression
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
       if (e.instanceof JS.Identifier) and e.name not in inScope
         condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
-      node = new JS.ConditionalExpression condition, (memberAccess e, @memberName), helpers.undef()
+      target =
+        if @instanceof CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+          memberAccess e, 'prototype'
+        else e
+      index =
+        if @instanceof CS.DynamicMemberAccessOps then new JS.MemberExpression yes, target, indexingExpr
+        else memberAccess target, @memberName
+      node = new JS.ConditionalExpression condition, index, helpers.undef()
       if e is expression then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]
     ]

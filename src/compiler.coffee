@@ -101,20 +101,22 @@ generateMutatingWalker = (fn) -> (node, args...) ->
         fn.apply node[childName], args
   node
 
-declarationsNeededFor = (node) ->
+declarationsNeeded = (node) ->
   return [] unless node?
-  nub if (node.instanceof JS.AssignmentExpression) and node.operator is '=' and node.left.instanceof JS.Identifier
-    union [node.left], declarationsNeededFor node.right
-  else if node.instanceof JS.ForInStatement then union [node.left], concatMap [node.right, node.body], declarationsNeededFor
-  #TODO: else if node.instanceof JS.CatchClause then union [node.param], declarationsNeededFor node.body
-  else if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration then []
-  else concatMap node.childNodes, (childName) ->
+  if (node.instanceof JS.AssignmentExpression) and node.operator is '=' and node.left.instanceof JS.Identifier then [node.left]
+  else if node.instanceof JS.ForInStatement then [node.left]
+  #TODO: else if node.instanceof JS.CatchClause then [node.param]
+  else []
+
+declarationsNeededRecursive = (node) ->
+  return [] unless node?
+  # don't cross scope boundaries
+  if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration then []
+  else union (declarationsNeeded node), concatMap node.childNodes, (childName) ->
     # TODO: this should make use of an fmap method
     return [] unless node[childName]?
-    if childName in node.listMembers
-      concatMap node[childName], declarationsNeededFor
-    else
-      declarationsNeededFor node[childName]
+    if childName in node.listMembers then concatMap node[childName], declarationsNeededRecursive
+    else declarationsNeededRecursive node[childName]
 
 collectIdentifiers = (node) -> nub switch
   when !node? then []
@@ -231,7 +233,7 @@ class exports.Compiler
         else [block]
       # helpers
       [].push.apply block, enabledHelpers
-      decls = nub concatMap block, declarationsNeededFor
+      decls = nub concatMap block, declarationsNeededRecursive
       if decls.length > 0
         if options.bare
           block.unshift makeVarDeclaration decls
@@ -726,6 +728,7 @@ class exports.Compiler
       # TODO: comments
       generateMutatingWalker (state) ->
         {declaredSymbols, usedSymbols, nsCounters} = state
+        state.declaredSymbols = union declaredSymbols, map (declarationsNeeded this), (id) -> id.name
         newNode = if @instanceof JS.GenSym
           newNode = new JS.Identifier generateName this, state
           usedSymbols.push newNode.name
@@ -737,12 +740,12 @@ class exports.Compiler
           state.nsCounters[k] = v for own k, v of nsCounters
           newNode = generateSymbols this, state
           newNode.body = forceBlock newNode.body
-          declNames = nub difference (map (concatMap @body.body, declarationsNeededFor), (id) -> id.name), declaredSymbols
+          declNames = nub difference (map (concatMap @body.body, declarationsNeededRecursive), (id) -> id.name), declaredSymbols
           decls = map declNames, (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
         else generateSymbols this, state
-        state.declaredSymbols = union declaredSymbols, map (declarationsNeededFor newNode), (id) -> id.name
+        state.declaredSymbols = union declaredSymbols, map (declarationsNeededRecursive newNode), (id) -> id.name
         newNode
 
     defaultRule = ->

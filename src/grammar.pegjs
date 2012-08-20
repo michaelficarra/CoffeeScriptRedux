@@ -451,6 +451,7 @@ primaryExpression
   / contextVar
   / r:(THIS / "@") { return (new CS.This).r(r).p(line, column); }
   / identifier
+  / range
   / arrayLiteral
   / objectLiteral
   / interpolation
@@ -645,6 +646,13 @@ functionLiteral
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
 
+
+range
+  = "[" ws0:_ left:secondaryExpression ws1:_ ".." exclusiveDot:"."? ws2:_ right:secondaryExpression ws3:_ "]" {
+      var raw = '[' + ws0 + left.raw + ws1 + '..' + exclusiveDot + ws2 + right.raw + ws3 + ']';
+      var inclusive = !exclusiveDot;
+      return new CS.Range(inclusive, left, right).r(raw).p(line, column);
+    }
 
 arrayLiteral
   = "[" ws0:_ members:arrayLiteralBody t:TERMINATOR? ws1:_ "]" {

@@ -313,6 +313,42 @@ class exports.Compiler
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]
 
     # data structures
+    [CS.Range, ({left: left_, right: right_}) ->
+      # enumerate small integral ranges
+      if ((@left.instanceof CS.Int) or  ((@left.instanceof CS.UnaryNegateOp) and  @left.expression.instanceof CS.Int)) and
+      (  (@right.instanceof CS.Int) or ((@right.instanceof CS.UnaryNegateOp) and @right.expression.instanceof CS.Int))
+        rawLeft = if @left.instanceof CS.UnaryNegateOp then -@left.expression.data else @left.data
+        rawRight = if @right.instanceof CS.UnaryNegateOp then -@right.expression.data else @right.data
+        if (Math.abs rawLeft - rawRight) <= 20
+          range = if @isInclusive then [rawLeft..rawRight] else [rawLeft...rawRight]
+          return new JS.ArrayExpression map range, (n) -> if n < 0 then new JS.UnaryExpression '-', new JS.Literal -n else new JS.Literal n
+
+      accum = genSym 'accum'
+      body = [stmt new JS.AssignmentExpression '=', accum, new JS.ArrayExpression []]
+
+      if needsCaching left_
+        left = genSym 'from'
+        body.push stmt new JS.AssignmentExpression '=', left, left_
+      else left = left_
+      if needsCaching right_
+        right = genSym 'to'
+        body.push stmt new JS.AssignmentExpression '=', right, right_
+      else right = right_
+
+      i = genSym 'i'
+      vars = new JS.VariableDeclaration 'var', [new JS.VariableDeclarator i, left]
+
+      conditionTest = new JS.BinaryExpression '<=', left, right
+      conditionConsequent = new JS.BinaryExpression (if @isInclusive then '<=' else '<'), i, right
+      conditionAlternate = new JS.BinaryExpression (if @isInclusive then '>=' else '>'), i, right
+      condition = new JS.ConditionalExpression conditionTest, conditionConsequent, conditionAlternate
+
+      update = new JS.ConditionalExpression conditionTest, (new JS.UpdateExpression '++', yes, i), new JS.UpdateExpression '--', yes, i
+
+      body.push new JS.ForStatement vars, condition, update, stmt new JS.CallExpression (memberAccess accum, 'push'), [i]
+      body.push new JS.ReturnStatement accum
+      new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement body), 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
+    ]
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
@@ -350,6 +386,7 @@ class exports.Compiler
       else fn
     ]
 
+    # TODO: comment
     [CS.Class, ({nameAssignee, parent, name, ctor, block, compile}) ->
       args = []
       params = []

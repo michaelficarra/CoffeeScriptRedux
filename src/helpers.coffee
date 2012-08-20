@@ -26,7 +26,7 @@ cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
     preLines = map lines[startLine ... currentLineOffset], cleanMarkers
     line = lines[currentLineOffset]
     postLines = map lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext], cleanMarkers
-    e.column = (cleanMarkers ("#{line}\n")[..e.column]).length - 1
+    e.column = (cleanMarkers ("#{line}\n")[..(e.column - 1)]).length - 1
   unexpected = if e.found? then "'#{e.found.replace /'/g, '\\\''}'" else 'end of input'
   message = humanReadable "Syntax error on line #{e.line}, column #{e.column}: unexpected #{unexpected}"
   if e.found?

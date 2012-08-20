@@ -1,15 +1,5 @@
 suite 'Function Literals', ->
 
-
-# TODO: add indexing and method invocation tests: (->)[0], (->).call()
-
-# * Function Definition
-# * Bound Function Definition
-# * Parameter List Features
-#   * Splat Parameters
-#   * Context (@) Parameters
-#   * Parameter Destructuring
-#   * Default Parameters
   suite 'Function Definition', ->
 
     test 'basic functions', ->
@@ -131,40 +121,42 @@ suite 'Function Literals', ->
     #    eq 2, c
     #  ) {a: [1], c: 2}
 
-    #test "default values", ->
-    #  nonceA = {}
-    #  nonceB = {}
-    #  a = (_,_1,arg=nonceA) -> arg
-    #  eq nonceA, a()
-    #  eq nonceA, a(0)
-    #  eq nonceB, a(0,0,nonceB)
-    #  eq nonceA, a(0,0,undefined)
-    #  eq nonceA, a(0,0,null)
-    #  eq false , a(0,0,false)
-    #  eq nonceB, a(undefined,undefined,nonceB,undefined)
-    #  b = (_,arg=nonceA,_1,_2) -> arg
-    #  eq nonceA, b()
-    #  eq nonceA, b(0)
-    #  eq nonceB, b(0,nonceB)
-    #  eq nonceA, b(0,undefined)
-    #  eq nonceA, b(0,null)
-    #  eq false , b(0,false)
-    #  eq nonceB, b(undefined,nonceB,undefined)
-    #  c = (arg=nonceA,_,_1) -> arg
-    #  eq nonceA, c()
-    #  eq      0, c(0)
-    #  eq nonceB, c(nonceB)
-    #  eq nonceA, c(undefined)
-    #  eq nonceA, c(null)
-    #  eq false , c(false)
-    #  eq nonceB, c(nonceB,undefined,undefined)
+    test "default values", ->
+      nonceA = {}
+      nonceB = {}
+      a = (_,_1,arg=nonceA) -> arg
+      eq nonceA, a()
+      eq nonceA, a(0)
+      eq nonceB, a(0,0,nonceB)
+      eq nonceA, a(0,0,undefined)
+      eq nonceA, a(0,0,null)
+      eq false , a(0,0,false)
+      eq nonceB, a(undefined,undefined,nonceB,undefined)
+      b = (_,arg=nonceA,_1,_2) -> arg
+      eq nonceA, b()
+      eq nonceA, b(0)
+      eq nonceB, b(0,nonceB)
+      eq nonceA, b(0,undefined)
+      eq nonceA, b(0,null)
+      eq false , b(0,false)
+      eq nonceB, b(undefined,nonceB,undefined)
+      c = (arg=nonceA,_,_1) -> arg
+      eq nonceA, c()
+      eq      0, c(0)
+      eq nonceB, c(nonceB)
+      eq nonceA, c(undefined)
+      eq nonceA, c(null)
+      eq false , c(false)
+      eq nonceB, c(nonceB,undefined,undefined)
 
-    #test "default values with @-parameters", ->
-    #  a = {}
-    #  b = {}
-    #  obj = f: (q = a, @p = b) -> q
-    #  eq a, obj.f()
-    #  eq b, obj.p
+    test "default values with @-parameters", ->
+      nonceA = {}
+      nonceB = {}
+      obj = {f: (q = nonceA, @p = nonceB) -> q}
+      eq nonceA, obj.f()
+      eq nonceB, obj.p
+      eq nonceB, obj.f nonceB, nonceA
+      eq nonceA, obj.p
 
     #test "default values with splatted arguments", ->
     #  withSplats = (a = 2, b..., c = 3, d = 5) -> a * (b.length + 1) * c * d
@@ -174,12 +166,13 @@ suite 'Function Literals', ->
     #  eq  1, withSplats(1,1,1)
     #  eq  2, withSplats(1,1,1,1)
 
-    #test "default values with function calls", ->
-    #  counter = 0
-    #  fn = -> ++counter
-    #  eq 1, ((x = f()) -> x)()
-    #  eq 0, ((x = f()) -> x) -> 0
-    #  eq 2, ((x = f()) -> x)()
+    test "default values with function calls", ->
+      counter = 0
+      fn = -> ++counter
+      eq 1, ((x = fn()) -> x)()
+      eq fn, ((x = fn()) -> x) fn
+      eq 0, ((x = fn) -> x()) -> 0
+      eq 2, ((x = fn()) -> x)()
 
     test "arguments vs parameters", ->
       nonce = {}

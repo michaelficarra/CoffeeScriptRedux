@@ -639,7 +639,11 @@ functionLiteral
         return {block: s, raw: ws + s.raw};
       }
   parameter
-    = Assignable
+    = param:Assignable ws0:_ "=" ws1:_ default_:secondaryExpression {
+        var raw = param.raw + ws0 + '=' + ws1 + default_.raw;
+        return new CS.DefaultParam(param, default_).r(raw).p(line, column);
+      }
+    / Assignable
   parameterList
     = e:parameter es:(_ "," _ parameter)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');

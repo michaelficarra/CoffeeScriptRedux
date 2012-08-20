@@ -130,6 +130,17 @@ collectIdentifiers = (node) -> nub switch
     else
       collectIdentifiers node[childName]
 
+handleSpecialParam = (param, original, block) -> switch
+  when original.instanceof CS.Identifier then param
+  when original.instanceof CS.MemberAccessOps
+    p = genSym 'param'
+    block.body.unshift stmt new JS.AssignmentExpression '=', param, p
+    p
+  when original.instanceof CS.DefaultParam
+    block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), param.param), stmt new JS.AssignmentExpression '=', param.param, param.default
+    handleSpecialParam.call this, param.param, original.param, block
+  else throw new Error "Unsupported parameter type: #{original.className}"
+
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->
   (envEnrichments node, []).length > 0 or
@@ -354,31 +365,32 @@ class exports.Compiler
     [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
-    [CS.Function, ({parameters, block, ancestry}) ->
+    [CS.DefaultParam, ({param, default: d}) -> {param, default: d}]
+    [CS.Function, CS.BoundFunction, ({parameters, block, ancestry}) ->
       unless ancestry[0]?.instanceof CS.Constructor
         block = makeReturn block
       block = forceBlock block
       last = block.body[-1..][0]
       if (last?.instanceof JS.ReturnStatement) and not last.argument?
         block.body = block.body[...-1]
-      new JS.FunctionExpression null, parameters, block
-    ]
-    [CS.BoundFunction, ({parameters, block, ancestry}) ->
-      unless ancestry[0]?.instanceof CS.Constructor
-        block = makeReturn block
-      block = forceBlock block
-      last = block.body[-1..][0]
-      if (last?.instanceof JS.ReturnStatement) and not last.argument?
-        block.body = block.body[...-1]
-      newThis = genSym 'this'
+
+      parameters_ =
+        if parameters.length is 0 then []
+        else for pIndex in [parameters.length - 1 .. 0]
+          handleSpecialParam.call this, parameters[pIndex], @parameters[pIndex], block
+      parameters = parameters_.reverse()
+
       performedRewrite = no
-      rewriteThis = generateMutatingWalker ->
-        if @instanceof JS.ThisExpression
-          performedRewrite = yes
-          newThis
-        else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
-        else rewriteThis this
-      rewriteThis block
+      if @instanceof CS.BoundFunction
+        newThis = genSym 'this'
+        rewriteThis = generateMutatingWalker ->
+          if @instanceof JS.ThisExpression
+            performedRewrite = yes
+            newThis
+          else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
+          else rewriteThis this
+        rewriteThis block
+
       fn = new JS.FunctionExpression null, parameters, block
       if performedRewrite
         new JS.SequenceExpression [
@@ -740,7 +752,7 @@ class exports.Compiler
           state.nsCounters[k] = v for own k, v of nsCounters
           newNode = generateSymbols this, state
           newNode.body = forceBlock newNode.body
-          declNames = nub difference (map (concatMap @body.body, declarationsNeededRecursive), (id) -> id.name), declaredSymbols
+          declNames = nub difference (map (concatMap @body.body, declarationsNeededRecursive), (id) -> id.name), union declaredSymbols, params
           decls = map declNames, (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode

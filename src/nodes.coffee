@@ -1,7 +1,6 @@
 {map, concat, concatMap, difference, nub, union} = require './functional-helpers'
 exports = module?.exports ? this
 
-# TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
 # TODO: make sure all the type signatures are correct
 
 createNodes = (subclasses, superclasses = []) ->
@@ -150,6 +149,7 @@ createNodes
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
       BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction
     ]
+    DefaultParam: [['param', 'default']] # :: Parameters -> Exprs -> DefaultParam
     Identifiers: [ ['data'],
       Identifier: null # :: string -> Identifier
       GenSym: null # :: string -> string -> GenSym

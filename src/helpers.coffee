@@ -46,7 +46,7 @@ cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
   when not assignment? then []
   when assignment.instanceof CS.Identifiers then [assignment.data]
   when assignment.instanceof CS.MemberAccessOps then []
-  when assignment.instanceof CS.AssignOp then beingDeclared assignment.assignee
+  when assignment.instanceof CS.DefaultParam then beingDeclared assignment.param
   when assignment.instanceof CS.ArrayInitialiser then concatMap assignment.members, beingDeclared
   when assignment.instanceof CS.ObjectInitialiser then concatMap assignment.vals(), beingDeclared
   else throw new Error "beingDeclared: Non-exhaustive patterns in case: #{assignment.className}"

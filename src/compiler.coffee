@@ -357,7 +357,8 @@ class exports.Compiler
         else
           [ys, zs] = span members, (x) -> not x.spread
           if ys.length is 0
-            [ys, zs] = [zs[0].expression, zs[1..]]
+            sliced = new JS.CallExpression (memberAccess (memberAccess (new JS.ArrayExpression []), 'slice'), 'call'), [zs[0].expression]
+            [ys, zs] = [sliced, zs[1..]]
           else ys = new JS.ArrayExpression map ys, expr
           [ys].concat groupMembers zs
       ({members, compile}) ->

@@ -158,6 +158,16 @@ suite 'Arrays', ->
       arrayEq arr, [(obj.fn 0)...]
       arrayEq arr, [obj.fn(0)...]
 
+    test 'splats and array-like objects', ->
+      obj = {0: 1, 1: 2, 2: 3, length: 3}
+      fn = ->
+        arrayEq ([].slice.call arguments), [arguments...]
+        arguments
+      arrayEq [1, 2, 3], [obj...]
+      arrayEq [0, 1, 2, 3, 4], [0, obj..., 4]
+      arrayEq [1, 2, 3], [(fn 1, 2, 3)...]
+      arrayEq [0, 1, 2, 3, 4], [0, (fn 1, 2, 3)..., 4]
+
     test 'array splat expansions with assignments', ->
       nums = [1, 2, 3]
       list = [a = 0, nums..., b = 4]

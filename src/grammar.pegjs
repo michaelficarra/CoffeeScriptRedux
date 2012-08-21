@@ -407,7 +407,7 @@ newExpression
       e = new CS.NewOp(e, args).r(raw).p(line, column);
       return createMemberExpression(e, accesses || []);
     }
-  / NEW ws0:__ e:memberAccess ws1:__ args:secondaryArgumentList {
+  / NEW ws0:__ e:memberExpression ws1:__ args:secondaryArgumentList {
       var raw = 'new' + ws0 + e.raw + ws1 + args.raw;
       return new CS.NewOp(e, args.list).r(raw).p(line, column);
     }

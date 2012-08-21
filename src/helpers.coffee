@@ -17,25 +17,31 @@ cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
   (str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)'
 
 @formatParserError = (input, e) ->
+  # configure how many lines of context to display
+  numLinesOfContext = 3
   if e.found?
     lines = input.split '\n'
-    numLinesOfContext = 3
+    # figure out which lines are needed for context
     currentLineOffset = e.line - 1
     startLine = currentLineOffset - numLinesOfContext
     if startLine < 0 then startLine = 0
-    preLines = map lines[startLine ... currentLineOffset], cleanMarkers
-    line = lines[currentLineOffset]
-    postLines = map lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext], cleanMarkers
-    e.column = (cleanMarkers ("#{line}\n")[..(e.column - 1)]).length - 1
-  unexpected = if e.found? then "'#{e.found.replace /'/g, '\\\''}'" else 'end of input'
-  message = humanReadable "Syntax error on line #{e.line}, column #{e.column}: unexpected #{unexpected}"
+    # get the context lines
+    preLines = lines[startLine..currentLineOffset]
+    postLines = lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext]
+    numberedLines = (numberLines (cleanMarkers [preLines..., postLines...].join '\n'), startLine + 1).split '\n'
+    preLines = numberedLines[0...preLines.length]
+    postLines = numberedLines[preLines.length...]
+    # set the column number to the position of the error in the cleaned string
+    e.column = (cleanMarkers ("#{lines[currentLineOffset]}\n")[..(e.column - 1)]).length - 1
+  found = if e.found? then "'#{e.found.replace /'/g, '\\\''}'" else 'end of input'
+  message = humanReadable "Syntax error on line #{e.line}, column #{e.column}: unexpected #{found}"
   if e.found?
     padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
     message = [
       message
-      numberLines ([preLines..., cleanMarkers line].join '\n'), startLine + 1
+      preLines...
       "#{(Array padSize + 1).join '^'} :~#{(Array e.column).join '~'}^"
-      numberLines (postLines.join '\n'), currentLineOffset + 2
+      postLines...
     ].join '\n'
   message
 

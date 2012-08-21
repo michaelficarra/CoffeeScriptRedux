@@ -89,7 +89,7 @@ suite 'Arrays', ->
     #    0
     #  ].length
 
-    #test '#1274: `[] = a()` compiles to `false` instead of `a()`', ->
+    #test 'jashkenas/coffee-script#1274: `[] = a()` compiles to `false` instead of `a()`', ->
     #  a = false
     #  fn = -> a = true
     #  [] = fn()

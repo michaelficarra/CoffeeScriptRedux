@@ -236,7 +236,7 @@ suite 'Classes', ->
 
       eq A.B.c(), 5
 
-    test '#1182: a subclass should be able to set its constructor to an external function', ->
+    test 'jashkenas/coffee-script#1182: a subclass should be able to set its constructor to an external function', ->
       ctor = ->
         @val = 1
       class A
@@ -244,7 +244,7 @@ suite 'Classes', ->
         constructor: ctor
       eq (new B).val, 1
 
-    test '#1182: external constructors continued', ->
+    test 'jashkenas/coffee-script#1182: external constructors continued', ->
       ctor = ->
       class A
       class B extends A
@@ -252,14 +252,14 @@ suite 'Classes', ->
         constructor: ctor
       ok B::method
 
-    test '#1182: execution order needs to be considered as well', ->
+    test 'jashkenas/coffee-script#1182: execution order needs to be considered as well', ->
       counter = 0
       makeFn = (n) -> eq n, ++counter; ->
       class B extends (makeFn 1)
         @B = makeFn 2
         constructor: makeFn 3
 
-    test '#1182: external constructors with bound functions', ->
+    test 'jashkenas/coffee-script#1182: external constructors with bound functions', ->
       fn = ->
         {one: 1}
         this
@@ -269,26 +269,26 @@ suite 'Classes', ->
         method: => this instanceof A
       ok (new A).method.call(new B)
 
-    test '#1372: bound class methods with reserved names', ->
+    test 'jashkenas/coffee-script#1372: bound class methods with reserved names', ->
       class C
         delete: =>
       ok C::delete
 
-    test '#1464: bound class methods should keep context', ->
+    test 'jashkenas/coffee-script#1464: bound class methods should keep context', ->
       nonce  = {}
       class C
         constructor: (id) -> @id = id
         @boundStatic = => new this(nonce)
       eq nonce, C.boundStatic().id
 
-    test '#1009: classes with reserved words as determined names', ->
+    test 'jashkenas/coffee-script#1009: classes with reserved words as determined names', ->
       fn = ->
         eq 'function', typeof (class @for)
         ok not /\seval\s?\(/.test (class @eval).toString()
         ok not /\sarguments\s\(/.test (class @arguments).toString()
       fn.call {}
 
-    test '#1842: Regression with bound functions within bound class methods', ->
+    test 'jashkenas/coffee-script#1842: Regression with bound functions within bound class methods', ->
 
       class Store
         @bound = =>
@@ -317,7 +317,7 @@ suite 'Classes', ->
       Store.unbound()
       (new Store).instance()
 
-    test '#1813: Passing class definitions as expressions', ->
+    test 'jashkenas/coffee-script#1813: Passing class definitions as expressions', ->
       ident = (x) -> x
 
       result = ident class A then x = 1
@@ -329,12 +329,12 @@ suite 'Classes', ->
 
       eq result, B
 
-    test '#1966: external constructors should produce their return value', ->
+    test 'jashkenas/coffee-script#1966: external constructors should produce their return value', ->
       ctor = -> {}
       class A then constructor: ctor
       ok (new A) not instanceof A
 
-    #test '#1534: class then 'use strict'', ->
+    #test 'jashkenas/coffee-script#1534: class then 'use strict'', ->
     #  # [14.1 Directive Prologues and the Use Strict Directive](http://es5.github.com/#x14.1)
     #  nonce = {}
     #  error = 'do -> ok this'
@@ -394,7 +394,7 @@ suite 'Classes', ->
     #  ]
     #  throws (-> CoffeeScript.run directive, bare: yes) for directive in directives
 
-    test '#2052: classes should work in strict mode', ->
+    test 'jashkenas/coffee-script#2052: classes should work in strict mode', ->
       do ->
         'use strict'
         class A
@@ -599,7 +599,7 @@ suite 'Classes', ->
     #
     #  eq (new B()).func(), 'A B'
 
-    test '#1313: misplaced __extends', ->
+    test 'jashkenas/coffee-script#1313: misplaced __extends', ->
       nonce = {}
       class A
       class B extends A
@@ -607,7 +607,7 @@ suite 'Classes', ->
         constructor: ->
       eq nonce, B::prop
 
-    #test '#1380: `super` with reserved names', ->
+    #test 'jashkenas/coffee-script#1380: `super` with reserved names', ->
     #  class C
     #    do: -> super
     #  ok C::do
@@ -616,14 +616,14 @@ suite 'Classes', ->
     #    0: -> super
     #  ok B::[0]
 
-    test '#1482: classes can extend expressions', ->
+    test 'jashkenas/coffee-script#1482: classes can extend expressions', ->
       id = (x) -> x
       nonce = {}
       class A then nonce: nonce
       class B extends id A
       eq nonce, (new B).nonce
 
-    #test '#1598: super works for static methods too', ->
+    #test 'jashkenas/coffee-script#1598: super works for static methods too', ->
     #
     #  class Parent
     #    method: ->
@@ -637,13 +637,13 @@ suite 'Classes', ->
     #
     #  eq Child.method(), 'pass? yes'
 
-    test '#1876: Class @A extends A', ->
+    test 'jashkenas/coffee-script#1876: Class @A extends A', ->
       class A
       class @A extends A
 
       ok (new @A) instanceof A
 
-    test '#1980: regression with an inherited class with static function members', ->
+    test 'jashkenas/coffee-script#1980: regression with an inherited class with static function members', ->
 
       class A
 

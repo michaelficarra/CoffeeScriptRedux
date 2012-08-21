@@ -44,24 +44,24 @@ suite 'Object Literals', ->
       eq nonce, { a: fn 0, 1, nonce, 2 }.a
       eq nonce, { a: -> fn 0, 1, nonce, 2 }.a()
 
-    test '#542: leading objects need parentheses', ->
+    test 'jashkenas/coffee-script#542: leading objects need parentheses', ->
       a = false
       {f: -> a = true}.f() + 1
       ok a
 
-    #test '#1274: `{} = a()` should not optimise away a()', ->
+    #test 'jashkenas/coffee-script#1274: `{} = a()` should not optimise away a()', ->
     #  a = false
     #  fn = -> a = true
     #  {} = fn()
     #  ok a
 
-    test '#1436: `for` etc. work as normal property names', ->
+    test 'jashkenas/coffee-script#1436: `for` etc. work as normal property names', ->
       obj = {}
       ok 'for' not of obj
       obj.for = 'for' of obj
       ok 'for' of obj
 
-    #test '#1513: Top level bare objects need to be wrapped in parens for unary and existence ops', ->
+    #test 'jashkenas/coffee-script#1513: Top level bare objects need to be wrapped in parens for unary and existence ops', ->
     #  doesNotThrow -> CoffeeScript.run '{}?', bare: true
     #  doesNotThrow -> CoffeeScript.run '{}.a++', bare: true
 
@@ -164,7 +164,7 @@ suite 'Object Literals', ->
     #  eq nonce0, obj.a.b().c
     #  eq nonce1, obj.d
 
-    #test '#1871: Special case for IMPLICIT_END in the middle of an implicit object', ->
+    #test 'jashkenas/coffee-script#1871: Special case for IMPLICIT_END in the middle of an implicit object', ->
     #  result = 'result'
     #  ident = (x) -> x
     #
@@ -178,7 +178,7 @@ suite 'Object Literals', ->
     #
     #  eq result.two.join(' '), '2 2 2'
 
-    #test '#1961, #1974, regression with compound assigning to an implicit object', ->
+    #test 'jashkenas/coffee-script#1961, jashkenas/coffee-script#1974, regression with compound assigning to an implicit object', ->
     #
     #  obj = null
     #
@@ -196,7 +196,7 @@ suite 'Object Literals', ->
     #
     #  eq obj.four, 4
 
-    #test '#2207: Immediate implicit closes don't close implicit objects', ->
+    #test 'jashkenas/coffee-script#2207: Immediate implicit closes don't close implicit objects', ->
     #  func = ->
     #    key: for i in [1, 2, 3] then i
     #

@@ -385,15 +385,21 @@ callExpression
     }
   / newExpression
   argumentList
-    = e:expression es:(_ "," _ expression)* {
+    = e:argument es:(_ "," _ argument)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
+  argument
+    = spread
+    / expression
   secondaryArgumentList
-    = e:secondaryExpression es:(_ "," _ secondaryExpression)* {
+    = e:secondaryArgument es:(_ "," _ secondaryArgument)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
+  secondaryArgument
+    = spread
+    / secondaryExpression
 newExpression
   = memberExpression
   / NEW ws0:__ e:(memberAccess / primaryExpression) "(" ws1:_ args:(argumentList _)? ")" accesses:

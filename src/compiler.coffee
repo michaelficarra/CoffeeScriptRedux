@@ -213,6 +213,7 @@ for h, fn of helpers
 
 inlineHelpers =
   undef: -> new JS.UnaryExpression 'void', new JS.Literal 0
+  slice: -> new JS.CallExpression (memberAccess (memberAccess (new JS.ArrayExpression []), 'slice'), 'call'), arguments
 
 for h, fn of inlineHelpers
   helpers[h] = fn
@@ -357,7 +358,7 @@ class exports.Compiler
         else
           [ys, zs] = span members, (x) -> not x.spread
           if ys.length is 0
-            sliced = new JS.CallExpression (memberAccess (memberAccess (new JS.ArrayExpression []), 'slice'), 'call'), [zs[0].expression]
+            sliced = helpers.slice zs[0].expression
             [ys, zs] = [sliced, zs[1..]]
           else ys = new JS.ArrayExpression map ys, expr
           [ys].concat groupMembers zs
@@ -548,7 +549,22 @@ class exports.Compiler
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), assignee
       new JS.ConditionalExpression condition, assignee, new JS.AssignmentExpression '=', assignee, expr expression
     ]
-    [CS.FunctionApplication, ({function: fn, arguments: args}) -> new JS.CallExpression (expr fn), map args, expr]
+    [CS.FunctionApplication, ({function: fn, arguments: args, compile}) ->
+      if any args, ((m) -> m.spread)
+        lhs = @function
+        context = new CS.Null
+        if needsCaching @function
+          context = new CS.GenSym 'cache'
+          lhs = if @function.instanceof CS.StaticMemberAccessOps
+            new @function.constructor (new CS.AssignOp context, lhs.expression), @function.memberName
+          else if @function.instanceof CS.DynamicMemberAccessOps
+            new @function.constructor (new CS.AssignOp context, lhs.expression), @function.indexingExpr
+          else new CS.AssignOp context, lhs
+        else if lhs.instanceof CS.MemberAccessOps
+          context = lhs.expression
+        compile new CS.FunctionApplication (new CS.MemberAccessOp lhs, 'apply'), [context, new CS.ArrayInitialiser @arguments]
+      else new JS.CallExpression (expr fn), map args, expr
+    ]
     [CS.NewOp, ({ctor, arguments: args}) -> new JS.NewExpression ctor, args]
     [CS.HeregExp, ({expression}) ->
       args = [expression]

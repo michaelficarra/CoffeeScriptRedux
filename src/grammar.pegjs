@@ -466,6 +466,11 @@ primaryExpression
         return new CS.MemberAccessOp((new CS.This).r("@").p(line, column), m).r("@" + m).p(line, column);
       }
 
+spread
+  = e:postfixExpression "..." {
+      return new CS.Spread(e).r(e.raw + "...").p(line, column);
+    }
+
 
 conditional
   = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression body:conditionalBody elseClause:elseClause? {
@@ -668,10 +673,13 @@ arrayLiteral
     = t:TERMINDENT members:arrayLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
     / members:arrayLiteralMemberList? { return members ? members : {list: [], raw: ''}; }
   arrayLiteralMemberList
-    = e:expression ws:_ es:(arrayLiteralMemberSeparator _ expression _)* trail:","? {
+    = e:arrayLiteralMember ws:_ es:(arrayLiteralMemberSeparator _ arrayLiteralMember _)* trail:","? {
         var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
         return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
       }
+  arrayLiteralMember
+    = spread
+    / expression
   arrayLiteralMemberSeparator
     = t:TERMINATOR ws:_ c:","? { return t + ws + c; }
     / "," t:TERMINATOR? { return ',' + t; }

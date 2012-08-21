@@ -1,4 +1,4 @@
-{any, concat, concatMap, difference, divMod, foldl1, map, nub, owns, union} = require './functional-helpers'
+{any, concat, concatMap, difference, divMod, foldl1, map, nub, owns, span, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -129,17 +129,6 @@ collectIdentifiers = (node) -> nub switch
       concatMap node[childName], collectIdentifiers
     else
       collectIdentifiers node[childName]
-
-handleSpecialParam = (param, original, block) -> switch
-  when original.instanceof CS.Identifier then param
-  when original.instanceof CS.MemberAccessOps
-    p = genSym 'param'
-    block.body.unshift stmt new JS.AssignmentExpression '=', param, p
-    p
-  when original.instanceof CS.DefaultParam
-    block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), param.param), stmt new JS.AssignmentExpression '=', param.param, param.default
-    handleSpecialParam.call this, param.param, original.param, block
-  else throw new Error "Unsupported parameter type: #{original.className}"
 
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->
@@ -362,42 +351,72 @@ class exports.Compiler
       body.push new JS.ReturnStatement accum
       new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement body), 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
     ]
-    [CS.ArrayInitialiser, ({members}) -> new JS.ArrayExpression map members, expr]
+    [CS.ArrayInitialiser, do ->
+      groupMembers = (members) ->
+        if members.length is 0 then []
+        else
+          [ys, zs] = span members, (x) -> not x.spread
+          if ys.length is 0
+            [ys, zs] = [zs[0].expression, zs[1..]]
+          else ys = new JS.ArrayExpression map ys, expr
+          [ys].concat groupMembers zs
+      ({members, compile}) ->
+        if any members, ((m) -> m.spread)
+          grouped = groupMembers members
+          unless grouped[0].instanceof JS.ArrayExpression
+            grouped.unshift new JS.ArrayExpression []
+          new JS.CallExpression (memberAccess grouped[0], 'concat'), grouped[1..]
+        else new JS.ArrayExpression map members, expr
+    ]
+    [CS.Spread, ({expression}) -> {spread: yes, expression}]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) -> new JS.Property key, expr expression]
     [CS.DefaultParam, ({param, default: d}) -> {param, default: d}]
-    [CS.Function, CS.BoundFunction, ({parameters, block, ancestry}) ->
-      unless ancestry[0]?.instanceof CS.Constructor
-        block = makeReturn block
-      block = forceBlock block
-      last = block.body[-1..][0]
-      if (last?.instanceof JS.ReturnStatement) and not last.argument?
-        block.body = block.body[...-1]
+    [CS.Function, CS.BoundFunction, do ->
 
-      parameters_ =
-        if parameters.length is 0 then []
-        else for pIndex in [parameters.length - 1 .. 0]
-          handleSpecialParam.call this, parameters[pIndex], @parameters[pIndex], block
-      parameters = parameters_.reverse()
+      handleParam = (param, original, block) -> switch
+        when original.instanceof CS.Identifier then param
+        when original.instanceof CS.MemberAccessOps
+          p = genSym 'param'
+          block.body.unshift stmt new JS.AssignmentExpression '=', param, p
+          p
+        when original.instanceof CS.DefaultParam
+          block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), param.param), stmt new JS.AssignmentExpression '=', param.param, param.default
+          handleParam.call this, param.param, original.param, block
+        else throw new Error "Unsupported parameter type: #{original.className}"
 
-      performedRewrite = no
-      if @instanceof CS.BoundFunction
-        newThis = genSym 'this'
-        rewriteThis = generateMutatingWalker ->
-          if @instanceof JS.ThisExpression
-            performedRewrite = yes
-            newThis
-          else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
-          else rewriteThis this
-        rewriteThis block
+      ({parameters, block, ancestry}) ->
+        unless ancestry[0]?.instanceof CS.Constructor
+          block = makeReturn block
+        block = forceBlock block
+        last = block.body[-1..][0]
+        if (last?.instanceof JS.ReturnStatement) and not last.argument?
+          block.body = block.body[...-1]
 
-      fn = new JS.FunctionExpression null, parameters, block
-      if performedRewrite
-        new JS.SequenceExpression [
-          new JS.AssignmentExpression '=', newThis, new JS.ThisExpression
-          fn
-        ]
-      else fn
+        parameters_ =
+          if parameters.length is 0 then []
+          else for pIndex in [parameters.length - 1 .. 0]
+            handleParam.call this, parameters[pIndex], @parameters[pIndex], block
+        parameters = parameters_.reverse()
+
+        performedRewrite = no
+        if @instanceof CS.BoundFunction
+          newThis = genSym 'this'
+          rewriteThis = generateMutatingWalker ->
+            if @instanceof JS.ThisExpression
+              performedRewrite = yes
+              newThis
+            else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
+            else rewriteThis this
+          rewriteThis block
+
+        fn = new JS.FunctionExpression null, parameters, block
+        if performedRewrite
+          new JS.SequenceExpression [
+            new JS.AssignmentExpression '=', newThis, new JS.ThisExpression
+            fn
+          ]
+        else fn
     ]
 
     # TODO: comment

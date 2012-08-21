@@ -37,6 +37,13 @@
 
 @owns = do (hop = {}.hasOwnProperty) -> (a, b) -> hop.call a, b
 
+@span = span = (list, f) ->
+  if list.length is 0 then [[], []]
+  else if f list[0]
+    [ys, zs] = span list[1..], f
+    [[list[0], ys...], zs]
+  else [[], list]
+
 @divMod = (a, b) ->
   c = a % b
   mod = if c < 0 then c + b else c

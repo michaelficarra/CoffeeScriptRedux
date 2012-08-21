@@ -482,8 +482,8 @@ conditional
     }
   conditionalBody
     = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b, raw: t + b.raw + d}; }
-    / ws0:_ THEN ws1:_ s:statement {
-        return {block: s, raw: ws0 + 'then' + ws1 + s.raw};
+    / t:TERMINATOR? ws0:_ THEN ws1:_ s:statement {
+        return {block: s, raw: ws0 + t + 'then' + ws1 + s.raw};
       }
     / ws:_ THEN {
         return {block: null, raw: ws + 'then'};

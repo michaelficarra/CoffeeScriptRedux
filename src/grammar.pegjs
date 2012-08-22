@@ -361,7 +361,7 @@ prefixExpression
   / TYPEOF ws:_ e:(functionLiteral / prefixExpression) { return new CS.TypeofOp(e).r('typeof' + ws + e.raw).p(line, column); }
   / DELETE ws:_ e:(functionLiteral / prefixExpression) { return new CS.DeleteOp(e).r('delete' + ws + e.raw).p(line, column); }
 postfixExpression
-  = expr:callExpression ops:("?" / "[..]" / "++" / "--")* {
+  = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
       return foldl(function(expr, op){
         var raw;
         switch(op){
@@ -372,19 +372,18 @@ postfixExpression
         }
       }, expr, ops);
     }
-callExpression
-  = fn:memberExpression args:("(" _ argumentList? _ ")")+ {
-      return foldl(function(fn, args){
-        var raw = fn.raw + '(' + args[1] + (args[2] ? args[2].raw : '') + args[3] + ')';
-        return new CS.FunctionApplication(fn, args[2] ? args[2].list : []).r(raw).p(line, column);
-      }, fn, args);
-    }
-  / fn:memberExpression ws:__ !([+-/] __) args:secondaryArgumentList {
-      var raw = fn.raw + ws + args.raw;
-      return new CS.FunctionApplication(fn, args.list).r(raw).p(line, column);
-    }
-  / newExpression
+leftHandSideExpression = callExpression / newExpression
   argumentList
+    = "(" _ a:(argumentListContents _)? ")" {
+        return 0,
+          { op: CS.FunctionApplication
+          , operands: [a ? a[0].list : []]
+          , raw: '(' + (a ? a[0].raw + a[1] : '') + ')'
+          , line: line
+          , column: column
+          };
+      }
+  argumentListContents
     = e:argument es:(_ "," _ argument)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
@@ -400,37 +399,35 @@ callExpression
   secondaryArgument
     = spread
     / secondaryExpression
+callExpression
+  = fn:memberExpression accesses:(argumentList (MemberAccessOps / argumentList)*)? secondaryArgs:(__ !([+-/] __) secondaryArgumentList)? {
+      if(accesses)
+        fn = createMemberExpression(fn, [accesses[0]].concat(accesses[1] || []));
+      if(secondaryArgs)
+        fn = new CS.FunctionApplication(fn, secondaryArgs[2].list).r(fn.raw + secondaryArgs[0] + secondaryArgs[2].raw).p(line, column);
+      return fn;
+    }
 newExpression
   = memberExpression
-  / NEW ws0:__ e:(memberAccess / primaryExpression) "(" ws1:_ args:(argumentList _)? ")" accesses:
-    ( ws:(_ / TERMINATOR) a:MemberAccessOps { return {op: a.op, operands: a.operands, raw: ws + a.raw, line: a.line, column: a.column}; }
-    / "(" _ a:(argumentList _)? ")" {
-        return {op: CS.FunctionApplication, operands: [a ? a[0].list : []], raw: '(' + (a ? a[0].raw + a[1] : '') + ')', line: line, column: column};
-      }
-    )* {
-      var raw = 'new' + ws0 + e + '(' + ws1 + (args ? args[0].raw + args[1] : '') + ')';
-      args = args ? args[0].list : [];
-      e = new CS.NewOp(e, args).r(raw).p(line, column);
+  / NEW ws:__ e:(functionLiteral / newExpression) {
+      return new CS.NewOp(e, []).r('new' + ws + e.raw).p(line, column);
+    }
+memberExpression
+  = e:( primaryExpression
+    / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r('new' + ws0 + e + args.raw).p(line, column); }
+    ) accesses:MemberAccessOps* {
       return createMemberExpression(e, accesses || []);
     }
   / NEW ws0:__ e:memberExpression ws1:__ args:secondaryArgumentList {
       var raw = 'new' + ws0 + e.raw + ws1 + args.raw;
       return new CS.NewOp(e, args.list).r(raw).p(line, column);
     }
-  / NEW ws:__ e:newExpression {
-      return new CS.NewOp(e, []).r('new' + ws + e.raw).p(line, column);
-    }
-memberExpression
-  = e:primaryExpression accesses:
-    ( a:MemberAccessOps
-    / "(" _ a:(argumentList _)? ")" {
-        return {op: CS.FunctionApplication, operands: [a ? a[0].list : []], raw: '(' + (a ? a[0].raw + a[1] : '') + ')', line: line, column: column};
-      }
-    )* {
-      return createMemberExpression(e, accesses || []);
-    }
   memberAccess
-    = e:primaryExpression accesses:MemberAccessOps+ { return createMemberExpression(e, accesses); }
+    = e:( primaryExpression
+      / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r('new' + ws0 + e + args.raw).p(line, column); }
+      ) accesses:MemberAccessOps+ {
+        return createMemberExpression(e, accesses);
+      }
   MemberNames
     = identifierName
   MemberAccessOps

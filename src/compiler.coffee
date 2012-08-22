@@ -660,7 +660,7 @@ class exports.Compiler
       if @expression.instanceof CS.Function
         args = for param in @expression.parameters
           switch
-            when param.instanceof CS.AssignOp then param.expression
+            when param.instanceof CS.DefaultParam then param.default
             when param.instanceof CS.Identifier, CS.MemberAccessOp then param
             else helpers.undef()
       compile new CS.FunctionApplication @expression, args

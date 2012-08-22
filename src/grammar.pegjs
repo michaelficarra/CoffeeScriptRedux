@@ -409,7 +409,7 @@ callExpression
     }
 newExpression
   = memberExpression
-  / NEW ws:__ e:(functionLiteral / newExpression) {
+  / NEW ws:__ e:(functionLiteral / newExpression / prefixExpression) {
       return new CS.NewOp(e, []).r('new' + ws + e.raw).p(line, column);
     }
 memberExpression

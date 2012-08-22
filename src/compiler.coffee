@@ -103,6 +103,8 @@ generateMutatingWalker = (fn) -> (node, args...) ->
 
 declarationsNeeded = (node) ->
   return [] unless node?
+  unless node.instanceof?
+    console.log (require 'util').inspect node, no, 9e9, yes
   if (node.instanceof JS.AssignmentExpression) and node.operator is '=' and node.left.instanceof JS.Identifier then [node.left]
   else if node.instanceof JS.ForInStatement then [node.left]
   #TODO: else if node.instanceof JS.CatchClause then [node.param]
@@ -180,9 +182,27 @@ helpers =
       new JS.AssignmentExpression '=', (protoAccess ctor), protoAccess parent
       new JS.AssignmentExpression '=', (protoAccess child), new JS.NewExpression ctor, []
       new JS.AssignmentExpression '=', (memberAccess child, '__super__'), protoAccess parent
-      makeReturn child
+      new JS.ReturnStatement child
     ]
     new JS.FunctionDeclaration helperNames.extends, [child, parent], new JS.BlockStatement map block, stmt
+  construct: ->
+    child = new JS.Identifier 'child'
+    ctor = new JS.Identifier 'ctor'
+    fn = new JS.Identifier 'fn'
+    args = new JS.Identifier 'args'
+    result = new JS.Identifier 'result'
+    block = [
+      new JS.VariableDeclaration 'var', [
+        new JS.VariableDeclarator fn, new JS.FunctionExpression null, [], new JS.BlockStatement []
+      ]
+      new JS.AssignmentExpression '=', (memberAccess fn, 'prototype'), memberAccess ctor, 'prototype'
+      new JS.VariableDeclaration 'var', [
+        new JS.VariableDeclarator child, new JS.NewExpression fn, []
+        new JS.VariableDeclarator result, new JS.CallExpression (memberAccess ctor, 'apply'), [child, args]
+      ]
+      new JS.ReturnStatement new JS.ConditionalExpression (new JS.BinaryExpression '===', result, new JS.CallExpression (new JS.Identifier 'Object'), [result]), result, child
+    ]
+    new JS.FunctionDeclaration helperNames.construct, [ctor, args], new JS.BlockStatement map block, stmt
   isOwn: ->
     hop = memberAccess (new JS.ObjectExpression []), 'hasOwnProperty'
     params = args = [(new JS.Identifier 'o'), new JS.Identifier 'p']
@@ -365,8 +385,6 @@ class exports.Compiler
       ({members, compile}) ->
         if any members, ((m) -> m.spread)
           grouped = groupMembers members
-          unless grouped[0].instanceof JS.ArrayExpression
-            grouped.unshift new JS.ArrayExpression []
           new JS.CallExpression (memberAccess grouped[0], 'concat'), grouped[1..]
         else new JS.ArrayExpression map members, expr
     ]
@@ -565,7 +583,11 @@ class exports.Compiler
         compile new CS.FunctionApplication (new CS.MemberAccessOp lhs, 'apply'), [context, new CS.ArrayInitialiser @arguments]
       else new JS.CallExpression (expr fn), map args, expr
     ]
-    [CS.NewOp, ({ctor, arguments: args}) -> new JS.NewExpression ctor, args]
+    [CS.NewOp, ({ctor, arguments: args, compile}) ->
+      if any args, ((m) -> m.spread)
+        helpers.construct ctor, compile new CS.ArrayInitialiser @arguments
+      else new JS.NewExpression ctor, args
+    ]
     [CS.HeregExp, ({expression}) ->
       args = [expression]
       if flags = (flag for flag in ['g', 'i', 'm', 'y'] when @flags[flag]).join ''

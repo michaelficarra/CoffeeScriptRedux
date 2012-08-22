@@ -11,10 +11,10 @@ CS = require './nodes'
     "#{pad}#{currLine} : #{lines[i]}"
   numbered.join '\n'
 
-cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
+cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 
 @humanReadable = humanReadable = (str) ->
-  (str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)'
+  (((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)').replace /\uEFFE/g, '(TERMINATOR)').replace /\uEFFF/g, '(DEDENT)'
 
 @formatParserError = (input, e) ->
   # configure how many lines of context to display
@@ -32,9 +32,11 @@ cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
     preLines = numberedLines[0...preLines.length]
     postLines = numberedLines[preLines.length...]
     # set the column number to the position of the error in the cleaned string
-    e.column = (cleanMarkers ("#{lines[currentLineOffset]}\n")[..(e.column - 1)]).length - 1
-  found = if e.found? then "'#{e.found.replace /'/g, '\\\''}'" else 'end of input'
-  message = humanReadable "Syntax error on line #{e.line}, column #{e.column}: unexpected #{found}"
+    e.column = (cleanMarkers ("#{lines[currentLineOffset]}\n")[..e.column]).length - 1
+  found = if e.found?
+    "'#{(((JSON.stringify humanReadable e.found).replace /^"|"$/g, '').replace /'/g, '\\\'').replace /\\"/g, '"'}'"
+  else 'end of input'
+  message = "Syntax error on line #{e.line}, column #{e.column}: unexpected #{found}"
   if e.found?
     padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
     message = [

@@ -211,8 +211,8 @@ helpers =
   in: ->
     member = new JS.Identifier 'member'
     list = new JS.Identifier 'list'
-    i = genSym 'i'
-    length = genSym 'length'
+    i = new JS.Identifier 'i'
+    length = new JS.Identifier 'length'
     varDeclaration = new JS.VariableDeclaration 'var', [
       new JS.VariableDeclarator i, new JS.Literal 0
       new JS.VariableDeclarator length, memberAccess list, 'length'

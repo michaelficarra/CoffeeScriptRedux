@@ -804,18 +804,21 @@ class exports.Compiler
 
       # TODO: comments
       generateMutatingWalker (state) ->
+        state.declaredSymbols = union state.declaredSymbols, map (declarationsNeeded this), (id) -> id.name
         {declaredSymbols, usedSymbols, nsCounters} = state
-        state.declaredSymbols = union declaredSymbols, map (declarationsNeeded this), (id) -> id.name
         newNode = if @instanceof JS.GenSym
           newNode = new JS.Identifier generateName this, state
           usedSymbols.push newNode.name
           newNode
         else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration
           params = concatMap @params, collectIdentifiers
-          state.usedSymbols = nub [usedSymbols..., params...]
-          state.nsCounters = {}
-          state.nsCounters[k] = v for own k, v of nsCounters
-          newNode = generateSymbols this, state
+          nsCounters_ = {}
+          nsCounters_[k] = v for own k, v of nsCounters
+          newNode = generateSymbols this, {
+            declaredSymbols
+            usedSymbols: nub [usedSymbols..., params...]
+            nsCounters: nsCounters_
+          }
           newNode.body = forceBlock newNode.body
           declNames = nub difference (map (concatMap @body.body, declarationsNeededRecursive), (id) -> id.name), union declaredSymbols, params
           decls = map declNames, (name) -> new JS.Identifier name

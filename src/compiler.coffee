@@ -135,7 +135,7 @@ collectIdentifiers = (node) -> nub switch
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->
   (envEnrichments node, []).length > 0 or
-  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp) or
+  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp, CS.PreIncrementOp, CS.PostIncrementOp, CS.PreDecrementOp, CS.PostDecrementOp) or
   (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
   (any node.listMembers, (n) -> any node[n], needsCaching)
 

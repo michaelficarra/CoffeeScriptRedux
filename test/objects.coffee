@@ -178,7 +178,7 @@ suite 'Object Literals', ->
     #
     #  eq result.two.join(' '), '2 2 2'
 
-    #test 'jashkenas/coffee-script#1961, #1974, regression with compound assigning to an implicit object', ->
+    #test 'jashkenas/coffee-script#1961, jashkenas/coffee-script#1974, regression with compound assigning to an implicit object', ->
     #
     #  obj = null
     #

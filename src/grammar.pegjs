@@ -651,6 +651,7 @@ functionLiteral
         var raw = param.raw + ws0 + '=' + ws1 + default_.raw;
         return new CS.DefaultParam(param, default_).r(raw).p(line, column);
       }
+    / i:identifier "..." { return new CS.Rest(i).r(i.raw + '...').p(line, column); }
     / Assignable
   parameterList
     = e:parameter es:(_ "," _ parameter)* {

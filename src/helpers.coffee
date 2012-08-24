@@ -53,6 +53,7 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 @beingDeclared = beingDeclared = (assignment) -> switch
   when not assignment? then []
   when assignment.instanceof CS.Identifiers then [assignment.data]
+  when assignment.instanceof CS.Rest then beingDeclared assignment.expression
   when assignment.instanceof CS.MemberAccessOps then []
   when assignment.instanceof CS.DefaultParam then beingDeclared assignment.param
   when assignment.instanceof CS.ArrayInitialiser then concatMap assignment.members, beingDeclared

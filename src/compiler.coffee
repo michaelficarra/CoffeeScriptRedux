@@ -395,6 +395,7 @@ class exports.Compiler
     [CS.Function, CS.BoundFunction, do ->
 
       handleParam = (param, original, block) -> switch
+        when original.instanceof CS.Rest then param # keep these for special processing later
         when original.instanceof CS.Identifier then param
         when original.instanceof CS.MemberAccessOps
           p = genSym 'param'
@@ -419,6 +420,40 @@ class exports.Compiler
             handleParam.call this, parameters[pIndex], @parameters[pIndex], block
         parameters = parameters_.reverse()
 
+        if parameters.length > 0
+          if parameters[-1..][0].rest
+            # c = 3 <= arguments.length ? __slice.call(arguments, 2) : [];
+            numParams = parameters.length
+            paramName = parameters[numParams - 1] = parameters[numParams - 1].expression
+            test = new JS.BinaryExpression '<=', (new JS.Literal numParams), memberAccess (new JS.Identifier 'arguments'), 'length'
+            consequent = helpers.slice (new JS.Identifier 'arguments'), new JS.Literal (numParams - 1)
+            alternate = new JS.ArrayExpression []
+            block.body.unshift stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
+          else if any parameters, ((p) -> p.rest)
+            #_numArgs = arguments.length;
+            #a = [];
+            #if(_numArgs > 2) {
+            #  a = __slice.call(arguments, 0, _numArgs - 2);
+            #  b = arguments[_numArgs - 2];
+            #  c = arguments[_numArgs - 1];
+            #}
+            paramName = index = null
+            for p, i in parameters when p.rest
+              paramName = p.expression
+              index = i
+              break
+            parameters.splice index, 1
+            numParams = parameters.length
+            numArgs = genSym 'numArgs'
+            reassignments = new JS.IfStatement (new JS.BinaryExpression '>', (new JS.AssignmentExpression '=', numArgs, memberAccess (new JS.Identifier 'arguments'), 'length'), new JS.Literal numParams), (new JS.BlockStatement [
+              stmt new JS.AssignmentExpression '=', paramName, helpers.slice (new JS.Identifier 'arguments'), (new JS.Literal index), new JS.BinaryExpression '-', numArgs, new JS.Literal numParams - index
+            ]), new JS.BlockStatement [stmt new JS.AssignmentExpression '=', paramName, new JS.ArrayExpression []]
+            for p, i in parameters[index...]
+              reassignments.consequent.body.push stmt new JS.AssignmentExpression '=', p, new JS.MemberExpression yes, (new JS.Identifier 'arguments'), new JS.BinaryExpression '-', numArgs, new JS.Literal numParams - index - i
+            block.body.unshift reassignments
+          if any parameters, ((p) -> p.rest)
+            throw new Error 'Parameter lists may not have more than one rest operator'
+
         performedRewrite = no
         if @instanceof CS.BoundFunction
           newThis = genSym 'this'
@@ -438,6 +473,7 @@ class exports.Compiler
           ]
         else fn
     ]
+    [CS.Rest, ({expression}) -> {rest: yes, expression}]
 
     # TODO: comment
     [CS.Class, ({nameAssignee, parent, name, ctor, block, compile}) ->

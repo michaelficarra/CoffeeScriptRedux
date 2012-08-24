@@ -21,11 +21,12 @@ module.exports =
   parse: (coffee, options = {}) ->
     options.optimise ?= yes
     try
-      parsed = Parser.parse Preprocessor.processSync coffee
+      preprocessed = Preprocessor.processSync coffee
+      parsed = Parser.parse preprocessed
       if options.optimise then Optimiser.optimise parsed else parsed
     catch e
       throw e unless e instanceof Parser.SyntaxError
-      throw new Error formatParserError coffee, e
+      throw new Error formatParserError preprocessed, e
 
   compile: (csAst, options) ->
     Compiler.compile csAst, options

@@ -32,7 +32,7 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
     preLines = numberedLines[0...preLines.length]
     postLines = numberedLines[preLines.length...]
     # set the column number to the position of the error in the cleaned string
-    e.column = (cleanMarkers ("#{lines[currentLineOffset]}\n")[..e.column - 1]).length - 1
+    e.column = (cleanMarkers "#{lines[currentLineOffset]}\n"[...e.column]).length
   found = if e.found?
     "'#{(((JSON.stringify humanReadable e.found).replace /^"|"$/g, '').replace /'/g, '\\\'').replace /\\"/g, '"'}'"
   else 'end of input'

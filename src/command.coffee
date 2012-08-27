@@ -242,7 +242,7 @@ else
     # preprocess
     if options.debug
       try
-        console.error '### PREPROCESSED CS-AST ###'
+        console.error '### PREPROCESSED CS ###'
         console.error numberLines humanReadable Preprocessor.processSync input
 
     # parse

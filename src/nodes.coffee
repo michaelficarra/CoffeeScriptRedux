@@ -190,7 +190,7 @@ createNodes
 Nodes.fromJSON = (json) -> exports[json.type].fromJSON json
 Nodes::listMembers = []
 Nodes::toJSON = ->
-  json = type: "CS.#{@className}"
+  json = type: @className
   for child in @childNodes
     if child in @listMembers
       json[child] = (p.toJSON() for p in @[child])

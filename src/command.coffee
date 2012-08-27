@@ -246,7 +246,10 @@ else
         console.error numberLines humanReadable Preprocessor.processSync input
 
     # parse
-    result = CoffeeScript.parse input, optimise: no
+    try result = CoffeeScript.parse input, optimise: no
+    catch e
+      console.error e.message
+      process.exit 1
     if options.debug and options.optimise and result?
       console.error '### PARSED CS-AST ###'
       console.error inspect result.toJSON()

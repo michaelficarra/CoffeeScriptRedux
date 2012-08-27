@@ -694,9 +694,11 @@ class exports.Compiler
     [CS.DoOp, ({expression, compile}) ->
       args = []
       if @expression.instanceof CS.Function
-        args = for param in @expression.parameters
+        args = for param, index in @expression.parameters
           switch
-            when param.instanceof CS.DefaultParam then param.default
+            when param.instanceof CS.DefaultParam
+              @expression.parameters[index] = param.param
+              param.default
             when param.instanceof CS.Identifier, CS.MemberAccessOp then param
             else helpers.undef()
       compile new CS.FunctionApplication @expression, args

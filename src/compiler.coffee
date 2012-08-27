@@ -422,7 +422,6 @@ class exports.Compiler
 
         if parameters.length > 0
           if parameters[-1..][0].rest
-            # c = 3 <= arguments.length ? __slice.call(arguments, 2) : [];
             numParams = parameters.length
             paramName = parameters[numParams - 1] = parameters[numParams - 1].expression
             test = new JS.BinaryExpression '<=', (new JS.Literal numParams), memberAccess (new JS.Identifier 'arguments'), 'length'
@@ -430,13 +429,6 @@ class exports.Compiler
             alternate = new JS.ArrayExpression []
             block.body.unshift stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
           else if any parameters, ((p) -> p.rest)
-            #_numArgs = arguments.length;
-            #a = [];
-            #if(_numArgs > 2) {
-            #  a = __slice.call(arguments, 0, _numArgs - 2);
-            #  b = arguments[_numArgs - 2];
-            #  c = arguments[_numArgs - 1];
-            #}
             paramName = index = null
             for p, i in parameters when p.rest
               paramName = p.expression
@@ -875,5 +867,5 @@ class exports.Compiler
       jsAST = walk.call ast, (-> (rules[@className] ? defaultRule).apply this, arguments), [], [], options
       generateSymbols jsAST,
         declaredSymbols: []
-        usedSymbols: jsReserved[..]
+        usedSymbols: union jsReserved[..], collectIdentifiers jsAST
         nsCounters: {}

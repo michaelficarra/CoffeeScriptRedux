@@ -23,6 +23,7 @@ global.arrayEq = (a, b, msg) -> ok arrayEgal(a,b), msg ? "#{inspect a} === #{ins
 
 
 libDir = if typeof _$jscoverage is 'undefined' then 'lib' else 'instrumented'
+global.CoffeeScript = require '..'
 global.CS = require "../#{libDir}/coffee-script/nodes"
 global.JS = require "../#{libDir}/coffee-script/js-nodes"
 global.Parser = require "../#{libDir}/coffee-script/parser"

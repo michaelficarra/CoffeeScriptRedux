@@ -1,7 +1,7 @@
 fs = require 'fs'
 path = require 'path'
-{inspect} = require 'util'
 
+{formatParserError} = require './helpers'
 {Preprocessor} = require './preprocessor'
 Parser = require './parser'
 {Optimiser} = require './optimiser'
@@ -9,23 +9,6 @@ Parser = require './parser'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
 uglifyjs = try require 'uglify-js'
-
-
-cleanMarkers = (str) -> str.replace /\uEFEF|\uEFFE\uEFFF/g, ''
-
-humanReadable = (str) ->
-  (str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)'
-
-formatParserError = (input, e) ->
-  if e.found?
-    line = (input.split '\n')[e.line - 1]
-    e.column = (cleanMarkers ("#{line}\n").slice 0, e.column).length
-  message = humanReadable """
-    Syntax error on line #{e.line}, column #{e.column}: unexpected #{if e.found? then inspect e.found else 'end of input'}
-    """
-  if e.found?
-    message = "#{message}\n#{cleanMarkers line}\n#{(Array e.column).join '-'}^"
-  message
 
 
 CoffeeScript = null
@@ -38,11 +21,12 @@ module.exports =
   parse: (coffee, options = {}) ->
     options.optimise ?= yes
     try
-      parsed = Parser.parse Preprocessor.processSync coffee
+      preprocessed = Preprocessor.processSync coffee
+      parsed = Parser.parse preprocessed
       if options.optimise then Optimiser.optimise parsed else parsed
     catch e
       throw e unless e instanceof Parser.SyntaxError
-      throw new Error formatParserError coffee, e
+      throw new Error formatParserError preprocessed, e
 
   compile: (csAst, options) ->
     Compiler.compile csAst, options

@@ -1,6 +1,7 @@
 fs = require 'fs'
 path = require 'path'
 {concat, foldl} = require './functional-helpers'
+{numberLines, humanReadable} = require './helpers'
 {Preprocessor} = require './preprocessor'
 {Optimiser} = require './optimiser'
 CoffeeScript = require './module'
@@ -9,19 +10,6 @@ escodegen = try require 'escodegen'
 uglifyjs = try require 'uglify-js'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
-
-humanReadable = (str) ->
-  (str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)'
-
-numberLines = (input, startLine = 1) ->
-  lines = input.split '\n'
-  padSize = ((lines.length + startLine - 1).toString 10).length
-  numbered = for line, i in lines
-    currLine = "#{i + startLine}"
-    pad = (Array(padSize + 1).join '0')[currLine.length..]
-    "#{pad}#{currLine} : #{lines[i]}"
-  numbered.join '\n'
-
 
 # clone args
 args = process.argv[1 + (process.argv[0] is 'node') ..]
@@ -234,7 +222,8 @@ else if options.version
 
 else if options.repl
   # TODO: start repl
-  console.log 'TODO: REPL'
+  console.error 'TODO: REPL'
+  process.exit 1
 
 else
   # normal workflow
@@ -253,9 +242,8 @@ else
     # preprocess
     if options.debug
       try
-        Preprocessor.processSync input
         console.error '### PREPROCESSED CS-AST ###'
-        console.error numberLines humanReadable input.trim()
+        console.error numberLines humanReadable Preprocessor.processSync input
 
     # parse
     result = CoffeeScript.parse input, optimise: no

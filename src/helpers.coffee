@@ -1,13 +1,61 @@
-{concat, concatMap, difference, foldl, nub} = require './functional-helpers'
+{concat, concatMap, difference, foldl, map, nub} = require './functional-helpers'
 CS = require './nodes'
+
+
+@numberLines = numberLines = (input, startLine = 1) ->
+  lines = input.split '\n'
+  padSize = ((lines.length + startLine - 1).toString 10).length
+  numbered = for line, i in lines
+    currLine = "#{i + startLine}"
+    pad = ((Array padSize + 1).join '0')[currLine.length..]
+    "#{pad}#{currLine} : #{lines[i]}"
+  numbered.join '\n'
+
+cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
+
+@humanReadable = humanReadable = (str) ->
+  (((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)').replace /\uEFFE/g, '(TERMINATOR)').replace /\uEFFF/g, '(DEDENT)'
+
+@formatParserError = (input, e) ->
+  # configure how many lines of context to display
+  numLinesOfContext = 3
+  if e.found?
+    lines = input.split '\n'
+    # figure out which lines are needed for context
+    currentLineOffset = e.line - 1
+    startLine = currentLineOffset - numLinesOfContext
+    if startLine < 0 then startLine = 0
+    # get the context lines
+    preLines = lines[startLine..currentLineOffset]
+    postLines = lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext]
+    numberedLines = (numberLines (cleanMarkers [preLines..., postLines...].join '\n'), startLine + 1).split '\n'
+    preLines = numberedLines[0...preLines.length]
+    postLines = numberedLines[preLines.length...]
+    # set the column number to the position of the error in the cleaned string
+    e.column = (cleanMarkers "#{lines[currentLineOffset]}\n"[...e.column]).length
+  found = if e.found?
+    "'#{(((JSON.stringify humanReadable e.found).replace /^"|"$/g, '').replace /'/g, '\\\'').replace /\\"/g, '"'}'"
+  else 'end of input'
+  message = "Syntax error on line #{e.line}, column #{e.column}: unexpected #{found}"
+  if e.found?
+    padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
+    message = [
+      message
+      preLines...
+      "#{(Array padSize + 1).join '^'} :~#{(Array e.column).join '~'}^"
+      postLines...
+    ].join '\n'
+  message
+
 
 # these are the identifiers that need to be declared when the given value is
 # being used as the target of an assignment
 @beingDeclared = beingDeclared = (assignment) -> switch
   when not assignment? then []
   when assignment.instanceof CS.Identifiers then [assignment.data]
+  when assignment.instanceof CS.Rest then beingDeclared assignment.expression
   when assignment.instanceof CS.MemberAccessOps then []
-  when assignment.instanceof CS.AssignOp then beingDeclared assignment.assignee
+  when assignment.instanceof CS.DefaultParam then beingDeclared assignment.param
   when assignment.instanceof CS.ArrayInitialiser then concatMap assignment.members, beingDeclared
   when assignment.instanceof CS.ObjectInitialiser then concatMap assignment.vals(), beingDeclared
   else throw new Error "beingDeclared: Non-exhaustive patterns in case: #{assignment.className}"
@@ -48,7 +96,7 @@ envEnrichments_ = (inScope = []) ->
     when @instanceof CS.Class
       nub concat [
         beingDeclared @nameAssignee
-        beingDeclared @parent
+        envEnrichments @parent
         if name? then [name] else []
       ]
     when @instanceof CS.ForIn, CS.ForOf

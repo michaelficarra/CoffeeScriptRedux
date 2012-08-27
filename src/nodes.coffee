@@ -1,7 +1,6 @@
 {map, concat, concatMap, difference, nub, union} = require './functional-helpers'
 exports = module?.exports ? this
 
-# TODO: stop reusing AssignOp and make a DefaultOp for use in param lists; that was a bad idea in the first place and you should be ashamed
 # TODO: make sure all the type signatures are correct
 
 createNodes = (subclasses, superclasses = []) ->
@@ -144,12 +143,13 @@ createNodes
     ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
     ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
-    Class: [['nameAssignee', 'parent', 'ctor', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [string] -> Class
+    Class: [['nameAssignee', 'parent', 'ctor', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [ClassProtoAssignOp] -> Class
     Constructor: [['expression']] # :: Exprs -> Constructor
     Functions: [ ['parameters', 'block'],
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
       BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction
     ]
+    DefaultParam: [['param', 'default']] # :: Parameters -> Exprs -> DefaultParam
     Identifiers: [ ['data'],
       Identifier: null # :: string -> Identifier
       GenSym: null # :: string -> string -> GenSym
@@ -261,6 +261,7 @@ handleLists SwitchCase, ['conditions']
 Block.wrap = (s) -> new Block(if s? then [s] else []).r(s.raw).p(s.line, s.column)
 
 Class::initialise = ->
+  @boundMembers ?= []
   @name = new GenSym 'class'
   if @nameAssignee?
     # TODO: factor this out, as it's useful elsewhere: short object literal members, NFEs from assignee, etc.

@@ -420,8 +420,10 @@ class exports.Compiler
 
         parameters_ =
           if parameters.length is 0 then []
-          else for pIndex in [parameters.length - 1 .. 0]
-            handleParam.call this, parameters[pIndex], @parameters[pIndex], block
+          else
+            pIndex = parameters.length
+            while pIndex--
+              handleParam.call this, parameters[pIndex], @parameters[pIndex], block
         parameters = parameters_.reverse()
 
         if parameters.length > 0

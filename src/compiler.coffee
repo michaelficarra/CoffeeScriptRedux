@@ -30,8 +30,6 @@ stmt = (e) ->
         if e.instanceof JS.SequenceExpression then walk e
         else [stmt e]
     new JS.BlockStatement walk e
-  #else if (e.instanceof JS.BinaryExpression) and e.operator is '&&'
-  #  new JS.IfStatement (expr e.left), stmt e.right
   else if e.instanceof JS.ConditionalExpression
     # TODO: drop either the consequent or the alternate if they don't have side effects
     new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternate
@@ -789,10 +787,10 @@ class exports.Compiler
     @rules = {}
     for [ctors..., handler] in defaultRules
       for ctor in ctors
-        @addRule ctor::className, handler
+        @addRule ctor, handler
 
   addRule: (ctor, handler) ->
-    @rules[ctor] = handler
+    @rules[ctor::className] = handler
     this
 
   # TODO: comment

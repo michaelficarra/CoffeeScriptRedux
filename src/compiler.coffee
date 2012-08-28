@@ -63,7 +63,7 @@ expr = (s) ->
     block = new JS.BlockStatement [s, new JS.ReturnStatement accum]
     iife = new JS.FunctionExpression null, [accum], block
     new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression, new JS.ArrayExpression []]
-  else if s.instanceof JS.SwitchStatement
+  else if s.instanceof JS.SwitchStatement, JS.TryStatement
     block = new JS.BlockStatement [makeReturn s]
     iife = new JS.FunctionExpression null, [], block
     new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression]
@@ -85,6 +85,10 @@ makeReturn = (node) ->
     return node unless node.consequent.length
     stmts = if node.consequent[-1..][0].instanceof JS.BreakStatement then node.consequent[...-1] else node.consequent
     new JS.SwitchCase node.test, [stmts[...-1]..., makeReturn stmts[-1..][0]]
+  else if node.instanceof JS.TryStatement
+    new JS.TryStatement (makeReturn node.block), (map node.handlers, makeReturn), if node.finalizer? then makeReturn node.finalizer else null
+  else if node.instanceof JS.CatchClause
+    new JS.CatchClause node.param, makeReturn node.body
   else if node.instanceof JS.ThrowStatement, JS.ReturnStatement, JS.BreakStatement, JS.ContinueStatement then node
   else if (node.instanceof JS.UnaryExpression) and node.operator is 'void' then new JS.ReturnStatement
   else new JS.ReturnStatement expr node
@@ -336,6 +340,18 @@ class exports.Compiler
       block = if block.instanceof JS.BlockStatement then block.body else [block]
       cases[cases.length - 1].consequent = block
       cases
+    ]
+    [CS.Try, ({block, catchAssignee, catchBlock, finallyBlock}) ->
+      if finallyBlock?
+        finallyBlock = forceBlock finallyBlock
+      handlers = []
+      if catchBlock?
+        e = genSym 'e'
+        catchBlock = forceBlock catchBlock
+        # TODO: handle destructuring assignments here (and more generically?)
+        catchBlock.body.unshift stmt new JS.AssignmentExpression '=', catchAssignee, e
+        handlers = [new JS.CatchClause e, catchBlock]
+      new JS.TryStatement (forceBlock block), handlers, finallyBlock
     ]
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]
 

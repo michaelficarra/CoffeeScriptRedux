@@ -154,6 +154,7 @@ expressionworthy
   / conditional
   / while
   / loop
+  / try
   / forOf
   / forIn
   / class
@@ -518,6 +519,22 @@ while
 loop
   = LOOP body:whileBody {
       return new CS.Loop(body.block).r('loop' + body.raw).p(line, column);
+    }
+
+
+try
+  = TRY body:tryBody c:catchClause? f:finallyClause? {
+      var raw = 'try' + body.block + (c ? c.raw : '') + (f ? f.raw : '');
+      return new CS.Try(body.block, c ? c.assignee : null, c ? c.block : null, f ? f.block : null).r(raw).p(line, column);
+    }
+  tryBody = functionBody / conditionalBody
+  catchClause
+    = t:TERM? ws0:_ CATCH ws1:_ e:Assignable body:conditionalBody {
+      return {block: body.block, assignee: e, raw: t + ws0 + 'catch' + ws1 + e.raw + body.raw};
+    }
+  finallyClause
+    = ws:_ FINALLY body:tryBody {
+      return {block: body.block, raw: ws + 'finally' + body.raw};
     }
 
 
@@ -967,6 +984,7 @@ whitespace = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202
 AND = w:"and" !identifierPart { return w; }
 BREAK = w:"break" !identifierPart { return w; }
 BY = w:"by" !identifierPart { return w; }
+CATCH = w:"catch" !identifierPart { return w; }
 CONTINUE = w:"continue" !identifierPart { return w; }
 CLASS = w:"class" !identifierPart { return w; }
 DELETE = w:"delete" !identifierPart { return w; }
@@ -974,6 +992,7 @@ DO = w:"do" !identifierPart { return w; }
 ELSE = w:"else" !identifierPart { return w; }
 EXTENDS = w:"extends" !identifierPart { return w; }
 FALSE = w:"false" !identifierPart { return w; }
+FINALLY = w:"finally" !identifierPart { return w; }
 FOR = w:"for" !identifierPart { return w; }
 IF = w:"if" !identifierPart { return w; }
 IN = w:"in" !identifierPart { return w; }
@@ -996,6 +1015,7 @@ THEN = w:"then" !identifierPart { return w; }
 THIS = w:"this" !identifierPart { return w; }
 THROW = w:"throw" !identifierPart { return w; }
 TRUE = w:"true" !identifierPart { return w; }
+TRY = w:"try" !identifierPart { return w; }
 TYPEOF = w:"typeof" !identifierPart { return w; }
 UNDEFINED = w:"undefined" !identifierPart { return w; }
 UNLESS = w:"unless" !identifierPart { return w; }

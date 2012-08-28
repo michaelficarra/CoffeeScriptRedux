@@ -107,8 +107,6 @@ generateMutatingWalker = (fn) -> (node, args...) ->
 
 declarationsNeeded = (node) ->
   return [] unless node?
-  unless node.instanceof?
-    console.log (require 'util').inspect node, no, 9e9, yes
   if (node.instanceof JS.AssignmentExpression) and node.operator is '=' and node.left.instanceof JS.Identifier then [node.left]
   else if node.instanceof JS.ForInStatement then [node.left]
   #TODO: else if node.instanceof JS.CatchClause then [node.param]

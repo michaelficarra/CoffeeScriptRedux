@@ -319,6 +319,10 @@ class exports.Compiler
     [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
     [CS.Switch, ({expression, cases, elseBlock}) ->
       cases = concat cases
+      unless expression?
+        expression = new JS.Literal false
+        for c in cases
+          c.test = new JS.UnaryExpression '!', c.test
       if elseBlock?
         cases.push new JS.SwitchCase null, [stmt elseBlock]
       for c in cases[...-1] when c.consequent.length > 0

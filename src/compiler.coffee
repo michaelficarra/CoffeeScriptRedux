@@ -651,7 +651,7 @@ class exports.Compiler
       new JS.Literal re
     ]
     [CS.ConcatOp, ({left, right, ancestry}) ->
-      plusOp = new JS.BinaryExpression '+', left, right
+      plusOp = new JS.BinaryExpression '+', (expr left), expr right
       unless ancestry[0].instanceof CS.ConcatOp
         leftmost = plusOp
         leftmost = leftmost.left while leftmost.left?.left

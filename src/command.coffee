@@ -329,7 +329,7 @@ else
       input = contents
       do processInput
   else if options.watch?
-    # TODO: watch
+    options.watch # TODO: watch
   else if options.cli?
     input = options.cli
     do processInput

@@ -32,17 +32,18 @@ var CS = require("./nodes"),
       , '*': CS.MultiplyOp
       , '/': CS.DivideOp
       , '%': CS.RemOp
+      , '**': CS.ExpOp
       },
     foldl = function(fn, memo, list){
       for(var i = 0, l = list.length; i < l; ++i)
         memo = fn(memo, list[i]);
       return memo;
     },
-    //foldr = function(fn, memo, list){
-    //  for(var i = list.length; i--;)
-    //    memo = fn(memo, list[i]);
-    //  return memo;
-    //};
+    foldr = function(fn, memo, list){
+      for(var i = list.length; i--;)
+        memo = fn(memo, list[i]);
+      return memo;
+    };
     createInterpolation = function(es){
       var init = es.shift();
       return foldl(function(memo, s){
@@ -406,9 +407,8 @@ leftHandSideExpression = callExpression / newExpression
     = spread
     / secondaryExpression
 callExpression
-  = fn:memberExpression accesses:(argumentList (MemberAccessOps / argumentList)*)? secondaryArgs:secondaryArgumentList? {
-      if(accesses)
-        fn = createMemberExpression(fn, [accesses[0]].concat(accesses[1] || []));
+  = fn:memberExpression accesses:(MemberAccessOps / argumentList)* secondaryArgs:secondaryArgumentList? {
+      if(accesses) fn = createMemberExpression(fn, accesses);
       if(secondaryArgs)
         fn = new CS.FunctionApplication(fn, secondaryArgs.list).r(fn.raw + secondaryArgs.raw).p(line, column);
       return fn;

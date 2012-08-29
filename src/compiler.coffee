@@ -164,6 +164,36 @@ dynamicMemberAccess = (e, index) ->
   then memberAccess e, index.value
   else new JS.MemberExpression yes, e, index
 
+assignment = (assignee, expression, valueUsed = no) -> switch
+  # TODO: DRY?
+  when assignee.instanceof JS.ArrayExpression, JS.ObjectExpression
+    assignments = []
+    numericallyIndexed = assignee.instanceof JS.ArrayExpression
+    membersName = if numericallyIndexed then 'elements' else 'properties'
+
+    e = expression
+    # TODO: only cache expression when it needs it
+    #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
+    if valueUsed or assignee[membersName].length > 1
+      e = genSym 'cache'
+      assignments.push new JS.AssignmentExpression '=', e, expression
+
+    for m, i in assignee[membersName]
+      if numericallyIndexed
+        assignments.push assignment m, (dynamicMemberAccess e, new JS.Literal i), valueUsed
+      else
+        propName = if m.key.instanceof JS.Identifier then new JS.Literal m.key.name else m.key
+        assignments.push assignment m.value, (dynamicMemberAccess e, propName), valueUsed
+
+    switch assignments.length
+      when 0 then (if e is expression then helpers.undef() else expression)
+      when 1 then assignments[0]
+      else new JS.SequenceExpression if valueUsed then [assignments..., e] else assignments
+  when assignee.instanceof JS.Identifier, JS.GenSym, JS.MemberExpression
+    new JS.AssignmentExpression '=', assignee, expr expression
+  else
+    throw new Error "compile: AssignOp: unassignable assignee: #{assignee.className}"
+
 
 helperNames = {}
 helpers =
@@ -245,6 +275,7 @@ class exports.Compiler
 
   @compile = => (new this).compile arguments...
 
+  # TODO: none of the default rules should need to use `compile`; fix it with functions
   defaultRules = [
     # control flow structures
     [CS.Program, ({block, inScope, options}) ->
@@ -300,8 +331,8 @@ class exports.Compiler
         # TODO: if block only has a single statement, wrap it instead of continuing
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
       if keyAssignee?
-        block.body.unshift stmt new JS.AssignmentExpression '=', keyAssignee, i
-      block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, e, i
+        block.body.unshift stmt assignment keyAssignee, i
+      block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, i
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), block
     ]
     [CS.ForOf, ({keyAssignee, valAssignee, expression, filterExpr, block}) ->
@@ -311,7 +342,7 @@ class exports.Compiler
         # TODO: if block only has a single statement, wrap it instead of continuing
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
       if valAssignee?
-        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, new JS.MemberExpression yes, e, keyAssignee
+        block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, keyAssignee
       if @isOwn
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn e, keyAssignee), new JS.ContinueStatement
       right = if e is expression then e else new JS.AssignmentExpression '=', e, expression
@@ -346,7 +377,7 @@ class exports.Compiler
         e = genSym 'e'
         catchBlock = forceBlock catchBlock
         # TODO: handle destructuring assignments here (and more generically?)
-        catchBlock.body.unshift stmt new JS.AssignmentExpression '=', catchAssignee, e
+        catchBlock.body.unshift stmt assignment catchAssignee, e
         handlers = [new JS.CatchClause e, catchBlock]
       new JS.TryStatement (forceBlock block), handlers, finallyBlock
     ]
@@ -414,9 +445,9 @@ class exports.Compiler
       handleParam = (param, original, block) -> switch
         when original.instanceof CS.Rest then param # keep these for special processing later
         when original.instanceof CS.Identifier then param
-        when original.instanceof CS.MemberAccessOps
+        when original.instanceof CS.MemberAccessOps, CS.ObjectInitialiser, CS.ArrayInitialiser
           p = genSym 'param'
-          block.body.unshift stmt new JS.AssignmentExpression '=', param, p
+          block.body.unshift stmt assignment param, p
           p
         when original.instanceof CS.DefaultParam
           block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), param.param), stmt new JS.AssignmentExpression '=', param.param, param.default
@@ -538,7 +569,7 @@ class exports.Compiler
       rewriteThis block
 
       iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
-      if nameAssignee? then new JS.AssignmentExpression '=', nameAssignee, iife else iife
+      if nameAssignee? then assignment nameAssignee, iife else iife
     ]
     [CS.Constructor, ({expression}) ->
       tmpName = genSym 'class'
@@ -556,37 +587,7 @@ class exports.Compiler
     ]
 
     # more complex operations
-    [CS.AssignOp, ({assignee, expression, ancestry, compile}) -> switch
-      # TODO: DRY?
-      when @assignee.instanceof CS.ArrayInitialiser
-        assignments = []
-        e = @expression
-        valueUsed = usedAsExpression this, ancestry
-        if @assignee.members.length > 1 and (needsCaching e) or valueUsed
-          e = new CS.GenSym 'cache'
-          assignments.push new CS.AssignOp e, @expression
-        for m, i in @assignee.members
-          assignments.push new CS.AssignOp m, new CS.DynamicMemberAccessOp e, new CS.Int i
-        return helpers.undef() unless assignments.length
-        assignSeq = foldl1 assignments, (a, b) -> new CS.SeqOp a, b
-        compile (if valueUsed then new CS.SeqOp assignSeq, e else assignSeq)
-      when @assignee.instanceof CS.ObjectInitialiser
-        assignments = []
-        e = @expression
-        valueUsed = usedAsExpression this, ancestry
-        if @assignee.members.length > 1 and (needsCaching e) or valueUsed
-          e = new CS.GenSym 'cache'
-          assignments.push new CS.AssignOp e, @expression
-        for m, i in @assignee.members
-          assignments.push new CS.AssignOp m.expression, new CS.MemberAccessOp e, m.key.data
-        return helpers.undef() unless assignments.length
-        assignSeq = foldl1 assignments, (a, b) -> new CS.SeqOp a, b
-        compile (if valueUsed then new CS.SeqOp assignSeq, e else assignSeq)
-      when @assignee.instanceof CS.Identifier, CS.GenSym, CS.MemberAccessOps
-        new JS.AssignmentExpression '=', assignee, expr expression
-      else
-        throw new Error "compile: AssignOp: unassignable assignee: #{@assignee.className}"
-    ]
+    [CS.AssignOp, ({assignee, expression, ancestry}) -> assignment.call this, assignee, expression, usedAsExpression this, ancestry]
     [CS.CompoundAssignOp, ({assignee, expression}) ->
       op = switch @op
         when CS.LogicalAndOp         then '&&'

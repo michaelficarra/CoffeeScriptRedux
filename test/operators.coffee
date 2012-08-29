@@ -113,6 +113,18 @@ suite 'Operators', ->
       a = null ? - 1
       eq -1, a
 
+    test 'jashkenas/coffee-script#2026: exponentiation operator via `**`', ->
+      eq 27, 3 ** 3
+      # precedence
+      eq 55, 1 + 3 ** 3 * 2
+      # right associativity
+      eq 2, 2 ** 1 ** 3
+      eq 2 ** 8, 2 ** 2 ** 3
+      # compound assignment with exponentiation
+      a = 2
+      a **= 2
+      eq 4, a
+
 
   suite 'Existential Operator (Unary)', ->
 

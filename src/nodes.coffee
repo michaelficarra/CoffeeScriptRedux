@@ -73,6 +73,7 @@ createNodes
         LogicalOrOp: null # :: Exprs -> Exprs -> LogicalOrOp
       ]
       MathsOps: [ null
+        ExpOp: null # :: Exprs -> Exprs -> PowOp
         DivideOp: null # :: Exprs -> Exprs -> DivideOp
         MultiplyOp: null # :: Exprs -> Exprs -> MultiplyOp
         RemOp: null # :: Exprs -> Exprs -> RemOp

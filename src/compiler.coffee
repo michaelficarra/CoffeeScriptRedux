@@ -232,6 +232,7 @@ for h, fn of helpers
     (helpers[h] = -> new JS.CallExpression helperNames[h], arguments).apply this, arguments
 
 inlineHelpers =
+  exp: -> new JS.CallExpression (memberAccess (new JS.Identifier 'Math'), 'pow'), arguments
   undef: -> new JS.UnaryExpression 'void', new JS.Literal 0
   slice: -> new JS.CallExpression (memberAccess (memberAccess (new JS.ArrayExpression []), 'slice'), 'call'), arguments
 
@@ -601,10 +602,13 @@ class exports.Compiler
         when CS.MultiplyOp           then '*'
         when CS.DivideOp             then '/'
         when CS.RemOp                then '%'
+        when CS.ExpOp                then '**'
         else throw new Error 'Unrecognised compound assignment operator'
+      # TODO: if assignee is an identifier, fail unless assignee is in scope
       if op in ['&&', '||']
-        # TODO: if assignee is an identifier, fail unless assignee is in scope
-        new JS.BinaryExpression op, assignee, new JS.AssignmentExpression '=', assignee, expression
+        new JS.BinaryExpression op, assignee, new JS.AssignmentExpression '=', assignee, expr expression
+      else if op is '**'
+        new JS.AssignmentExpression '=', assignee, helpers.exp assignee, expr expression
       else new JS.AssignmentExpression "#{op}=", assignee, expression
     ]
     [CS.ExistsAssignOp, ({assignee, expression, inScope}) ->
@@ -718,6 +722,9 @@ class exports.Compiler
     [CS.Continue, -> new JS.ContinueStatement]
 
     # straightforward operators
+    [CS.ExpOp, ({left, right}) ->
+      helpers.exp (expr left), expr right
+    ]
     [CS.DivideOp, ({left, right}) -> new JS.BinaryExpression '/', (expr left), expr right]
     [CS.MultiplyOp, ({left, right}) -> new JS.BinaryExpression '*', (expr left), expr right]
     [CS.RemOp, ({left, right}) -> new JS.BinaryExpression '%', (expr left), expr right]

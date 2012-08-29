@@ -239,7 +239,7 @@ assignmentExpression
         return new CS.AssignOp(left, right.expr).r(raw).p(line, column);
       }
   CompoundAssignmentOperators
-    = "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / AND / OR / "&&" / "||" / "&" / "^" / "|"
+    = "**" / "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / AND / OR / "&&" / "||" / "&" / "^" / "|"
   compoundAssignmentOp
     = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
         var raw = left.raw + ws0 + op + '=' + ws1 + right.raw;
@@ -344,12 +344,18 @@ additiveExpression
       }, left, rights);
     }
 multiplicativeExpression
-  = left:prefixExpression rights:(_ [*/%] !"=" TERMINATOR? _ (expressionworthy / prefixExpression))* {
+  = left:exponentiationExpression rights:(_ [*/%] !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
         return new constructorLookup[right[1]](expr, right[5]).r(raw).p(line, column);
       }, left, rights);
+    }
+exponentiationExpression
+  = left:prefixExpression right:(_ "**" !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))? {
+      if(!right) return left;
+      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
+      return new CS.ExpOp(left, right[5]).r(raw).p(line, column);
     }
 prefixExpression
   = postfixExpression

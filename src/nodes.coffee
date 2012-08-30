@@ -34,8 +34,9 @@ createNodes = (subclasses, superclasses = []) ->
   return
 
 
-# TODO: match parser API: consequent, alternate
-# TODO: match parser API: block -> body
+# Note: nullable values are marked with `Maybe` in the type signature
+# Note: primitive values are represented in lowercase
+# Note: type classes are pluralised
 createNodes
   Nodes: [ [],
 
@@ -129,24 +130,22 @@ createNodes
     ]
     Super: [['arguments']] # :: [Arguments] -> Super
 
-    Program: [['block']] # :: Maybe Exprs -> Program
+    Program: [['body']] # :: Maybe Exprs -> Program
     Block: [['statements']] # :: [Statement] -> Block
-    # TODO: test/consequent/alternative
-    Conditional: [['condition', 'block', 'elseBlock']] # :: Exprs -> Maybe Exprs -> Maybe Exprs -> Conditional
-    ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'block']] # :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
-    ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'block']] # :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
-    Switch: [['expression', 'cases', 'elseBlock']] # :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
-    # TODO: tests/consequent
-    SwitchCase: [['conditions', 'block']] # :: [Exprs] -> Maybe Expr -> SwitchCase
-    Try: [['block', 'catchAssignee', 'catchBlock', 'finallyBlock']] # :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
-    While: [['condition', 'block']] # :: Exprs -> Maybe Exprs -> While
+    Conditional: [['condition', 'consequent', 'alternate']] # :: Exprs -> Maybe Exprs -> Maybe Exprs -> Conditional
+    ForIn: [['valAssignee', 'keyAssignee', 'expression', 'step', 'filterExpr', 'body']] # :: Assignable -> Maybe Assignable -> Exprs -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForIn
+    ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'expression', 'filterExpr', 'body']] # :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
+    Switch: [['expression', 'cases', 'alternate']] # :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
+    SwitchCase: [['conditions', 'consequent']] # :: [Exprs] -> Maybe Expr -> SwitchCase
+    Try: [['body', 'catchAssignee', 'catchBody', 'finallyBody']] # :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
+    While: [['condition', 'body']] # :: Exprs -> Maybe Exprs -> While
 
     ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
     ObjectInitialiser: [['members']] # :: [ObjectInitialiserMember] -> ObjectInitialiser
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
-    Class: [['nameAssignee', 'parent', 'ctor', 'block', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [ClassProtoAssignOp] -> Class
+    Class: [['nameAssignee', 'parent', 'ctor', 'body', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [ClassProtoAssignOp] -> Class
     Constructor: [['expression']] # :: Exprs -> Constructor
-    Functions: [ ['parameters', 'block'],
+    Functions: [ ['parameters', 'body'],
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
       BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction
     ]
@@ -299,4 +298,4 @@ class exports.NegatedWhile extends While
 # The node should be treated in all other ways as a While.
 # Loop :: Maybe Exprs -> Loop
 class exports.Loop extends While
-  constructor: (block) -> super (new Bool true).g(), block
+  constructor: (body) -> super (new Bool true).g(), body

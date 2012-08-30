@@ -278,9 +278,9 @@ class exports.Compiler
   # TODO: none of the default rules should need to use `compile`; fix it with functions
   defaultRules = [
     # control flow structures
-    [CS.Program, ({block, inScope, options}) ->
-      return new JS.Program [] unless block?
-      block = stmt block
+    [CS.Program, ({body, inScope, options}) ->
+      return new JS.Program [] unless body?
+      block = stmt body
       block =
         if block.instanceof JS.BlockStatement then block.body
         else [block]
@@ -308,18 +308,18 @@ class exports.Compiler
         else new JS.BlockStatement map statements, stmt
     ]
     [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
-    [CS.Conditional, ({condition, block, elseBlock, ancestry}) ->
-      if elseBlock?
-        throw new Error 'Conditional with non-null elseBlock requires non-null block' unless block?
-        elseBlock = forceBlock elseBlock unless elseBlock.instanceof JS.IfStatement
-      if elseBlock? or ancestry[0]?.instanceof CS.Conditional
-        block = forceBlock block
-      new JS.IfStatement (expr condition), (stmt block), elseBlock
+    [CS.Conditional, ({condition, consequent, alternate, ancestry}) ->
+      if alternate?
+        throw new Error 'Conditional with non-null alternate requires non-null consequent' unless consequent?
+        alternate = forceBlock alternate unless alternate.instanceof JS.IfStatement
+      if alternate? or ancestry[0]?.instanceof CS.Conditional
+        consequent = forceBlock consequent
+      new JS.IfStatement (expr condition), (stmt consequent), alternate
     ]
-    [CS.ForIn, ({valAssignee, keyAssignee, expression, step, filterExpr, block}) ->
+    [CS.ForIn, ({valAssignee, keyAssignee, expression, step, filterExpr, body}) ->
       i = genSym 'i'
       length = genSym 'length'
-      block = forceBlock block
+      block = forceBlock body
       e = if needsCaching @expression then genSym 'cache' else expression
       varDeclaration = new JS.VariableDeclaration 'var', [
         new JS.VariableDeclarator i, new JS.Literal 0
@@ -335,8 +335,8 @@ class exports.Compiler
       block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, i
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), block
     ]
-    [CS.ForOf, ({keyAssignee, valAssignee, expression, filterExpr, block}) ->
-      block = forceBlock block
+    [CS.ForOf, ({keyAssignee, valAssignee, expression, filterExpr, body}) ->
+      block = forceBlock body
       e = if @isOwn and needsCaching @expression then genSym 'cache' else expr expression
       if @filterExpr?
         # TODO: if block only has a single statement, wrap it instead of continuing
@@ -348,38 +348,36 @@ class exports.Compiler
       right = if e is expression then e else new JS.AssignmentExpression '=', e, expression
       new JS.ForInStatement keyAssignee, right, block
     ]
-    [CS.While, ({condition, block}) -> new JS.WhileStatement (expr condition), forceBlock block]
-    [CS.Switch, ({expression, cases, elseBlock}) ->
+    [CS.While, ({condition, body}) -> new JS.WhileStatement (expr condition), forceBlock body]
+    [CS.Switch, ({expression, cases, alternate}) ->
       cases = concat cases
       unless expression?
         expression = new JS.Literal false
         for c in cases
           c.test = new JS.UnaryExpression '!', c.test
-      if elseBlock?
-        cases.push new JS.SwitchCase null, [stmt elseBlock]
+      if alternate?
+        cases.push new JS.SwitchCase null, [stmt alternate]
       for c in cases[...-1] when c.consequent.length > 0
         c.consequent.push new JS.BreakStatement
       new JS.SwitchStatement expression, cases
     ]
-    [CS.SwitchCase, ({conditions, block}) ->
+    [CS.SwitchCase, ({conditions, consequent}) ->
       cases = map conditions, (c) ->
         new JS.SwitchCase c, []
-      block = stmt block
+      block = stmt consequent
       block = if block.instanceof JS.BlockStatement then block.body else [block]
       cases[cases.length - 1].consequent = block
       cases
     ]
-    [CS.Try, ({block, catchAssignee, catchBlock, finallyBlock}) ->
-      if finallyBlock?
-        finallyBlock = forceBlock finallyBlock
+    [CS.Try, ({body, catchAssignee, catchBody, finallyBody}) ->
+      finallyBlock = if finallyBody? then forceBlock finallyBody else null
       handlers = []
-      if catchBlock?
+      if catchBody? or catchAssignee?
         e = genSym 'e'
-        catchBlock = forceBlock catchBlock
-        # TODO: handle destructuring assignments here (and more generically?)
+        catchBlock = forceBlock catchBody
         catchBlock.body.unshift stmt assignment catchAssignee, e
         handlers = [new JS.CatchClause e, catchBlock]
-      new JS.TryStatement (forceBlock block), handlers, finallyBlock
+      new JS.TryStatement (forceBlock body), handlers, finallyBlock
     ]
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]
 
@@ -454,10 +452,10 @@ class exports.Compiler
           handleParam.call this, param.param, original.param, block
         else throw new Error "Unsupported parameter type: #{original.className}"
 
-      ({parameters, block, ancestry}) ->
+      ({parameters, body, ancestry}) ->
         unless ancestry[0]?.instanceof CS.Constructor
-          block = makeReturn block
-        block = forceBlock block
+          body = makeReturn body
+        block = forceBlock body
         last = block.body[-1..][0]
         if (last?.instanceof JS.ReturnStatement) and not last.argument?
           block.body = block.body[...-1]
@@ -518,11 +516,11 @@ class exports.Compiler
     [CS.Rest, ({expression}) -> {rest: yes, expression}]
 
     # TODO: comment
-    [CS.Class, ({nameAssignee, parent, name, ctor, block, compile}) ->
+    [CS.Class, ({nameAssignee, parent, name, ctor, body, compile}) ->
       args = []
       params = []
       parentRef = genSym 'super'
-      block = forceBlock block
+      block = forceBlock body
       if (name.instanceof JS.Identifier) and name.name in jsReserved
         name = genSym name.name
 
@@ -580,7 +578,7 @@ class exports.Compiler
     ]
     [CS.ClassProtoAssignOp, ({assignee, expression, compile}) ->
       if @expression.instanceof CS.BoundFunction
-        compile new CS.ClassProtoAssignOp @assignee, new CS.Function @expression.parameters, @expression.block
+        compile new CS.ClassProtoAssignOp @assignee, new CS.Function @expression.parameters, @expression.body
       else
         protoMember = memberAccess (memberAccess new JS.ThisExpression, 'prototype'), @assignee.data
         new JS.AssignmentExpression '=', protoMember, expression
@@ -805,7 +803,7 @@ class exports.Compiler
   compile: do ->
     walk = (fn, inScope, ancestry, options) ->
 
-      if (ancestry[0]?.instanceof CS.Function, CS.BoundFunction) and this is ancestry[0].block
+      if (ancestry[0]?.instanceof CS.Function, CS.BoundFunction) and this is ancestry[0].body
         inScope = union inScope, concatMap ancestry[0].parameters, beingDeclared
 
       ancestry.unshift this

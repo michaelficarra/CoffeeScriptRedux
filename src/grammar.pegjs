@@ -400,9 +400,9 @@ leftHandSideExpression = callExpression / newExpression
     = spread
     / expression
   secondaryArgumentList
-    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ secondaryArgument)* obj:(TERMINDENT implicitObjectLiteral DEDENT)? {
-        var raw = ws0 + e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + (obj ? obj[0] + obj[1].raw + obj[2] : '');
-        es = [e].concat(es.map(function(e){ return e[3]; }));
+    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERM? _ secondaryArgument)* obj:(TERMINDENT implicitObjectLiteral DEDENT)? {
+        var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1].raw + obj[2] : '');
+        es = [e].concat(es.map(function(e){ return e[5]; }));
         if(obj) es.push(obj[1]);
         return {list: es, raw: raw};
       }
@@ -444,7 +444,7 @@ memberExpression
   MemberNames
     = identifierName
   MemberAccessOps
-    = ws0:(_ / TERMINATOR) "." ws1:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + '.' + ws1 + e, line: line, column: column}; }
+    = ws0:_ ws1:(TERM _)? "." ws2:_ ws3:(TERM _)? e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + (ws1 ? ws1[0] + ws1[1] : '') + '.' + ws2 + (ws3 ? ws3[0] + ws3[1] : '') + e, line: line, column: column}; }
     / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column}; }
     / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column}; }
     / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column}; }

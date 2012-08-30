@@ -296,7 +296,7 @@ suite 'Function Invocation', ->
       penultimate
     eq 8, method 1, 2, 3, 4, 5, 6, 7, 8, 9
     eq 2, method 1, 2, 3
-    #eq 2, method 1, 2
+    eq 2, method 1, 2
 
   #test "splats with super() within classes.", ->
   #  class Parent

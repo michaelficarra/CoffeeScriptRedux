@@ -43,7 +43,7 @@ var CS = require("./nodes"),
       for(var i = list.length; i--;)
         memo = fn(memo, list[i]);
       return memo;
-    };
+    },
     createInterpolation = function(es){
       var init = es.shift();
       return foldl(function(memo, s){
@@ -82,6 +82,19 @@ var CS = require("./nodes"),
         if(flag == flags[i]) return false;
         else flag = flags[i];
       return true;
+    },
+    stripLeadingWhitespace = function(str){
+      str = str.replace(/\s+$/, '');
+      var attempt, match, matchStr = str, indent = null;
+      while(match = /\n+([^\n\S]*)/.exec(matchStr)) {
+        attempt = match[1];
+        matchStr = matchStr.slice(match.index + match[0].length);
+        if (indent == null || 0 < attempt.length && attempt.length < indent.length)
+          indent = attempt;
+      }
+      if(indent) str = str.replace(new RegExp('\\n' + indent, 'g'), '\n');
+      str = str.replace(/^\n/, '');
+      return str;
     };
 }
 
@@ -824,10 +837,12 @@ bit = [01]
 // TODO: raw
 string
   = "\"\"\"" d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ "\"\"\"" {
-      return new CS.String(d.join('')).p(line, column);
+      var data = stripLeadingWhitespace(d.join(''));
+      return new CS.String(data).p(line, column);
     }
   / "'''" d:(stringData / "\"" / "#" / s:("'" "'"? !"'") { return s.join(''); })+ "'''" {
-      return new CS.String(d.join('')).p(line, column);
+      var data = stripLeadingWhitespace(d.join(''));
+      return new CS.String(data).p(line, column);
     }
   / "\"" d:(stringData / "'")* "\"" { return new CS.String(d ? d.join('') : '').p(line, column); }
   / "'" d:(stringData / "\"" / "#")* "'" { return new CS.String(d ? d.join('') : '').p(line, column); }

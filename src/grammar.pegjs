@@ -413,10 +413,10 @@ leftHandSideExpression = callExpression / newExpression
     = spread
     / expression
   secondaryArgumentList
-    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERM? _ secondaryArgument)* obj:(TERMINDENT implicitObjectLiteral DEDENT)? {
-        var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1].raw + obj[2] : '');
+    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERM? _ secondaryArgument)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
+        var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1] + obj[2].raw + obj[3] : '');
         es = [e].concat(es.map(function(e){ return e[5]; }));
-        if(obj) es.push(obj[1]);
+        if(obj) es.push(obj[2]);
         return {list: es, raw: raw};
       }
     / t:TERMINDENT o:implicitObjectLiteral d:DEDENT {
@@ -747,9 +747,10 @@ arrayLiteral
   arrayLiteralMember
     = spread
     / expression
+    / TERMINDENT o:implicitObjectLiteral DEDENT { return o; }
   arrayLiteralMemberSeparator
     = t:TERMINATOR ws:_ c:","? { return t + ws + c; }
-    / "," t:TERMINATOR? { return ',' + t; }
+    / "," t:TERMINATOR? _ { return ',' + t; }
     // TODO: fix this:
     // d:DEDENT "," t:TERMINDENT { return d + ',' + t; }
 
@@ -788,17 +789,20 @@ implicitObjectLiteral
     return new CS.ObjectInitialiser(members.list).r(members.raw).p(line, column);
   }
   implicitObjectLiteralMemberList
-    = e:implicitObjectLiteralMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ implicitObjectLiteralMember)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
-        return {list: [e].concat(es.map(function(e){ return e[5]; })), raw: raw};
+    = e:implicitObjectLiteralMember es:(implicitObjectLiteralMemberSeparator _ implicitObjectLiteralMember)* {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2].raw; }).join('');
+        return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
       }
   implicitObjectLiteralMemberSeparator
     = TERMINATOR ","? _
     / "," TERMINATOR?
   implicitObjectLiteralMember
-    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
-        return new CS.ObjectInitialiserMember(key, val).r(key.raw + ws0 + ':' + ws1 + val.raw).p(line, column);
+    = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:implicitObjectLiteralMemberValue {
+        return new CS.ObjectInitialiserMember(key, val.value).r(key.raw + ws0 + ':' + ws1 + val.raw).p(line, column);
       }
+  implicitObjectLiteralMemberValue
+    = e:expression { return {value: e, raw: e.raw}; }
+    / i:TERMINDENT o:implicitObjectLiteral d:DEDENT { return {value: o, raw: i + o.raw + d}; }
 
 
 bool

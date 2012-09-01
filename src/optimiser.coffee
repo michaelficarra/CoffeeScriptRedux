@@ -242,30 +242,30 @@ class exports.Optimiser
 
     # for-in over an empty list produces an empty list
     [CS.ForIn, (inScope, ancestors) ->
-      return this unless (@expression.instanceof CS.ArrayInitialiser) and @expression.members.length is 0
+      return this unless (@target.instanceof CS.ArrayInitialiser) and @target.members.length is 0
       new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-own-of over empty object produces an empty list
     [CS.ForOf, (inScope, ancestors) ->
-      return this unless @isOwn and (@expression.instanceof CS.ObjectInitialiser) and @expression.members.length is 0
+      return this unless @isOwn and (@target.instanceof CS.ObjectInitialiser) and @target.members.length is 0
       new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-in or for-of with falsey filter
     [CS.ForIn, CS.ForOf, (inScope, ancestors) ->
-      return this unless isFalsey @filterExpr
+      return this unless isFalsey @filter
       new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-in or for-of with truthy filter
     [CS.ForIn, ->
-      return this unless isTruthy @filterExpr
-      new CS.ForIn @valAssignee, @keyAssignee, @expression, @step, null, @body
+      return this unless isTruthy @filter
+      new CS.ForIn @valAssignee, @keyAssignee, @target, @step, null, @body
     ]
     [CS.ForOf, ->
-      return this unless isTruthy @filterExpr
-      new CS.ForOf @isOwn, @keyAssignee, @valAssignee, @expression, null, @body
+      return this unless isTruthy @filter
+      new CS.ForOf @isOwn, @keyAssignee, @valAssignee, @target, null, @body
     ]
 
     # Arrays in statement position might as well be Seqs

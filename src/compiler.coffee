@@ -316,36 +316,36 @@ class exports.Compiler
         consequent = forceBlock consequent
       new JS.IfStatement (expr condition), (stmt consequent), alternate
     ]
-    [CS.ForIn, ({valAssignee, keyAssignee, expression, step, filterExpr, body}) ->
+    [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body}) ->
       i = genSym 'i'
       length = genSym 'length'
       block = forceBlock body
-      e = if needsCaching @expression then genSym 'cache' else expression
+      e = if needsCaching @target then genSym 'cache' else target
       varDeclaration = new JS.VariableDeclaration 'var', [
         new JS.VariableDeclarator i, new JS.Literal 0
         new JS.VariableDeclarator length, memberAccess e, 'length'
       ]
-      unless e is expression
-        varDeclaration.declarations.unshift new JS.VariableDeclarator e, expression
-      if @filterExpr?
+      unless e is target
+        varDeclaration.declarations.unshift new JS.VariableDeclarator e, target
+      if @filter?
         # TODO: if block only has a single statement, wrap it instead of continuing
-        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filter), new JS.ContinueStatement
       if keyAssignee?
         block.body.unshift stmt assignment keyAssignee, i
       block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, i
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), block
     ]
-    [CS.ForOf, ({keyAssignee, valAssignee, expression, filterExpr, body}) ->
+    [CS.ForOf, ({keyAssignee, valAssignee, target, filter, body}) ->
       block = forceBlock body
-      e = if @isOwn and needsCaching @expression then genSym 'cache' else expr expression
-      if @filterExpr?
+      e = if @isOwn and needsCaching @target then genSym 'cache' else expr target
+      if @filter?
         # TODO: if block only has a single statement, wrap it instead of continuing
-        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filterExpr), new JS.ContinueStatement
+        block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filter), new JS.ContinueStatement
       if valAssignee?
         block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, keyAssignee
       if @isOwn
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn e, keyAssignee), new JS.ContinueStatement
-      right = if e is expression then e else new JS.AssignmentExpression '=', e, expression
+      right = if e is target then e else new JS.AssignmentExpression '=', e, target
       new JS.ForInStatement keyAssignee, right, block
     ]
     [CS.While, ({condition, body}) -> new JS.WhileStatement (expr condition), forceBlock body]

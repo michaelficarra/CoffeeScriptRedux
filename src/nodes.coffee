@@ -190,7 +190,15 @@ createNodes
 Nodes.fromJSON = (json) -> exports[json.type].fromJSON json
 Nodes::listMembers = []
 Nodes::toJSON = ->
-  json = type: @className
+  json = {
+    type: @className
+    @line, @column
+    range: [
+      @offset
+      if @raw? then @offset + @raw.length - 1 else undefined
+    ]
+    @raw
+  }
   for child in @childNodes
     if child in @listMembers
       json[child] = (p.toJSON() for p in @[child])
@@ -204,15 +212,20 @@ Nodes::fold = (memo, fn) ->
     else
       memo = @[child].fold memo, fn
   fn memo, this
+Nodes::clone = ->
+  ctor = ->
+  ctor.prototype = @constructor.prototype
+  n = new ctor
+  n[k] = v for own k, v of this
+  n
 Nodes::instanceof = (ctors...) ->
   # not a fold for efficiency's sake
   superclasses = map @constructor.superclasses, (c) -> c::className
   for ctor in ctors when ctor::className in [@className, superclasses...]
     return yes
   no
-#Node::r = (@raw) -> this
-Nodes::r = -> this
-Nodes::p = (@line, @column) -> this
+Nodes::r = (@raw) -> this
+Nodes::p = (@line, @column, @offset) -> this
 Nodes::generated = no
 Nodes::g = ->
   @generated = yes

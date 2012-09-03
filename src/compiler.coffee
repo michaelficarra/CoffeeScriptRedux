@@ -829,7 +829,9 @@ class exports.Compiler
         walk.call node.g(), fn, inScope, ancestry
 
       do ancestry.shift
-      fn.call this, children
+      jsNode = fn.call this, children
+      jsNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']
+      jsNode
 
     generateSymbols = do ->
 

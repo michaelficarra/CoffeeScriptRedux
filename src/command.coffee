@@ -44,6 +44,7 @@ if escodegen?
   [].push.apply optionArguments, [
     [['bare',    'b'], off, 'omit the top-level function wrapper']
     [['js',      'j'], off, 'generate JavaScript output']
+    [['source-map'  ], off, 'generate source map']
     [['eval',    'e'], off, 'evaluate compiled JavaScript']
     [['repl'        ], off, 'run an interactive CoffeeScript REPL']
   ]
@@ -107,7 +108,7 @@ while args.length
 # input validation
 
 positionalArgs = positionalArgs.concat additionalArgs
-unless options.compile or options.js or options.parse or options.eval or options.cscodegen
+unless options.compile or options.js or options['source-map'] or options.parse or options.eval or options.cscodegen
   if not escodegen?
     options.compile = on
   else if positionalArgs.length
@@ -118,9 +119,9 @@ unless options.compile or options.js or options.parse or options.eval or options
     options.repl = on
 
 # mutual exclusions
-# - p (parse), c (compile), j (js), e (eval), cscodegen, repl
-if 1 isnt options.parse + options.compile + (options.js ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
-  console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --eval (-e), --cscodegen, or --repl may be used."
+# - p (parse), c (compile), j (js), source-map, e (eval), cscodegen, repl
+if 1 isnt options.parse + options.compile + (options.js ? 0) + (options['source-map'] ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
+  console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --source-map, --eval (-e), --cscodegen, or --repl may be used."
   process.exit 1
 
 # - i (input), w (watch), cli
@@ -140,8 +141,8 @@ if options.minify and not (options.js or options.eval)
   process.exit 1
 
 # - b (bare) depends on escodegen and (c (compile) or e (eval)
-if options.bare and not (options.compile or options.js or options.eval)
-  console.error 'Error: --bare does not make sense without --compile, --js, or --eval'
+if options.bare and not (options.compile or options.js or options['source-map'] or options.eval)
+  console.error 'Error: --bare does not make sense without --compile, --js, --source-map, or --eval'
   process.exit 1
 
 # - i (input) depends on o (output) when input is a directory
@@ -273,7 +274,7 @@ else
     if options.cscodegen
       try result = cscodegen.generate result
       catch e
-        console.error (e.stack || e.message)
+        console.error (e.stack or e.message)
         process.exit 1
       if result?
         console.log result
@@ -294,18 +295,31 @@ else
       console.error "### COMPILED JS-AST ###"
       console.error inspect result.toJSON()
 
-    # js code gen
-    try result = CoffeeScript.js result, minify: no
-    catch e
-      console.error (e.stack || e.message)
-      process.exit 1
+
+    if options['source-map']
+      # source map generation
+      try result = CoffeeScript.sourceMap result, options.input ? (options.cli and 'cli' or 'stdin')
+      catch e
+        console.error (e.stack or e.message)
+        process.exit 1
+      # --source-map
+      if result?
+        process.stdout.write "#{result}\n"
+        process.exit 0
+      else process.exit 1
+    else
+      # js code gen
+      try result = CoffeeScript.js result, minify: no
+      catch e
+        console.error (e.stack or e.message)
+        process.exit 1
 
     # minification
     if options.minify and result?
       # TODO: uglifyjs options: --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
       try result = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse result
       catch e
-        console.error (e.stack || e.message)
+        console.error (e.stack or e.message)
         process.exit 1
 
     # --js

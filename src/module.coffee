@@ -2,6 +2,7 @@ fs = require 'fs'
 path = require 'path'
 
 {formatParserError} = require './helpers'
+Nodes = require './nodes'
 {Preprocessor} = require './preprocessor'
 Parser = require './parser'
 {Optimiser} = require './optimiser'
@@ -15,6 +16,12 @@ CoffeeScript = null
 packageJSON = JSON.parse fs.readFileSync (path.join __dirname, '..', '..', 'package.json'), 'utf8'
 
 module.exports =
+
+  Compiler: Compiler
+  Optimiser: Optimiser
+  Parser: Parser
+  Preprocessor: Preprocessor
+  Nodes: Nodes
 
   VERSION: packageJSON.version
 

@@ -23,9 +23,18 @@ createNode = (type, props) ->
         json[child] = (p?.toJSON() for p in @[child])
       else
         json[child] = @[child]?.toJSON()
+    json.line = @line if @line?
+    json.column = @column if @column?
+    if @offset?
+      json.range = [
+        @offset
+        if @raw? then @offset + @raw.length - 1 else undefined
+      ]
+    json.raw = @raw if @raw?
     json
 
 nodeData = [
+  # constructor name, isStatement, construction parameters
   ['ArrayExpression'      , no , ['elements']]
   ['AssignmentExpression' , no , ['operator', 'left', 'right']]
   ['BinaryExpression'     , no , ['operator', 'left', 'right']]
@@ -80,7 +89,8 @@ for [node, isStatement, params] in nodeData
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
   MemberExpression, UpdateExpression, AssignmentExpression, GenSym,
-  FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase
+  FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
+  TryStatement
 } = exports
 
 ## Nodes that contain primitive properties
@@ -118,4 +128,5 @@ handleLists Program, ['body']
 handleLists SequenceExpression, ['expressions']
 handleLists SwitchCase, ['consequent']
 handleLists SwitchStatement, ['cases']
+handleLists TryStatement, ['handlers']
 handleLists VariableDeclaration, ['declarations']

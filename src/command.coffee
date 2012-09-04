@@ -242,11 +242,14 @@ else
     # preprocess
     if options.debug
       try
-        console.error '### PREPROCESSED CS-AST ###'
+        console.error '### PREPROCESSED CS ###'
         console.error numberLines humanReadable Preprocessor.processSync input
 
     # parse
-    result = CoffeeScript.parse input, optimise: no
+    try result = CoffeeScript.parse input, optimise: no
+    catch e
+      console.error e.message
+      process.exit 1
     if options.debug and options.optimise and result?
       console.error '### PARSED CS-AST ###'
       console.error inspect result.toJSON()
@@ -326,7 +329,7 @@ else
       input = contents
       do processInput
   else if options.watch?
-    # TODO: watch
+    options.watch # TODO: watch
   else if options.cli?
     input = options.cli
     do processInput

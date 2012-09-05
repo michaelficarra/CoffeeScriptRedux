@@ -18,7 +18,7 @@ parser: lib/coffee-script/parser.js
 minify: $(LIBMIN)
 deps:
 	git submodule update --init
-	cd $(ROOT)/node_modules/mocha && npm install commander debug diff ms
+	cd $(ROOT)/node_modules/mocha && npm install
 	cd $(ROOT)/node_modules/pegjs && make build
 	cd $(ROOT)
 # TODO: build-browser

@@ -14,7 +14,7 @@ CS = require './nodes'
 cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 
 @humanReadable = humanReadable = (str) ->
-  (((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)').replace /\uEFFE/g, '(TERMINATOR)').replace /\uEFFF/g, '(DEDENT)'
+  ((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE/g, '(DEDENT)').replace /\uEFFF/g, '(TERM)'
 
 @formatParserError = (input, e) ->
   # configure how many lines of context to display

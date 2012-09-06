@@ -105,24 +105,23 @@ start = program
 // TODO: this is JS; equality comparisons should have literals on left if possible
 
 
-TERMINATOR = ws:_ necessary:TERM superfluous:(_ TERM)* {
-    return ws + necessary + superfluous.map(function(s){ return s[0] + s[1]; }).join('');
-  }
-
-INDENT = ws:__ "\uEFEF" { return ws; }
-DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws; }
+INDENT = ws:__ "\uEFEF" { return ws + '(INDENT)'; }
+DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws + '(DEDENT)'; }
 TERM
   = "\r"? "\n" { return '\n'; }
-  / "\uEFFF" { return ''; }
+  / "\uEFFF" { return '(TERM)'; }
+
+TERMINATOR = ws:(_ TERM)+ {
+    return ws.map(function(s){ return s[0] + s[1]; }).join('');
+  }
 
 TERMINDENT = t:TERMINATOR i:INDENT {
     return t + i;
   }
 
 program
-  = leader:(_ TERM)* b:(_ toplevelBlock)? {
+  = leader:TERMINATOR* b:(_ toplevelBlock)? {
       var block;
-      leader = leader.map(function(s){ return s.join(''); }).join('');
       if(b) {
         block = b[1];
         return new CS.Program(block).r(leader + b[0] + block.raw).p(line, column, offset);
@@ -395,25 +394,25 @@ postfixExpression
     }
 leftHandSideExpression = callExpression / newExpression
   argumentList
-    = "(" ws:_ a:(argumentListContents _)? ")" {
+    = "(" ws0:_ a:argumentListContents? ws1:_ ")" {
         return 0,
           { op: CS.FunctionApplication
-          , operands: [a ? a[0].list : []]
-          , raw: '(' + ws + (a ? a[0].raw + a[1] : '') + ')'
+          , operands: [a ? a.list : []]
+          , raw: '(' + ws0 + (a ? a.raw : '') + ws1 + ')'
           , line: line
           , column: column
           };
       }
   argumentListContents
-    = e:argument es:(_ "," _ argument)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
+    = e:argument es:(_ ("," / TERMINATOR) _ argument)* t:TERMINATOR? {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + t;
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
   argument
     = spread
     / expression
   secondaryArgumentList
-    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERM? _ secondaryArgument)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
+    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERMINATOR? _ secondaryArgument)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
         var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1] + obj[2].raw + obj[3] : '');
         es = [e].concat(es.map(function(e){ return e[5]; }));
         if(obj) es.push(obj[2]);
@@ -457,7 +456,7 @@ memberExpression
   MemberNames
     = identifierName
   MemberAccessOps
-    = ws0:_ ws1:(TERM _)? "." ws2:_ ws3:(TERM _)? e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + (ws1 ? ws1[0] + ws1[1] : '') + '.' + ws2 + (ws3 ? ws3[0] + ws3[1] : '') + e, line: line, column: column}; }
+    = ws0:TERMINATOR? ws1:_ "." ws2:TERMINATOR? ws3:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + ws1 + '.' + ws2 + ws3 + e, line: line, column: column}; }
     / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column}; }
     / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column}; }
     / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column}; }
@@ -486,13 +485,13 @@ primaryExpression
   / interpolation
   / string
   / regexp
-  / "(" t:TERMINDENT e:expression d:DEDENT ")" {
-      e.raw = '(' + t + e.raw + d + ')';
+  / "(" t0:TERMINDENT e:expression d:DEDENT t1:TERMINATOR? ")" {
+      e.raw = '(' + t0 + e.raw + d + t1 + ')';
       return e;
     }
-  / "(" ws0:_ e:expression ws1:_ ")" {
+  / "(" ws0:_ e:expression ws1:_ t:TERMINATOR? ")" {
       e = e.clone();
-      e.raw = '(' + ws0 + e.raw + ws1 + ')';
+      e.raw = '(' + ws0 + e.raw + ws1 + t + ')';
       return e;
     }
   contextVar
@@ -549,7 +548,7 @@ try
     }
   tryBody = functionBody / conditionalBody
   catchClause
-    = t:TERM? ws0:_ CATCH ws1:_ e:Assignable body:conditionalBody {
+    = t:TERMINATOR? ws0:_ CATCH ws1:_ e:Assignable body:conditionalBody {
       return {block: body.block, assignee: e, raw: t + ws0 + 'catch' + ws1 + e.raw + body.raw};
     }
   finallyClause
@@ -742,7 +741,7 @@ arrayLiteral
     = t:TERMINDENT members:arrayLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
     / members:arrayLiteralMemberList? { return members ? members : {list: [], raw: ''}; }
   arrayLiteralMemberList
-    = e:arrayLiteralMember ws:_ es:(arrayLiteralMemberSeparator _ arrayLiteralMember _)* trail:","? {
+    = e:arrayLiteralMember ws:_ es:(arrayLiteralMemberSeparator _ arrayLiteralMember _)* trail:arrayLiteralMemberSeparator? {
         var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
         return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
       }

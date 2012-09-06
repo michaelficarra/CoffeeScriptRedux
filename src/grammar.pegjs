@@ -105,11 +105,11 @@ start = program
 // TODO: this is JS; equality comparisons should have literals on left if possible
 
 
-INDENT = ws:__ "\uEFEF" { return ws + '(INDENT)'; }
-DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws + '(DEDENT)'; }
+INDENT = ws:__ "\uEFEF" { return ws; }
+DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws; }
 TERM
   = "\r"? "\n" { return '\n'; }
-  / "\uEFFF" { return '(TERM)'; }
+  / "\uEFFF" { return ''; }
 
 TERMINATOR = ws:(_ TERM)+ {
     return ws.map(function(s){ return s[0] + s[1]; }).join('');

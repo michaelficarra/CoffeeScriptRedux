@@ -18,30 +18,6 @@ suite 'Operators', ->
     eq 1, a/-b
     eq -1, a/b
 
-  test 'member access operators', ->
-    nonceA = {}
-    nonceB = {}
-    nil = null
-    obj = {a: nonceA, prototype: {b: nonceB}}
-    a = 'a'
-    b = 'b'
-    # member access
-    eq nonceA, obj.a
-    throws -> nil.a
-    eq undefined, nil?.a
-    # dynamic member access
-    eq nonceA, obj[a]
-    throws -> nil[a]
-    eq undefined, nil?[a]
-    # proto-member access
-    eq nonceB, obj::b
-    throws -> nil::b
-    eq undefined, nil?::b
-    # dynamic proto-member access
-    eq nonceB, obj::[b]
-    throws -> nil::[b]
-    eq undefined, nil?::[b]
-
   test 'operators should respect new lines as spaced', ->
     a = 123 +
     456

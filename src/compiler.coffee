@@ -155,7 +155,7 @@ makeVarDeclaration = (vars) ->
   new JS.VariableDeclaration 'var', decls
 
 memberAccess = (e, member) ->
-  isIdentifierName = /^[$_a-z][$_a-z0-9]$/i # this can be made more permissive
+  isIdentifierName = /^[$_a-z][$_a-z0-9]*$/i # this can be made more permissive
   if member in jsReserved or not isIdentifierName.test member
   then new JS.MemberExpression yes, (expr e), new JS.Literal member
   else new JS.MemberExpression no, (expr e), new JS.Identifier member

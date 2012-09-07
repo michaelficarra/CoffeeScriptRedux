@@ -483,6 +483,7 @@ primaryExpression
   / arrayLiteral
   / objectLiteral
   / interpolation
+  / JSLiteral
   / string
   / regexp
   / "(" t0:TERMINDENT e:expression d:DEDENT t1:TERMINATOR? ")" {
@@ -497,6 +498,11 @@ primaryExpression
   contextVar
     = "@" m:MemberNames {
         return new CS.MemberAccessOp((new CS.This).r("@").p(line, column, offset), m).r("@" + m).p(line, column, offset);
+      }
+  JSLiteral
+    = "`" data:[^`]* "`" {
+        data = data.join('');
+        return new CS.JavaScript(data).r('`' + data + '`').p(line, column, offset);
       }
 
 spread

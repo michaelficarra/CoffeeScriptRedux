@@ -824,6 +824,7 @@ class exports.Compiler
     [CS.Null, -> new JS.Literal null]
     [CS.Undefined, -> helpers.undef()]
     [CS.This, -> new JS.ThisExpression]
+    [CS.JavaScript, -> new JS.CallExpression (new JS.Identifier 'eval'), [new JS.Literal @data]]
   ]
 
   constructor: ->

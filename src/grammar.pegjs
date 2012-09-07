@@ -714,9 +714,11 @@ functionLiteral
         var raw = param.raw + ws0 + '=' + ws1 + default_.raw;
         return new CS.DefaultParam(param, default_).r(raw).p(line, column, offset);
       }
-    / a:Assignable rest:"..."? {
-        return (rest ? new CS.Rest(a) : a).r(a.raw + rest).p(line, column, offset);
-      }
+    / rest
+    rest
+      = a:Assignable rest:"..."? {
+          return (rest ? new CS.Rest(a) : a).r(a.raw + rest).p(line, column, offset);
+        }
   parameterList
     = e:parameter es:(_ "," _ parameter)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
@@ -956,10 +958,11 @@ Assignable
     return new CS.ObjectInitialiser(members).r(raw).p(line, column, offset);
   }
   positionalDestructuringList
-    = e:Assignable es:(_ "," _ Assignable)* {
+    = e:positionalDestructuringListMember es:(_ "," _ positionalDestructuringListMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
+  positionalDestructuringListMember = rest
   namedDestructuringMemberList
     = e:namedDestructuringMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ namedDestructuringMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');

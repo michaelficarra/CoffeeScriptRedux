@@ -165,35 +165,71 @@ dynamicMemberAccess = (e, index) ->
   then memberAccess e, index.value
   else new JS.MemberExpression yes, e, index
 
-assignment = (assignee, expression, valueUsed = no) -> switch
-  # TODO: DRY?
-  when assignee.instanceof JS.ArrayExpression, JS.ObjectExpression
-    assignments = []
-    numericallyIndexed = assignee.instanceof JS.ArrayExpression
-    membersName = if numericallyIndexed then 'elements' else 'properties'
+assignment = (assignee, expression, valueUsed = no) ->
+  assignments = []
+  switch
+    when assignee.rest then # do nothing for right now
+    when assignee.instanceof JS.ArrayExpression
+      e = expression
+      # TODO: only cache expression when it needs it
+      #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
+      if valueUsed or assignee.elements.length > 1
+        e = genSym 'cache'
+        assignments.push new JS.AssignmentExpression '=', e, expression
 
-    e = expression
-    # TODO: only cache expression when it needs it
-    #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
-    if valueUsed or assignee[membersName].length > 1
-      e = genSym 'cache'
-      assignments.push new JS.AssignmentExpression '=', e, expression
+      elements = assignee.elements
 
-    for m, i in assignee[membersName]
-      if numericallyIndexed
+      for m, i in elements
+        break if m.rest
         assignments.push assignment m, (dynamicMemberAccess e, new JS.Literal i), valueUsed
-      else
+
+      if elements.length > 0
+        # TODO: see if this logic can be combined with rest-parameter handling
+        if elements[-1..][0].rest
+          numElements = elements.length
+          restName = elements[numElements - 1] = elements[numElements - 1].expression
+          test = new JS.BinaryExpression '<=', (new JS.Literal numElements), memberAccess e, 'length'
+          consequent = helpers.slice e, new JS.Literal (numElements - 1)
+          alternate = new JS.ArrayExpression []
+          assignments.push stmt new JS.AssignmentExpression '=', restName, new JS.ConditionalExpression test, consequent, alternate
+        else if any elements, ((p) -> p.rest)
+          restName = index = null
+          for p, i in elements when p.rest
+            restName = p.expression
+            index = i
+            break
+          elements.splice index, 1
+          numElements = elements.length
+          size = genSym 'size'
+          assignments.push new JS.AssignmentExpression '=', size, memberAccess e, 'length'
+          test = new JS.BinaryExpression '>', size, new JS.Literal numElements
+          consequent = helpers.slice e, (new JS.Literal index), new JS.BinaryExpression '-', size, new JS.Literal numElements - index
+          assignments.push new JS.AssignmentExpression '=', restName, new JS.ConditionalExpression test, consequent, new JS.ArrayExpression []
+          for p, i in elements[index...]
+            assignments.push stmt new JS.AssignmentExpression '=', p, new JS.MemberExpression yes, e, new JS.BinaryExpression '-', size, new JS.Literal numElements - index - i
+        if any elements, ((p) -> p.rest)
+          throw new Error 'Positional destructuring assignments may not have more than one rest operator'
+
+    when assignee.instanceof JS.ObjectExpression
+      e = expression
+      # TODO: only cache expression when it needs it
+      #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
+      if valueUsed or assignee.properties.length > 1
+        e = genSym 'cache'
+        assignments.push new JS.AssignmentExpression '=', e, expression
+
+      for m in assignee.properties
         propName = if m.key.instanceof JS.Identifier then new JS.Literal m.key.name else m.key
         assignments.push assignment m.value, (dynamicMemberAccess e, propName), valueUsed
 
-    switch assignments.length
-      when 0 then (if e is expression then helpers.undef() else expression)
-      when 1 then assignments[0]
-      else new JS.SequenceExpression if valueUsed then [assignments..., e] else assignments
-  when assignee.instanceof JS.Identifier, JS.GenSym, JS.MemberExpression
-    new JS.AssignmentExpression '=', assignee, expr expression
-  else
-    throw new Error "compile: AssignOp: unassignable assignee: #{assignee.className}"
+    when assignee.instanceof JS.Identifier, JS.GenSym, JS.MemberExpression
+      assignments.push new JS.AssignmentExpression '=', assignee, expr expression
+    else
+      throw new Error "compile: AssignOp: unassignable assignee: #{assignee.className}"
+  switch assignments.length
+    when 0 then (if e is expression then helpers.undef() else expression)
+    when 1 then assignments[0]
+    else new JS.SequenceExpression if valueUsed then [assignments..., e] else assignments
 
 
 helperNames = {}
@@ -514,7 +550,7 @@ class exports.Compiler
           ]
         else fn
     ]
-    [CS.Rest, ({expression}) -> {rest: yes, expression}]
+    [CS.Rest, ({expression}) -> {rest: yes, expression, isExpression: yes, isStatement: yes}]
 
     # TODO: comment
     [CS.Class, ({nameAssignee, parent, name, ctor, body, compile}) ->

@@ -168,22 +168,22 @@ suite 'Assignment', ->
       eq nonceB, b
       eq nonceB, d
 
-    #test "destructuring assignment with splats", ->
-    #  a = {}; b = {}; c = {}; d = {}; e = {}
-    #  [x,y...,z] = [a,b,c,d,e]
-    #  eq a, x
-    #  arrayEq [b,c,d], y
-    #  eq e, z
+    test "destructuring assignment with splats", ->
+      a = {}; b = {}; c = {}; d = {}; e = {}
+      [x,y...,z] = [a,b,c,d,e]
+      eq a, x
+      arrayEq [b,c,d], y
+      eq e, z
 
-    #test "deep destructuring assignment with splats", ->
-    #  a={}; b={}; c={}; d={}; e={}; f={}; g={}; h={}; i={}
-    #  [u, [v, w..., x], y..., z] = [a, [b, c, d, e], f, g, h, i]
-    #  eq a, u
-    #  eq b, v
-    #  arrayEq [c,d], w
-    #  eq e, x
-    #  arrayEq [f,g,h], y
-    #  eq i, z
+    test "deep destructuring assignment with splats", ->
+      a={}; b={}; c={}; d={}; e={}; f={}; g={}; h={}; i={}
+      [u, [v, w..., x], y..., z] = [a, [b, c, d, e], f, g, h, i]
+      eq a, u
+      eq b, v
+      arrayEq [c,d], w
+      eq e, x
+      arrayEq [f,g,h], y
+      eq i, z
 
     test "destructuring assignment with objects", ->
       a={}; b={}; c={}
@@ -193,31 +193,21 @@ suite 'Assignment', ->
       eq b, y
       eq c, z
 
-    #test "deep destructuring assignment with objects", ->
-    #  a={}; b={}; c={}; d={}
-    #  obj = {
-    #    a
-    #    b: {
-    #      'c': {
-    #        d: [
-    #          b
-    #          {e: c, f: d}
-    #        ]
-    #      }
-    #    }
-    #  }
-    #  {a: w, 'b': {c: d: [x, {'f': z, e: y}]}} = obj
-    #  eq a, w
-    #  eq b, x
-    #  eq c, y
-    #  eq d, z
+    test "deep destructuring assignment with objects", ->
+      a={}; b={}; c={}; d={}
+      obj = {a, b: {'c': {d: [b, {e: c, f: d}]}}}
+      {a: w, 'b': {c: {d: [x, {'f': z, e: y}]}}} = obj
+      eq a, w
+      eq b, x
+      eq c, y
+      eq d, z
 
-    #test "destructuring assignment with objects and splats", ->
-    #  a={}; b={}; c={}; d={}
-    #  obj = a: b: [a, b, c, d]
-    #  {a: b: [y, z...]} = obj
-    #  eq a, y
-    #  arrayEq [b,c,d], z
+    test "destructuring assignment with objects and splats", ->
+      a={}; b={}; c={}; d={}
+      obj = a: b: [a, b, c, d]
+      {a: {b: [y, z...]}} = obj
+      eq a, y
+      arrayEq [b,c,d], z
 
     test "destructuring assignment against an expression", ->
       a={}; b={}
@@ -231,19 +221,19 @@ suite 'Assignment', ->
 
     # for implicit destructuring assignment in comprehensions, see the comprehension tests
 
-    #test "destructuring assignment with context (@) properties", ->
-    #  a={}; b={}; c={}; d={}; e={}
-    #  obj =
-    #    fn: () ->
-    #      local = [a, {b, c}, d, e]
-    #      [@a, {b: @b, c: @c}, @d, @e] = local
-    #  eq undefined, obj[key] for key in ['a','b','c','d','e']
-    #  obj.fn()
-    #  eq a, obj.a
-    #  eq b, obj.b
-    #  eq c, obj.c
-    #  eq d, obj.d
-    #  eq e, obj.e
+    test "destructuring assignment with context (@) properties", ->
+      a={}; b={}; c={}; d={}; e={}
+      obj =
+        fn: ->
+          local = [a, {b, c}, d, e]
+          [@a, {b: @b, c: @c}, @d, @e] = local
+      eq undefined, obj[key] for key in ['a','b','c','d','e']
+      obj.fn()
+      eq a, obj.a
+      eq b, obj.b
+      eq c, obj.c
+      eq d, obj.d
+      eq e, obj.e
 
     #test "#1024", ->
     #  eq 2 * ([] = 3 + 5), 16

@@ -29,7 +29,7 @@
     "pegjs": "~0.7.0"
   },
   "dependencies": {
-    "cjs-string-scanner": "~0.0.2"
+    "StringScanner": "~0.0.2"
   },
   "optionalDependencies": {
     "uglify-js": "~1.3.3",

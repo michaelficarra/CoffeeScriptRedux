@@ -120,13 +120,13 @@ TERMINDENT = t:TERMINATOR i:INDENT {
   }
 
 program
-  = leader:TERMINATOR* b:(_ toplevelBlock)? {
+  = leader:TERMINATOR? b:(_ toplevelBlock)? {
       var block;
       if(b) {
         block = b[1];
         return new CS.Program(block).r(leader + b[0] + block.raw).p(line, column, offset);
       } else {
-        return new CS.Program(null).r(leader).p(line, column, offset);
+        return new CS.Program().r(leader).p(line, column, offset);
       }
     }
 

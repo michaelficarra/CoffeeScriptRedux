@@ -28,7 +28,7 @@ createNode = (type, props) ->
     if @offset?
       json.range = [
         @offset
-        if @raw? then @offset + @raw.length - 1 else undefined
+        if @raw? then @offset + @raw.length else undefined
       ]
     json.raw = @raw if @raw?
     json

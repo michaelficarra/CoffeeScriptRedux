@@ -195,7 +195,7 @@ Nodes::toJSON = ->
     @line, @column
     range: [
       @offset
-      if @raw? then @offset + @raw.length - 1 else undefined
+      if @raw? then @offset + @raw.length else undefined
     ]
     @raw
   }

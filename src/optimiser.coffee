@@ -371,7 +371,9 @@ class exports.Optimiser
             inScope = union inScope, envEnrichments child, inScope
             child
       do ancestry.shift
-      fn.call this, inScope, ancestry
+      jsNode = fn.call this, inScope, ancestry
+      jsNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']
+      jsNode
 
     (ast) ->
       rules = @rules

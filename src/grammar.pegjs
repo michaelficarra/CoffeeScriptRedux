@@ -734,14 +734,13 @@ range
     }
 
 arrayLiteral
-  = "[" ws0:_ members:arrayLiteralBody t:TERMINATOR? ws1:_ "]" {
-      var raw = "[" + ws0 + members.raw + t + ws1 + "]";
-      members = members.list;
-      return new CS.ArrayInitialiser(members).r(raw).p(line, column, offset);
+  = "[" members:arrayLiteralBody t:TERMINATOR? ws:_ "]" {
+      var raw = "[" + members.raw + t + ws + "]";
+      return new CS.ArrayInitialiser(members.list).r(raw).p(line, column, offset);
     }
   arrayLiteralBody
     = t:TERMINDENT members:arrayLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
-    / members:arrayLiteralMemberList? { return members ? members : {list: [], raw: ''}; }
+    / ws:_ members:arrayLiteralMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
   arrayLiteralMemberList
     = e:arrayLiteralMember ws:_ es:(arrayLiteralMemberSeparator _ arrayLiteralMember _)* trail:arrayLiteralMemberSeparator? {
         var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
@@ -759,11 +758,13 @@ arrayLiteral
 
 
 objectLiteral
-  = "{" ws0:_ members:objectLiteralMemberList? t:TERMINATOR? ws1:_ "}" {
-    var raw = "{" + ws0 + (members ? members.raw : '') + t + ws1 + "}";
-    members = members ? members.list : [];
-    return new CS.ObjectInitialiser(members).r(raw).p(line, column, offset);
+  = "{" members:objectLiteralBody t:TERMINATOR? ws:_ "}" {
+    var raw = '{' + members.raw + t + ws + '}'
+    return new CS.ObjectInitialiser(members.list).r(raw).p(line, column, offset);
   }
+  objectLiteralBody
+    = t:TERMINDENT members:objectLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
+    / ws:_ members:objectLiteralMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
   objectLiteralMemberList
     = e:objectLiteralMember ws:_ es:(objectLiteralMemberSeparator _ objectLiteralMember _)* trail:","? {
         var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;

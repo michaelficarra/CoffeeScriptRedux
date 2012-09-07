@@ -216,10 +216,8 @@ if options.help
   """
 
 else if options.version
-  filename = path.join __dirname, '..', '..', 'package.json'
-  fs.readFile filename, (err, pkg) ->
-    throw err if err
-    console.log "CoffeeScript version #{(JSON.parse pkg).version}"
+  pkg = require path.join __dirname, '..', '..', 'package.json'
+  console.log "CoffeeScript version #{pkg.version}"
 
 else if options.repl
   # TODO: start repl

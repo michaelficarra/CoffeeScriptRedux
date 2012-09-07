@@ -13,7 +13,7 @@ uglifyjs = try require 'uglify-js'
 
 
 CoffeeScript = null
-packageJSON = JSON.parse fs.readFileSync (path.join __dirname, '..', '..', 'package.json'), 'utf8'
+pkg = require path.join __dirname, '..', '..', 'package.json'
 
 escodegenFormatDefaults =
   indent:
@@ -33,7 +33,7 @@ module.exports =
   Preprocessor: Preprocessor
   Nodes: Nodes
 
-  VERSION: packageJSON.version
+  VERSION: pkg.version
 
   parse: (coffee, options = {}) ->
     options.optimise ?= yes

@@ -317,13 +317,23 @@ equalityExpression
       }, left, rights);
     }
 relationalExpression
-  = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpression))* {
+  // chained comparison:
+  = left:bitwiseShiftExpression rights:(_ ChainableOperators _ bitwiseShiftExpression)* {
+        if(rights.length < 2) return null; // fail: match a regular comparison
+        var tree = foldl(function(expr, right){
+          var raw = expr.raw + right[0] + right[1] + right[2] + right[3].raw;
+          return new constructorLookup[right[1]](expr, right[3]).r(raw).p(line, column, offset);
+        }, left, rights);
+        return new CS.ChainedComparisonOp(tree).r(tree.raw).p(line, column, offset);
+      }
+  / left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         var raw = expr.raw + right[0] + right[1].raw + right[2] + right[3] + right[4].raw;
         return right[1](expr, right[4], raw, line, column);
       }, left, rights);
     }
+  ChainableOperators = "<=" / ">=" / "<" / ">"
   relationalExpressionOperator
     = op:("<=" / ">=" / "<" / ">" / EXTENDS / INSTANCEOF / IN / OF) {
         var fn = function(left, right, raw, line, column){

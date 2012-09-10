@@ -215,23 +215,23 @@ suite 'Operators', ->
 
   # Chained Comparison
 
-  #test "chainable operators", ->
-  #  ok 100 > 10 > 1 > 0 > -1
-  #  ok -1 < 0 < 1 < 10 < 100
+  test "chainable operators", ->
+    ok 100 > 10 > 1 > 0 > -1
+    ok -1 < 0 < 1 < 10 < 100
 
   #test "`is` and `isnt` may be chained", ->
   #  ok true is not false is true is not false
   #  ok 0 is 0 isnt 1 is 1
 
-  #test "different comparison operators (`>`,`<`,`is`,etc.) may be combined", ->
-  #  ok 1 < 2 > 1
+  test "different comparison operators (`>`,`<`,`is`,etc.) may be combined", ->
+    ok 1 < 2 > 1
   #  ok 10 < 20 > 2+3 is 5
 
   #test "some chainable operators can be negated by `unless`", ->
   #  ok (true unless 0==10!=100)
 
-  #test "operator precedence: `|` lower than `<`", ->
-  #  eq 1, 1 | 2 < 3 < 4
+  test "operator precedence: `|` lower than `<`", ->
+    eq 1, 1 | 2 < 3 < 4
 
   #test "preserve references", ->
   #  a = b = c = 1
@@ -239,9 +239,9 @@ suite 'Operators', ->
   #  # (this test does not seem to test for this)
   #  ok a == b <= c
 
-  #test "chained operations should evaluate each value only once", ->
-  #  a = 0
-  #  ok 1 > a++ < 1
+  test "chained operations should evaluate each value only once", ->
+    a = 0
+    ok 1 > a++ < 1
 
   #test "jashkenas/coffee-script#891: incorrect inversion of chained comparisons", ->
   #  ok (true unless 0 > 1 > 2)

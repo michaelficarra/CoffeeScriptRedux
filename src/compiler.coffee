@@ -653,6 +653,18 @@ class exports.Compiler
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), assignee
       new JS.ConditionalExpression condition, assignee, new JS.AssignmentExpression '=', assignee, expr expression
     ]
+    [CS.ChainedComparisonOp, ({expression, compile}) ->
+      return expression unless @expression.left.instanceof CS.ComparisonOps
+      left = expression.left.right
+      lhs = compile new CS.ChainedComparisonOp @expression.left
+      if needsCaching @expression.left.right
+        left = genSym 'cache'
+        # WARN: mutation
+        if @expression.left.left.instanceof CS.ComparisonOps
+          lhs.right.right = new JS.AssignmentExpression '=', left, lhs.right.right
+        else lhs.right = new JS.AssignmentExpression '=', left, lhs.right
+      new JS.BinaryExpression '&&', lhs, new JS.BinaryExpression expression.operator, left, expression.right
+    ]
     [CS.FunctionApplication, ({function: fn, arguments: args, compile}) ->
       if any args, ((m) -> m.spread)
         lhs = @function

@@ -124,6 +124,8 @@ createNodes
       ]
     ]
 
+    ChainedComparisonOp: [['expression']] # :: ComparisonOps -> ChainedComparison
+
     FunctionApplications: [ ['function', 'arguments'],
       FunctionApplication: null # :: Exprs -> [Arguments] -> FunctionApplication
       SoakedFunctionApplication: null # :: Exprs -> [Arguments] -> SoakedFunctionApplication

@@ -170,13 +170,13 @@ suite 'Operators', ->
       ok val++ of arr
       ok val++ not of arr
 
-    test "#???: `in` with cache and `__indexOf` should work in argument lists", ->
+    test "`in` with cache and `__indexOf` should work in argument lists", ->
       eq 1, [Object() in Array()].length
 
-    test "#737: `in` should have higher precedence than logical operators", ->
+    test "jashkenas/coffee-script#737: `in` should have higher precedence than logical operators", ->
       eq 1, 1 in [1] and 1
 
-    test "#768: `in` should preserve evaluation order", ->
+    test "jashkenas/coffee-script#768: `in` should preserve evaluation order", ->
       share = 0
       a = -> share++ if share is 0
       b = -> share++ if share is 1
@@ -184,83 +184,83 @@ suite 'Operators', ->
       ok a() not in [b(),c()]
       eq 3, share
 
-    test "#1099: empty array after `in` should compile to `false`", ->
+    test "jashkenas/coffee-script#1099: empty array after `in` should compile to `false`", ->
       eq 1, [5 in []].length
       eq false, do -> return 0 in []
 
-    test "#1354: optimized `in` checks should not happen when splats are present", ->
+    test "jashkenas/coffee-script#1354: optimized `in` checks should not happen when splats are present", ->
       a = [6, 9]
       eq 9 in [3, a...], true
 
-    test "#1100: precedence in or-test compilation of `in`", ->
+    test "jashkenas/coffee-script#1100: precedence in or-test compilation of `in`", ->
       ok 0 in [1 and 0]
       ok 0 in [1, 1 and 0]
       ok not (0 in [1, 0 or 1])
 
-    test "#1630: `in` should check `hasOwnProperty`", ->
+    test "jashkenas/coffee-script#1630: `in` should check `hasOwnProperty`", ->
       ok undefined not in {length: 1}
 
-    #test "#1714: lexer bug with raw range `for` followed by `in`", ->
+    #test "jashkenas/coffee-script#1714: lexer bug with raw range `for` followed by `in`", ->
     #  0 for [1..2]
     #  ok not ('a' in ['b'])
-
+    #
     #  0 for [1..2]; ok not ('a' in ['b'])
-
+    #
     #  0 for [1..10] # comment ending
     #  ok not ('a' in ['b'])
 
-    test "#1099: statically determined `not in []` reporting incorrect result", ->
+    test "jashkenas/coffee-script#1099: statically determined `not in []` reporting incorrect result", ->
       ok 0 not in []
 
 
-  ## Chained Comparison
-  #
+  # Chained Comparison
+
   #test "chainable operators", ->
   #  ok 100 > 10 > 1 > 0 > -1
   #  ok -1 < 0 < 1 < 10 < 100
-  #
+
   #test "`is` and `isnt` may be chained", ->
   #  ok true is not false is true is not false
   #  ok 0 is 0 isnt 1 is 1
-  #
+
   #test "different comparison operators (`>`,`<`,`is`,etc.) may be combined", ->
   #  ok 1 < 2 > 1
   #  ok 10 < 20 > 2+3 is 5
-  #
+
   #test "some chainable operators can be negated by `unless`", ->
   #  ok (true unless 0==10!=100)
-  #
+
   #test "operator precedence: `|` lower than `<`", ->
   #  eq 1, 1 | 2 < 3 < 4
-  #
+
   #test "preserve references", ->
   #  a = b = c = 1
   #  # `a == b <= c` should become `a === b && b <= c`
   #  # (this test does not seem to test for this)
   #  ok a == b <= c
-  #
+
   #test "chained operations should evaluate each value only once", ->
   #  a = 0
   #  ok 1 > a++ < 1
-  #
-  #test "#891: incorrect inversion of chained comparisons", ->
+
+  #test "jashkenas/coffee-script#891: incorrect inversion of chained comparisons", ->
   #  ok (true unless 0 > 1 > 2)
   #  ok (true unless (NaN = 0/0) < 0/0 < NaN)
-  #
-  #test "#1234: Applying a splat to :: applies the splat to the wrong object", ->
-  #  nonce = {}
-  #  class C
-  #    method: -> @nonce
-  #    nonce: nonce
-  #
-  #  arr = []
-  #  eq nonce, C::method arr... # should be applied to `C::`
-  #
-  test "#1102: String literal prevents line continuation", ->
+
+  test "jashkenas/coffee-script#1234: Applying a splat to :: applies the splat to the wrong object", ->
+    nonce = {}
+    class C
+      method: -> @nonce
+      nonce: nonce
+
+    arr = []
+    eq nonce, C::method arr... # should be applied to `C::`
+
+  test "jashkenas/coffee-script#1102: String literal prevents line continuation", ->
     eq "': '", '' +
     "': '"
 
-  test "#1703, ---x is invalid JS", ->
+  test "jashkenas/coffee-script#1703, ---x is invalid JS", ->
     x = 2
     eq (- --x), -1
 
@@ -269,13 +269,13 @@ suite 'Operators', ->
   #    1
   #  eq a, 1
 
-  test "#2155: conditional assignment to a closure", ->
+  test "jashkenas/coffee-script#2155: conditional assignment to a closure", ->
     x = null
     func = -> x ?= (-> if true then 'hi')
     func()
     eq x(), 'hi'
 
-  test "#2197: Existential existential double trouble", ->
+  test "jashkenas/coffee-script#2197: Existential existential double trouble", ->
     counter = 0
     func = -> counter++
     func()? ? 100

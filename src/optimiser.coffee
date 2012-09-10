@@ -286,7 +286,7 @@ class exports.Optimiser
     [CS.LogicalNotOp, (inScope) ->
       switch
         when @expression.instanceof CS.Int, CS.Float, CS.String, CS.Bool
-          (new Bool !@expression.data).g()
+          (new CS.Bool !@expression.data).g()
         when @expression.instanceof CS.Functions then (new CS.Bool false).g()
         when @expression.instanceof CS.Null, CS.Undefined then (new CS.Bool true).g()
         when @expression.instanceof CS.ArrayInitialiser, CS.ObjectInitialiser
@@ -302,7 +302,7 @@ class exports.Optimiser
     [CS.TypeofOp, ->
       switch
         when @expression.instanceof CS.Int, CS.Float, CS.UnaryNegateOp, CS.UnaryPlusOp
-          (new String 'number').g()
+          (new CS.String 'number').g()
         when @expression.instanceof CS.String then (new CS.String 'string').g()
         when @expression.instanceof CS.Functions then (new CS.String 'function').g()
         when @expression.instanceof CS.Undefined then (new CS.String 'undefined').g()

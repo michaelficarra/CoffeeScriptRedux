@@ -333,7 +333,7 @@ relationalExpression
         return right[1](expr, right[4], raw, line, column);
       }, left, rights);
     }
-  ChainableOperators = "<=" / ">=" / "<" / ">"
+  ChainableOperators = "<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT
   relationalExpressionOperator
     = op:("<=" / ">=" / "<" / ">" / EXTENDS / INSTANCEOF / IN / OF) {
         var fn = function(left, right, raw, line, column){

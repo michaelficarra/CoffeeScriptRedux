@@ -666,8 +666,10 @@ class exports.Compiler
           else new CS.AssignOp context, lhs
         else if lhs.instanceof CS.MemberAccessOps
           context = lhs.expression
-        if @function.instanceof CS.ProtoMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.DynamicProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+        if @function.instanceof CS.ProtoMemberAccessOp, CS.DynamicProtoMemberAccessOp
           context = new CS.MemberAccessOp context, 'prototype'
+        else if @function.instanceof CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+          context = new CS.SoakedMemberAccessOp context, 'prototype'
         compile new CS.FunctionApplication (new CS.MemberAccessOp lhs, 'apply'), [context, new CS.ArrayInitialiser @arguments]
       else new JS.CallExpression (expr fn), map args, expr
     ]

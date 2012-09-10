@@ -188,9 +188,9 @@ suite 'Operators', ->
       eq 1, [5 in []].length
       eq false, do -> return 0 in []
 
-    #test "#1354: optimized `in` checks should not happen when splats are present", ->
-    #  a = [6, 9]
-    #  eq 9 in [3, a...], true
+    test "#1354: optimized `in` checks should not happen when splats are present", ->
+      a = [6, 9]
+      eq 9 in [3, a...], true
 
     test "#1100: precedence in or-test compilation of `in`", ->
       ok 0 in [1 and 0]

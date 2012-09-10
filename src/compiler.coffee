@@ -769,11 +769,21 @@ class exports.Compiler
 
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
     [CS.InOp, ({left, right}) ->
-      if not (needsCaching left) and (@right.instanceof CS.ArrayInitialiser) and @right.members.length < 5 # TODO: and no splats
-        if right.elements.length is 0 then new JS.Literal false
-        else
-          comparisons = map right.elements, (e) -> new JS.BinaryExpression '===', left, e
-          foldl1 comparisons, (l, r) -> new JS.BinaryExpression '||', l, r
+      if (right.instanceof JS.ArrayExpression) and right.elements.length < 5
+        switch right.elements.length
+          when 0
+            if needsCaching @left
+              # TODO: only necessary if value is used, which is almost always
+              new JS.SequenceExpression [left, new JS.Literal false]
+            else new JS.Literal false
+          when 1
+            new JS.BinaryExpression '===', left, right.elements[0]
+          else
+            if needsCaching @left
+              helpers.in (expr left), expr right
+            else
+              comparisons = map right.elements, (e) -> new JS.BinaryExpression '===', left, e
+              foldl1 comparisons, (l, r) -> new JS.BinaryExpression '||', l, r
       else
         helpers.in (expr left), expr right
     ]

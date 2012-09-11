@@ -303,47 +303,38 @@ bitwiseAndExpression
       }, left, rights);
     }
 existentialExpression
-  = left:equalityExpression right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))? {
+  = left:comparisonExpression right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))? {
       if(!right) return left;
       var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
       return new CS.ExistsOp(left, right[5]).r(raw).p(line, column, offset);
     }
-equalityExpression
-  = left:relationalExpression rights:(_ ("==" / IS / "!=" / ISNT) TERMINATOR? _ (expressionworthy / relationalExpression))* {
+comparisonExpression
+  = left:relationalExpression rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / relationalExpression))* {
       if(!rights) return left;
-      return foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1] + right[2] + right[3] + right[4].raw;
-        return new constructorLookup[right[1]](expr, right[4]).r(raw).p(line, column, offset);
+      var tree = foldl(function(expr, right){
+        var raw = expr.raw + right[0] + right[1] + right[2] + right[3].raw;
+        return new constructorLookup[right[1]](expr, right[3]).r(raw).p(line, column, offset);
       }, left, rights);
+      return rights.length < 2 ? tree : new CS.ChainedComparisonOp(tree).r(tree.raw).p(line, column, offset);
     }
 relationalExpression
-  // chained comparison:
-  = left:bitwiseShiftExpression rights:(_ ChainableOperators _ bitwiseShiftExpression)* {
-        if(rights.length < 2) return null; // fail: match a regular comparison
-        var tree = foldl(function(expr, right){
-          var raw = expr.raw + right[0] + right[1] + right[2] + right[3].raw;
-          return new constructorLookup[right[1]](expr, right[3]).r(raw).p(line, column, offset);
-        }, left, rights);
-        return new CS.ChainedComparisonOp(tree).r(tree.raw).p(line, column, offset);
-      }
-  / left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpression))* {
+  = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         var raw = expr.raw + right[0] + right[1].raw + right[2] + right[3] + right[4].raw;
-        return right[1](expr, right[4], raw, line, column);
+        return right[1](expr, right[4], raw, line, column, offset);
       }, left, rights);
     }
-  ChainableOperators = "<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT
   relationalExpressionOperator
-    = op:("<=" / ">=" / "<" / ">" / EXTENDS / INSTANCEOF / IN / OF) {
-        var fn = function(left, right, raw, line, column){
+    = op:(EXTENDS / INSTANCEOF / IN / OF) {
+        var fn = function(left, right, raw, line, column, offset){
           return new constructorLookup[op](left, right).r(raw).p(line, column, offset);
         };
         fn.raw = op;
         return fn;
       }
     / NOT ws:_ op:(INSTANCEOF / IN / OF) {
-        var fn = function(left, right, raw, line, column){
+        var fn = function(left, right, raw, line, column, offset){
           return new CS.LogicalNotOp(new constructorLookup[op](left, right).r(raw).p(line, column, offset)).r(raw).g();
         };
         fn.raw = 'not' + ws + op;

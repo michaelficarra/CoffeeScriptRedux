@@ -105,20 +105,6 @@ start = program
 // TODO: this is JS; equality comparisons should have literals on left if possible
 
 
-INDENT = ws:__ "\uEFEF" { return ws; }
-DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws; }
-TERM
-  = "\r"? "\n" { return '\n'; }
-  / "\uEFFF" { return ''; }
-
-TERMINATOR = ws:(_ TERM)+ {
-    return ws.map(function(s){ return s[0] + s[1]; }).join('');
-  }
-
-TERMINDENT = t:TERMINATOR i:INDENT {
-    return t + i;
-  }
-
 program
   = leader:TERMINATOR? b:(_ toplevelBlock)? {
       var block;
@@ -1010,10 +996,30 @@ identifierPart
 
 // whitespace / indentation
 
-_ = ws:whitespace* { return ws.join(''); }
-__ = ws:whitespace+ { return ws.join(''); }
+__ = ws:whitespace+ c:(blockComment whitespace+)? { return ws.join('') + (c && c[0] + c[1].join('')); }
+_ = __?
 
-whitespace = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000] / "\\" "\r"? "\n" { return ''; }
+comment =  blockComment / singleLineComment
+singleLineComment = "#" cs:(!TERM c:. { return c})* { return '#' + (cs && cs.join('')); }
+blockComment = "###" c:[^#] cs:([^#] / (a:"#" b:"#"? !"#") {return a + b;})* "###" { return '###' + c + cs.join('') + '###'; }
+
+whitespace
+  = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]
+  / "\\" "\r"? "\n" { return ''; }
+
+INDENT = ws:__ "\uEFEF" { return ws; }
+DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws; }
+TERM
+  = "\r"? "\n" { return '\n'; }
+  / "\uEFFF" { return ''; }
+
+TERMINATOR = ws:(_ comment? TERM blockComment?)+ {
+    return ws.map(function(s){ return s.join(''); }).join('');
+  }
+
+TERMINDENT = t:TERMINATOR i:INDENT {
+    return t + i;
+  }
 
 
 // keywords

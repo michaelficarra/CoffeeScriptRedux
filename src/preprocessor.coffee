@@ -70,7 +70,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
         when null, INDENT, '#{', '[', '(', '{'
           if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
 
-            @p "\n" while @ss.scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n) ///
+            @scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n )+ ///
 
             # we might require more input to determine indentation
             return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
@@ -131,7 +131,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
             @context.observe tok
             continue
 
-          if tok = @scan /"""|'''|\/\/\/|###|["'`[({\\]/
+          if tok = @scan /"""|'''|\/\/\/|###|["'`#[({\\]/
             @context.observe tok
           else if tok = @scan /\//
             # unfortunately, we must look behind us to determine if this is a regexp or division
@@ -142,8 +142,6 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
               nonIdentifierBefore = /[\W_$]/.test lastChar # TODO: this should perform a real test
             if pos is 1 or (if spaceBefore then not @ss.check /// [#{ws}=] /// else nonIdentifierBefore)
               @context.observe '/'
-          else if @ss.scan /// [#{ws}]* \# ///
-            @context.observe '#'
 
         when '\\'
           if (@scan /[\s\S]/) then @context.observe 'end-\\'
@@ -169,7 +167,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
           @scan /(?:[^#]+|##?(?!#))+/
           if tok = @scan /###/ then @context.observe tok
         when '#'
-          @ss.scan /[^\n]+/
+          @scan /[^\n]+/
           if tok = @scan /\n/ then @context.observe tok
         when '`'
           @scan /[^`]+/

@@ -124,7 +124,7 @@ createNodes
       ]
     ]
 
-    ChainedComparisonOp: [['expression']] # :: ComparisonOps -> ChainedComparison
+    ChainedComparisonOp: [['expression']] # :: ComparisonOps -> ChainedComparisonOp
 
     FunctionApplications: [ ['function', 'arguments'],
       FunctionApplication: null # :: Exprs -> [Arguments] -> FunctionApplication

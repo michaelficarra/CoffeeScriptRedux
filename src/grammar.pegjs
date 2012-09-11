@@ -70,7 +70,7 @@ var CS = require("./nodes"),
         var o = new F;
         // rather safely assumes access.op is returning non-Object
         access.op.apply(o, [left].concat(access.operands));
-        return o.r(left.raw + access.raw).p(access.line, access.column);
+        return o.r(left.raw + access.raw).p(access.line, access.column, access.offset);
       }, e, accesses);
     },
     isValidRegExpFlags = function(flags) {
@@ -388,6 +388,7 @@ leftHandSideExpression = callExpression / newExpression
           , raw: '(' + ws0 + (a ? a.raw : '') + ws1 + ')'
           , line: line
           , column: column
+          , offset: offset
           };
       }
   argumentListContents
@@ -443,20 +444,20 @@ memberExpression
   MemberNames
     = identifierName
   MemberAccessOps
-    = ws0:TERMINATOR? ws1:_ "." ws2:TERMINATOR? ws3:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + ws1 + '.' + ws2 + ws3 + e, line: line, column: column}; }
-    / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column}; }
-    / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column}; }
-    / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column}; }
-    / "::" ws:_ e:MemberNames { return {op: CS.ProtoMemberAccessOp, operands: [e], raw: '::' + ws + e, line: line, column: column}; }
-    / "::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicProtoMemberAccessOp, operands: [e], raw: '::[' + ws0 + e + ws1 + ']', line: line, column: column}; }
-    / "?::" ws:_ e:MemberNames { return {op: CS.SoakedProtoMemberAccessOp, operands: [e], raw: '?::' + ws + e, line: line, column: column}; }
-    / "?::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicProtoMemberAccessOp, operands: [e], raw: '?::[' + ws0 + e + ws1 + ']', line: line, column: column}; }
+    = ws0:TERMINATOR? ws1:_ "." ws2:TERMINATOR? ws3:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + ws1 + '.' + ws2 + ws3 + e, line: line, column: column, offset: offset}; }
+    / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column, offset: offset}; }
+    / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
+    / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
+    / "::" ws:_ e:MemberNames { return {op: CS.ProtoMemberAccessOp, operands: [e], raw: '::' + ws + e, line: line, column: column, offset: offset}; }
+    / "::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicProtoMemberAccessOp, operands: [e], raw: '::[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
+    / "?::" ws:_ e:MemberNames { return {op: CS.SoakedProtoMemberAccessOp, operands: [e], raw: '?::' + ws + e, line: line, column: column, offset: offset}; }
+    / "?::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicProtoMemberAccessOp, operands: [e], raw: '?::[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
     / "[" ws0:_ maybeLeft:(assignmentExpression _)? ".." exclusive:"."? ws1:_ maybeRight:(assignmentExpression _)? "]" {
         var left = maybeLeft ? maybeLeft[0] : null,
             right = maybeRight ? maybeRight[0] : null;
         var raw = '[' + ws0 + (left ? left.raw + maybeLeft[1] : '') + '..' + exclusive +
           ws1 + (right ? right.raw + maybeRight[1] : '') + ']';
-        return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column};
+        return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column, offset: offset};
       }
 primaryExpression
   = Numbers

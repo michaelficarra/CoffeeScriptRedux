@@ -942,22 +942,32 @@ Assignable
   = memberAccess
   / !unassignable i:identifier { return i; }
   / contextVar
-  / "[" ws0:_ args:positionalDestructuringList? ws1:_ "]" {
-      var raw = "[" + ws0 + args.raw + ws1 + "]";
-      args = args ? args.list : [];
-      return new CS.ArrayInitialiser(args).r(raw).p(line, column, offset);
+  / positionalDestructuring
+  / namedDestructuring
+
+positionalDestructuring
+  = "[" members:positionalDestructuringBody  t:TERMINATOR? ws:_ "]" {
+      var raw = '{' + members.raw + t + ws + '}'
+      return new CS.ArrayInitialiser(members.list).r(raw).p(line, column, offset);
     }
-  / "{" ws:(TERMINATOR / _) members:(namedDestructuringMemberList _)? t:TERMINATOR? "}" {
-    var raw = "{" + ws + (members ? members[0].raw + members[1] : '') + t + "}";
-    members = members ? members[0].list : [];
-    return new CS.ObjectInitialiser(members).r(raw).p(line, column, offset);
-  }
-  positionalDestructuringList
-    = e:positionalDestructuringListMember es:(_ "," _ positionalDestructuringListMember)* {
+  positionalDestructuringBody
+    = t:TERMINDENT members:positionalDestructuringMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
+    / ws:_ members:positionalDestructuringMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
+  positionalDestructuringMemberList
+    = e:positionalDestructuringMember es:(_ "," _ positionalDestructuringMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
-  positionalDestructuringListMember = rest
+  positionalDestructuringMember = rest / Assignable
+
+namedDestructuring
+  = "{" members:namedDestructuringBody  t:TERMINATOR? ws:_ "}" {
+    var raw = '{' + members.raw + t + ws + '}'
+    return new CS.ObjectInitialiser(members.list).r(raw).p(line, column, offset);
+  }
+  namedDestructuringBody
+    = t:TERMINDENT members:namedDestructuringMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
+    / ws:_ members:namedDestructuringMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
   namedDestructuringMemberList
     = e:namedDestructuringMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ namedDestructuringMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');

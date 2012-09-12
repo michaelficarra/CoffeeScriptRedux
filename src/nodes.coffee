@@ -38,10 +38,12 @@ createNodes = (subclasses, superclasses = []) ->
 # Note: primitive values are represented in lowercase
 # Note: type classes are pluralised
 createNodes
-  Nodes: [ [],
-
-    BinOps: [ ['left', 'right'],
-      AssignOps: [ ['assignee', 'expression'],
+  Nodes: [
+    []
+    BinOps: [
+      ['left', 'right']
+      AssignOps: [
+        ['assignee', 'expression']
         AssignOp: null # :: Assignables -> Exprs -> AssignOp
         ClassProtoAssignOp: null # :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
         CompoundAssignOp: [['op', 'assignee', 'expression']] # :: string -> Assignables -> Exprs -> CompoundAssignOp
@@ -86,14 +88,16 @@ createNodes
       SeqOp: null # :: Exprs -> Exprs -> SeqOp
     ]
 
-    Statements: [ [],
+    Statements: [
+      []
       Break: null # :: Break
       Continue: null # :: Continue
       Return: [['expression']] # :: Maybe Exprs -> Return
       Throw: [['expression']] # :: Exprs -> Throw
     ]
 
-    UnaryOps: [ ['expression'],
+    UnaryOps: [
+      ['expression']
       BitNotOp: null # :: Exprs -> BitNotOp
       DeleteOp: null # :: MemberAccessOps -> DeleteOp
       DoOp: null # :: Exprs -> DoOp
@@ -110,13 +114,15 @@ createNodes
     ]
 
     MemberAccessOps: [ null
-      StaticMemberAccessOps: [ ['expression', 'memberName'],
+      StaticMemberAccessOps: [
+        ['expression', 'memberName']
         MemberAccessOp: null # :: Exprs -> MemberNames -> MemberAccessOp
         ProtoMemberAccessOp: null # :: Exprs -> MemberNames -> ProtoMemberAccessOp
         SoakedMemberAccessOp: null # :: Exprs -> MemberNames -> SoakedMemberAccessOp
         SoakedProtoMemberAccessOp: null # :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
       ]
-      DynamicMemberAccessOps: [ ['expression', 'indexingExpr'],
+      DynamicMemberAccessOps: [
+        ['expression', 'indexingExpr']
         DynamicMemberAccessOp: null # :: Exprs -> Exprs -> DynamicMemberAccessOp
         DynamicProtoMemberAccessOp: null # :: Exprs -> Exprs -> DynamicProtoMemberAccessOp
         SoakedDynamicMemberAccessOp: null # :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
@@ -126,7 +132,8 @@ createNodes
 
     ChainedComparisonOp: [['expression']] # :: ComparisonOps -> ChainedComparisonOp
 
-    FunctionApplications: [ ['function', 'arguments'],
+    FunctionApplications: [
+      ['function', 'arguments']
       FunctionApplication: null # :: Exprs -> [Arguments] -> FunctionApplication
       SoakedFunctionApplication: null # :: Exprs -> [Arguments] -> SoakedFunctionApplication
     ]
@@ -147,20 +154,23 @@ createNodes
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
     Class: [['nameAssignee', 'parent', 'ctor', 'body', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [ClassProtoAssignOp] -> Class
     Constructor: [['expression']] # :: Exprs -> Constructor
-    Functions: [ ['parameters', 'body'],
+    Functions: [
+      ['parameters', 'body']
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
       BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction
     ]
     DefaultParam: [['param', 'default']] # :: Parameters -> Exprs -> DefaultParam
-    Identifiers: [ ['data'],
+    Identifiers: [
+      ['data']
       Identifier: null # :: string -> Identifier
       GenSym: null # :: string -> string -> GenSym
     ]
     Null: null # :: Null
-    Primitives: [ ['data'],
+    Primitives: [
+      ['data']
       Bool: null # :: bool -> Bool
       JavaScript: null # :: string -> JavaScript
-      Numbers: [ null,
+      Numbers: [ null
         Int: null # :: float -> Int
         Float: null # :: float -> Float
       ]
@@ -313,4 +323,5 @@ class exports.NegatedWhile extends While
 # The node should be treated in all other ways as a While.
 # Loop :: Maybe Exprs -> Loop
 class exports.Loop extends While
-  constructor: (body) -> super (new Bool true).g(), body
+  constructor: (body) ->
+    While.call this, (new Bool true).g(), body

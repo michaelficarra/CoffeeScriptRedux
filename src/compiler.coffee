@@ -134,6 +134,7 @@ collectIdentifiers = (node) -> nub switch
 
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->
+  return no unless node?
   (envEnrichments node, []).length > 0 or
   (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp, CS.PreIncrementOp, CS.PostIncrementOp, CS.PreDecrementOp, CS.PostDecrementOp) or
   (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
@@ -225,7 +226,7 @@ assignment = (assignee, expression, valueUsed = no) ->
     when assignee.instanceof JS.Identifier, JS.GenSym, JS.MemberExpression
       assignments.push new JS.AssignmentExpression '=', assignee, expr expression
     else
-      throw new Error "compile: AssignOp: unassignable assignee: #{assignee.className}"
+      throw new Error "compile: assignment: unassignable assignee: #{assignee.type}"
   switch assignments.length
     when 0 then (if e is expression then helpers.undef() else expression)
     when 1 then assignments[0]
@@ -241,7 +242,7 @@ helpers =
     ctor = new JS.Identifier 'ctor'
     key = new JS.Identifier 'key'
     block = [
-      new JS.ForInStatement key, parent, new JS.IfStatement (helpers.isOwn parent, key),
+      new JS.ForInStatement key, parent, new JS.IfStatement (helpers.isOwn parent, key), f = # TODO: figure out how we can allow this
         stmt new JS.AssignmentExpression '=', (new JS.MemberExpression yes, child, key), new JS.MemberExpression yes, parent, key
       new JS.FunctionDeclaration ctor, [], new JS.BlockStatement [
         stmt new JS.AssignmentExpression '=', (memberAccess new JS.ThisExpression, 'constructor'), child
@@ -394,7 +395,7 @@ class exports.Compiler
           c.test = new JS.UnaryExpression '!', c.test
       if alternate?
         cases.push new JS.SwitchCase null, [stmt alternate]
-      for c in cases[...-1] when c.consequent.length > 0
+      for c in cases[...-1] when c.consequent?.length > 0
         c.consequent.push new JS.BreakStatement
       new JS.SwitchStatement expression, cases
     ]
@@ -402,7 +403,9 @@ class exports.Compiler
       cases = map conditions, (c) ->
         new JS.SwitchCase c, []
       block = stmt consequent
-      block = if block.instanceof JS.BlockStatement then block.body else [block]
+      block = if block?
+        if block.instanceof JS.BlockStatement then block.body else [block]
+      else []
       cases[cases.length - 1].consequent = block
       cases
     ]
@@ -576,7 +579,7 @@ class exports.Compiler
       if @ctor? and not @ctor.expression.instanceof CS.Functions
         ctorRef = genSym 'externalCtor'
         ctor.body.body.push makeReturn new JS.CallExpression (memberAccess ctorRef, 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
-        block.body.splice ctorIndex, 0, stmt new JS.AssignmentExpression '=', ctorRef, compile @ctor.expression
+        block.body.splice ctorIndex, 0, stmt new JS.AssignmentExpression '=', ctorRef, expr compile @ctor.expression
 
       if @boundMembers.length > 0
         instance = genSym 'instance'
@@ -622,7 +625,9 @@ class exports.Compiler
     ]
 
     # more complex operations
-    [CS.AssignOp, ({assignee, expression, ancestry}) -> assignment.call this, assignee, expression, usedAsExpression this, ancestry]
+    [CS.AssignOp, ({assignee, expression, ancestry}) ->
+      assignment assignee, expression, usedAsExpression this, ancestry
+    ]
     [CS.CompoundAssignOp, ({assignee, expression}) ->
       op = switch @op
         when CS.LogicalAndOp         then '&&'
@@ -688,7 +693,7 @@ class exports.Compiler
     [CS.NewOp, ({ctor, arguments: args, compile}) ->
       if any args, ((m) -> m.spread)
         helpers.construct ctor, compile new CS.ArrayInitialiser @arguments
-      else new JS.NewExpression ctor, args
+      else new JS.NewExpression ctor, map args, expr
     ]
     [CS.HeregExp, ({expression}) ->
       args = [expression]

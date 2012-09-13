@@ -80,7 +80,7 @@ usedAsExpression_ = (ancestors) ->
       no
     when (parent.instanceof CS.Functions) and
     parent.body is this and
-    grandparent?.instanceof CS.Constructor
+    grandparent? and grandparent.instanceof CS.Constructor
       no
     else yes
 

@@ -352,6 +352,7 @@ class exports.Compiler
         alternate = forceBlock alternate unless alternate.instanceof JS.IfStatement
       if alternate? or ancestry[0]?.instanceof CS.Conditional
         consequent = forceBlock consequent
+      inspect = (o) -> require('util').inspect o, no, 2, yes
       new JS.IfStatement (expr condition), (stmt consequent), alternate
     ]
     [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body}) ->
@@ -411,12 +412,11 @@ class exports.Compiler
     ]
     [CS.Try, ({body, catchAssignee, catchBody, finallyBody}) ->
       finallyBlock = if finallyBody? then forceBlock finallyBody else null
-      handlers = []
-      if catchBody? or catchAssignee?
-        e = genSym 'e'
-        catchBlock = forceBlock catchBody
+      e = genSym 'e'
+      catchBlock = forceBlock catchBody
+      if catchAssignee?
         catchBlock.body.unshift stmt assignment catchAssignee, e
-        handlers = [new JS.CatchClause e, catchBlock]
+      handlers = [new JS.CatchClause e, catchBlock]
       new JS.TryStatement (forceBlock body), handlers, finallyBlock
     ]
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]

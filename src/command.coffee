@@ -171,11 +171,8 @@ if options.help
     rows.join "\n#{pad}"
 
   formatOptions = (opts) ->
-    opts = for opt in opts
-      switch opt.length
-        when 0 then continue
-        when 1 then "-#{opt}"
-        else "--#{opt}"
+    opts = for opt in opts when opt.length
+      if opt.length is 1 then "-#{opt}" else "--#{opt}"
     opts.sort (a, b) -> a.length - b.length
     opts.join ', '
 

@@ -381,9 +381,9 @@ postfixExpression
     }
 leftHandSideExpression = callExpression / newExpression
   argumentList
-    = "(" ws0:_ a:argumentListContents? ws1:_ ")" {
+    = soaked:"?"? "(" ws0:_ a:argumentListContents? ws1:_ ")" {
         return 0,
-          { op: CS.FunctionApplication
+          { op: soaked ? CS.SoakedFunctionApplication : CS.FunctionApplication
           , operands: [a ? a.list : []]
           , raw: '(' + ws0 + (a ? a.raw : '') + ws1 + ')'
           , line: line

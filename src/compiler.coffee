@@ -166,6 +166,7 @@ dynamicMemberAccess = (e, index) ->
   then memberAccess e, index.value
   else new JS.MemberExpression yes, e, index
 
+# TODO: rewrite this whole thing using the CS AST nodes
 assignment = (assignee, expression, valueUsed = no) ->
   assignments = []
   switch
@@ -231,6 +232,62 @@ assignment = (assignee, expression, valueUsed = no) ->
     when 0 then (if e is expression then helpers.undef() else expression)
     when 1 then assignments[0]
     else new JS.SequenceExpression if valueUsed then [assignments..., e] else assignments
+
+hasSoak = (node) -> switch
+  when node.instanceof CS.SoakedFunctionApplication, CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+    yes
+  when node.instanceof CS.FunctionApplication
+    hasSoak node.function
+  when node.instanceof CS.MemberAccessOps
+    hasSoak node.expression
+  else
+    no
+
+generateSoak = do ->
+  # this function builds a tuple containing
+  # * a list of conjuncts for the conditional's test
+  # * the expression to be used as the consequent
+  fn = (node) -> switch
+    when node.instanceof CS.MemberAccessOp, CS.ProtoMemberAccessOp
+      [tests, e] = fn node.expression
+      [tests, new node.constructor e, node.memberName]
+    when node.instanceof CS.DynamicMemberAccessOp, CS.DynamicProtoMemberAccessOp
+      [tests, e] = fn node.expression
+      [tests, new node.constructor e, node.indexingExpr]
+    when node.instanceof CS.FunctionApplication
+      [tests, e] = fn node.function
+      [tests, new CS.FunctionApplication e, node.arguments]
+    when node.instanceof CS.SoakedFunctionApplication
+      [tests, e] = fn node.function
+      typeofTest = (e) -> new CS.EQOp (new CS.String 'function'), new CS.TypeofOp e
+      if needsCaching e
+        sym = new CS.GenSym 'cache'
+        [[tests..., typeofTest new CS.AssignOp sym, e], new CS.FunctionApplication sym, node.arguments]
+      else
+        [[tests..., typeofTest e], new CS.FunctionApplication e, node.arguments]
+    when node.instanceof CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+      switch
+        when node.instanceof CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp
+          memberName = 'memberName'
+        when node.instanceof CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+          memberName = 'indexingExpr'
+      ctor = switch
+        when node.instanceof CS.SoakedMemberAccessOp then CS.MemberAccessOp
+        when node.instanceof CS.SoakedProtoMemberAccessOp then CS.ProtoMemberAccessOp
+        when node.instanceof CS.SoakedDynamicMemberAccessOp then CS.DynamicMemberAccessOp
+        when node.instanceof CS.SoakedDynamicProtoMemberAccessOp then CS.DynamicProtoMemberAccessOp
+      [tests, e] = fn node.expression
+      if needsCaching e
+        sym = new CS.GenSym 'cache'
+        [[tests..., new CS.UnaryExistsOp new CS.AssignOp sym, e], new ctor sym, node[memberName]]
+      else
+        [[tests..., new CS.UnaryExistsOp e], new ctor e, node[memberName]]
+    else
+      [[], node]
+
+  (node) ->
+    [tests, e] = fn node
+    new CS.Conditional (foldl1 tests, (memo, t) -> new CS.LogicalAndOp memo, t), e
 
 
 helperNames = {}
@@ -688,8 +745,10 @@ class exports.Compiler
         else if @function.instanceof CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
           context = new CS.SoakedMemberAccessOp context, 'prototype'
         compile new CS.FunctionApplication (new CS.MemberAccessOp lhs, 'apply'), [context, new CS.ArrayInitialiser @arguments]
+      else if hasSoak this then compile generateSoak this
       else new JS.CallExpression (expr fn), map args, expr
     ]
+    [CS.SoakedFunctionApplication, ({compile}) -> compile generateSoak this]
     [CS.NewOp, ({ctor, arguments: args, compile}) ->
       if any args, ((m) -> m.spread)
         helpers.construct ctor, compile new CS.ArrayInitialiser @arguments
@@ -716,25 +775,21 @@ class exports.Compiler
           leftmost.left = new JS.BinaryExpression '+', (new JS.Literal ''), leftmost.left
       plusOp
     ]
-    [CS.MemberAccessOp, ({expression}) -> memberAccess expression, @memberName]
-    [CS.ProtoMemberAccessOp, ({expression}) -> memberAccess (memberAccess expression, 'prototype'), @memberName]
-    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess expression, indexingExpr]
-    [CS.DynamicProtoMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess (memberAccess expression, 'prototype'), indexingExpr]
-    [CS.SoakedMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp, ({expression, indexingExpr, inScope}) ->
-      e = if needsCaching @expression then genSym 'cache' else expression
-      condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
-      if (e.instanceof JS.Identifier) and e.name not in inScope
-        condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
-      target =
-        if @instanceof CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
-          memberAccess e, 'prototype'
-        else e
-      index =
-        if @instanceof CS.DynamicMemberAccessOps then new JS.MemberExpression yes, target, indexingExpr
-        else memberAccess target, @memberName
-      node = new JS.ConditionalExpression condition, index, helpers.undef()
-      if e is expression then node
-      else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]
+    [CS.MemberAccessOp, CS.SoakedMemberAccessOp, ({expression, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else memberAccess expression, @memberName
+    ]
+    [CS.ProtoMemberAccessOp, CS.SoakedProtoMemberAccessOp, ({expression, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else memberAccess (memberAccess expression, 'prototype'), @memberName
+    ]
+    [CS.DynamicMemberAccessOp, CS.SoakedDynamicMemberAccessOp, ({expression, indexingExpr, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else dynamicMemberAccess expression, indexingExpr
+    ]
+    [CS.DynamicProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp, ({expression, indexingExpr, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else dynamicMemberAccess (memberAccess expression, 'prototype'), indexingExpr
     ]
     [CS.Slice, ({expression, left, right}) ->
       args = if left? then [left] else if right? then [new JS.Literal 0] else []

@@ -7,9 +7,10 @@ TESTS = $(shell find test -name "*.coffee" -type f | sort)
 ROOT = $(shell pwd)
 
 # TODO: use `node_modules/.bin/<binary>`
-COFFEE = node_modules/coffee-script/bin/coffee
-PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
-MOCHA = node_modules/mocha/bin/mocha --compilers coffee:. -u tdd
+COFFEE = node_modules/.bin/coffee -bsc
+#COFFEE = bin/coffee --js --no-optimise
+PEGJS = node_modules/.bin/pegjs --track-line-and-column --cache
+MOCHA = node_modules/.bin/mocha --compilers coffee:. -u tdd
 MINIFIER = node_modules/uglify-js/bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
 
 all: $(LIB)
@@ -26,18 +27,31 @@ deps:
 # TODO: doc
 # TODO: bench
 
-lib/coffee-script:
-	mkdir -p lib/coffee-script/
+lib:
+	mkdir lib/
+
+lib/coffee-script: lib
+	mkdir lib/coffee-script/
 
 lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
-	printf %s "module.exports = " > "$@"
-	$(PEGJS) < "$<" >> "$@"
-
-lib/coffee-script/%.js: src/%.coffee lib/coffee-script
-	$(COFFEE) -bsc < "$<" > "$@"
+	printf %s "module.exports = " >"$@"
+	$(PEGJS) <"$<" >>"$@"
 
 lib/coffee-script/%.min.js: lib/coffee-script/%.js lib/coffee-script
-	$(MINIFIER) < "$<" > "$@"
+	$(MINIFIER) <"$<" >"$@"
+
+lib/coffee-script/%.bootstrap.js: src/%.coffee lib/coffee-script
+	$(COFFEE) <"$<" >"$@"
+
+lib/coffee-script/optimiser.js: src/optimiser.coffee lib/coffee-script
+	coffee -bsc <"$<" >"$@"
+lib/coffee-script/compiler.js: src/compiler.coffee lib/coffee-script
+	coffee -bsc <"$<" >"$@"
+
+lib/coffee-script/%.js: src/%.coffee lib/coffee-script/%.bootstrap.js lib/coffee-script
+	cp "$(@:%.js=%.bootstrap.js)" "$@"
+	$(COFFEE) <"$<" >"$(@:%=%.tmp)"
+	mv "$(@:%=%.tmp)" "$@"
 
 
 .PHONY: test coverage install loc clean

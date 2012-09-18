@@ -396,6 +396,9 @@ leftHandSideExpression = callExpression / newExpression
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + t;
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
+    / t0:TERMINDENT a:argumentListContents d:DEDENT t1:TERMINATOR? {
+        return {list: a.list, raw: t0 + a.raw + d + t1};
+      }
   argument
     = spread
     / expression
@@ -475,6 +478,7 @@ primaryExpression
   / string
   / regexp
   / "(" t0:TERMINDENT e:expression d:DEDENT t1:TERMINATOR? ")" {
+      e = e.clone();
       e.raw = '(' + t0 + e.raw + d + t1 + ')';
       return e;
     }

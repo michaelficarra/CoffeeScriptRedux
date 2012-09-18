@@ -153,8 +153,6 @@ class exports.Optimiser
   @isFalsey = isFalsey
   @mayHaveSideEffects = mayHaveSideEffects
 
-  # TODO: preserve source information in these transformations
-  # TODO: change signature of these functions to named parameters like the compiler rules
   defaultRules = [
 
     # If a program has no side effects, then it is the empty program
@@ -164,7 +162,7 @@ class exports.Optimiser
     ]
 
     # Turn blocks into expressions
-    [CS.Block, (inScope, ancestors) ->
+    [CS.Block, ({inScope}) ->
       foldl (new CS.Undefined).g(), @statements, (expr, s) ->
         new CS.SeqOp expr, s
     ]
@@ -172,16 +170,16 @@ class exports.Optimiser
     # Reject unused and inconsequential expressions
     # TODO: comments
     # TODO: review this whole thing with Aaron
-    [CS.SeqOp, (inScope, ancestors) ->
-      canDropLast = not usedAsExpression this, ancestors
+    [CS.SeqOp, ({inScope, ancestry}) ->
+      canDropLast = not usedAsExpression this, ancestry
       if mayHaveSideEffects @left, inScope
         if mayHaveSideEffects @right, inScope then this
         else if not canDropLast then this
         else if @right.instanceof CS.Undefined then @left
         else new CS.SeqOp @left, declarationsFor @right, inScope
       else if (@right.instanceof CS.Identifier) and @right.data is 'eval' and
-      ((ancestors[0]?.instanceof CS.FunctionApplication) and ancestors[0].function is this or
-      (ancestors[0]?.instanceof CS.DoOp) and ancestors[0].expression is this)
+      ((ancestry[0]?.instanceof CS.FunctionApplication) and ancestry[0].function is this or
+      (ancestry[0]?.instanceof CS.DoOp) and ancestry[0].expression is this)
         return this if (@left.instanceof CS.Int) and @left.data is 0
         ref = new CS.SeqOp (new CS.Int 0).g(), @right
         if (envEnrichments @left, inScope).length is 0 then ref
@@ -206,7 +204,7 @@ class exports.Optimiser
     # A falsey condition with side effects -> (the condition; [])
     # A falsey condition without side effects -> []
     # A truthy condition without side effects -> a loop
-    [CS.While, (inScope) ->
+    [CS.While, ({inScope}) ->
       if isFalsey @condition
         new CS.Block [
           if mayHaveSideEffects @condition, inScope
@@ -226,7 +224,7 @@ class exports.Optimiser
     # Produce the consequent when the condition is truthy
     # Produce the alternative when the condition is falsey
     # Prepend the condition if it has side effects
-    [CS.Conditional, (inScope) ->
+    [CS.Conditional, ({inScope}) ->
       if isFalsey @condition
         block = @alternate
       else if isTruthy @condition
@@ -241,19 +239,19 @@ class exports.Optimiser
     ]
 
     # for-in over an empty list produces an empty list
-    [CS.ForIn, (inScope, ancestors) ->
+    [CS.ForIn, ({inScope}) ->
       return this unless (@target.instanceof CS.ArrayInitialiser) and @target.members.length is 0
       new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-own-of over empty object produces an empty list
-    [CS.ForOf, (inScope, ancestors) ->
+    [CS.ForOf, ({inScope}) ->
       return this unless @isOwn and (@target.instanceof CS.ObjectInitialiser) and @target.members.length is 0
       new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
 
     # for-in or for-of with falsey filter
-    [CS.ForIn, CS.ForOf, (inScope, ancestors) ->
+    [CS.ForIn, CS.ForOf, ({inScope}) ->
       return this unless isFalsey @filter
       new CS.SeqOp (declarationsFor this, inScope), (new CS.ArrayInitialiser []).g()
     ]
@@ -269,8 +267,8 @@ class exports.Optimiser
     ]
 
     # Arrays in statement position might as well be Seqs
-    [CS.ArrayInitialiser, (inScope, ancestors) ->
-      if usedAsExpression this, ancestors then this
+    [CS.ArrayInitialiser, ({inScope, ancestry}) ->
+      if usedAsExpression this, ancestry then this
       else
         foldl (new CS.Undefined).g(), @members, (expr, m) ->
           new CS.SeqOp expr, m
@@ -283,7 +281,7 @@ class exports.Optimiser
     [CS.UnaryExistsOp, -> if @expression.instanceof CS.Null, CS.Undefined then (new CS.Bool false).g() else this]
 
     # LogicalNotOp applied to a literal or !!
-    [CS.LogicalNotOp, (inScope) ->
+    [CS.LogicalNotOp, ({inScope}) ->
       switch
         when @expression.instanceof CS.Int, CS.Float, CS.String, CS.Bool
           (new CS.Bool !@expression.data).g()
@@ -311,8 +309,8 @@ class exports.Optimiser
     ]
 
     # simplify trailing `return`/`undefined` in function bodies
-    [CS.SeqOp, (_, ancestors) ->
-      return this unless (ancestors[0]?.instanceof CS.Functions) and ancestors[0].body is this
+    [CS.SeqOp, ({ancestry}) ->
+      return this unless (ancestry[0]?.instanceof CS.Functions) and ancestry[0].body is this
       if (@right.instanceof CS.Return) and @right.expression?
         new CS.SeqOp @left, @right.expression
       else if @right.instanceof CS.Undefined
@@ -362,16 +360,16 @@ class exports.Optimiser
         @[childName] =
           if childName in @listMembers
             for member in @[childName]
-              while member isnt walk.call (member = fn.call member, inScope, ancestry), fn, inScope, ancestry then
+              while member isnt walk.call (member = fn.call member, {inScope, ancestry}), fn, inScope, ancestry then
               inScope = union inScope, envEnrichments member, inScope
               member
           else
             child = @[childName]
-            while child isnt walk.call (child = fn.call child, inScope, ancestry), fn, inScope, ancestry then
+            while child isnt walk.call (child = fn.call child, {inScope, ancestry}), fn, inScope, ancestry then
             inScope = union inScope, envEnrichments child, inScope
             child
       do ancestry.shift
-      jsNode = fn.call this, inScope, ancestry
+      jsNode = fn.call this, {inScope, ancestry}
       jsNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']
       jsNode
 

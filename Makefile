@@ -2,7 +2,7 @@ default: all
 
 SRC = $(shell find src -name "*.coffee" -type f | sort)
 LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js) lib/coffee-script/parser.js
-BOOTSTRAPS = $(SRC:src/%.coffee=lib/coffee-script/bootstrap/%.js) lib/coffee-script/parser.js
+BOOTSTRAPS = $(SRC:src/%.coffee=lib/coffee-script/bootstrap/%.js) lib/coffee-script/bootstrap/parser.js
 LIBMIN = $(LIB:lib/coffee-script/%.js=lib/coffee-script/%.min.js)
 TESTS = $(shell find test -name "*.coffee" -type f | sort)
 ROOT = $(shell pwd)
@@ -37,6 +37,9 @@ lib/coffee-script/bootstrap: lib/coffee-script
 	mkdir -p lib/coffee-script/bootstrap
 
 lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
+	printf %s "module.exports = " >"$@"
+	$(PEGJS) <"$<" >>"$@"
+lib/coffee-script/bootstrap/parser.js: src/grammar.pegjs lib/coffee-script/bootstrap
 	printf %s "module.exports = " >"$@"
 	$(PEGJS) <"$<" >>"$@"
 

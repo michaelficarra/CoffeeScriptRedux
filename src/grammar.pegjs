@@ -51,7 +51,7 @@ var CS = require("./nodes"),
           var left = memo;
           while(left)
             if(left instanceof CS.String) {
-              if(left === init) delete left.p(s.line, s.column).generated;
+              if(left === init) delete left.p(s.line, s.column, s.offset).generated;
               left.data = left.data + s.data;
               return memo;
             } else if(left instanceof CS.ConcatOp) {

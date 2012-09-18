@@ -768,8 +768,8 @@ class exports.Compiler
       plusOp = new JS.BinaryExpression '+', (expr left), expr right
       unless ancestry[0].instanceof CS.ConcatOp
         leftmost = plusOp
-        leftmost = leftmost.left while leftmost.left?.left
-        unless leftmost.left.instanceof JS.Literal
+        leftmost = leftmost.left while leftmost.left?.left?
+        unless (leftmost.left.instanceof JS.Literal) and 'string' is typeof leftmost.left.value
           leftmost.left = new JS.BinaryExpression '+', (new JS.Literal ''), leftmost.left
       plusOp
     ]

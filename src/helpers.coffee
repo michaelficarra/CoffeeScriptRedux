@@ -4,7 +4,7 @@ CS = require './nodes'
 
 @numberLines = numberLines = (input, startLine = 1) ->
   lines = input.split '\n'
-  padSize = ((lines.length + startLine - 1).toString 10).length
+  padSize = "#{lines.length + startLine - 1}".length
   numbered = for line, i in lines
     currLine = "#{i + startLine}"
     pad = ((Array padSize + 1).join '0')[currLine.length..]

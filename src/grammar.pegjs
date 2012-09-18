@@ -45,7 +45,7 @@ var CS = require("./nodes"),
       return memo;
     },
     createInterpolation = function(es){
-      var init = es.shift();
+      var init = new CS.String('').g();
       return foldl(function(memo, s){
         if(s instanceof CS.String) {
           var left = memo;

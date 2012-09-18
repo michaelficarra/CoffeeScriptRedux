@@ -1,6 +1,3 @@
-[submodule "node_modules/coffee-script"]
-	path = node_modules/coffee-script
-	url = git://github.com/jashkenas/coffee-script.git
 [submodule "node_modules/pegjs"]
 	path = node_modules/pegjs
 	url = git://github.com/michaelficarra/pegjs.git

@@ -8,9 +8,10 @@ TESTS = $(shell find test -name "*.coffee" -type f | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare
-PEGJS = node_modules/.bin/pegjs --track-line-and-column --cache
-MOCHA = node_modules/.bin/mocha --compilers coffee:. -u tdd
-MINIFIER = node_modules/.bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
+# TODO: use `node_module/.bin` once we get rid of `make deps` in favour of `npm install`
+PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
+MOCHA = node_modules/mocha/bin/mocha --compilers coffee:. -u tdd
+MINIFIER = node_modules/uglify-js/bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
 
 all: $(LIB)
 build: all
@@ -46,7 +47,8 @@ lib/coffee-script/bootstrap/%.js: src/%.coffee lib/coffee-script/bootstrap
 	$(COFFEE) <"$<" >"$@"
 
 bootstraps: $(BOOTSTRAPS) lib/coffee-script/bootstrap
-	cp lib/coffee-script/bootstrap/* lib/coffee-script
+	mv lib/coffee-script/bootstrap/* lib/coffee-script
+	rmdir lib/coffee-script/bootstrap
 
 
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script/bootstrap/%.js bootstraps lib/coffee-script

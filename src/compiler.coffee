@@ -266,11 +266,9 @@ generateSoak = do ->
       else
         [[tests..., typeofTest e], new CS.FunctionApplication e, node.arguments]
     when node.instanceof CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
-      switch
-        when node.instanceof CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp
-          memberName = 'memberName'
-        when node.instanceof CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
-          memberName = 'indexingExpr'
+      memberName = switch
+        when node.instanceof CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp then 'memberName'
+        when node.instanceof CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp then 'indexingExpr'
       ctor = switch
         when node.instanceof CS.SoakedMemberAccessOp then CS.MemberAccessOp
         when node.instanceof CS.SoakedProtoMemberAccessOp then CS.ProtoMemberAccessOp
@@ -687,20 +685,20 @@ class exports.Compiler
     ]
     [CS.CompoundAssignOp, ({assignee, expression}) ->
       op = switch @op
-        when CS.LogicalAndOp         then '&&'
-        when CS.LogicalOrOp          then '||'
-        when CS.BitOrOp              then '|'
-        when CS.BitXorOp             then '^'
-        when CS.BitAndOp             then '&'
-        when CS.LeftShiftOp          then '<<'
-        when CS.SignedRightShiftOp   then '>>'
-        when CS.UnsignedRightShiftOp then '>>>'
-        when CS.PlusOp               then '+'
-        when CS.SubtractOp           then '-'
-        when CS.MultiplyOp           then '*'
-        when CS.DivideOp             then '/'
-        when CS.RemOp                then '%'
-        when CS.ExpOp                then '**'
+        when CS.LogicalAndOp::className         then '&&'
+        when CS.LogicalOrOp::className          then '||'
+        when CS.BitOrOp::className              then '|'
+        when CS.BitXorOp::className             then '^'
+        when CS.BitAndOp::className             then '&'
+        when CS.LeftShiftOp::className          then '<<'
+        when CS.SignedRightShiftOp::className   then '>>'
+        when CS.UnsignedRightShiftOp::className then '>>>'
+        when CS.PlusOp::className               then '+'
+        when CS.SubtractOp::className           then '-'
+        when CS.MultiplyOp::className           then '*'
+        when CS.DivideOp::className             then '/'
+        when CS.RemOp::className                then '%'
+        when CS.ExpOp::className                then '**'
         else throw new Error 'Unrecognised compound assignment operator'
       # TODO: if assignee is an identifier, fail unless assignee is in scope
       if op in ['&&', '||']

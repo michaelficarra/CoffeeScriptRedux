@@ -241,7 +241,7 @@ assignmentExpression
   compoundAssignmentOp
     = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
         var raw = left.raw + ws0 + op + '=' + ws1 + right.raw;
-        return new CS.CompoundAssignOp(constructorLookup[op], left, right).r(raw).p(line, column, offset);
+        return new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right).r(raw).p(line, column, offset);
       }
   existsAssignmentOp
     = left:ExistsAssignable ws0:_ "?=" ws1:_ right:secondaryExpression {

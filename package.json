@@ -33,6 +33,7 @@
   },
   "optionalDependencies": {
     "uglify-js": "~1.3.3",
+    "source-map": "~0.1.2",
     "escodegen": "~0.0.9",
     "cscodegen": "~0.1.0"
   },

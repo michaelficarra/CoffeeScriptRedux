@@ -277,56 +277,87 @@ else
       else process.exit 1
 
     # compile
-    result = CoffeeScript.compile result, bare: options.bare
+    jsAST = CoffeeScript.compile result, bare: options.bare
 
     # --compile
     if options.compile
-      if result?
-        console.log inspect result.toJSON()
+      if jsAST?
+        console.log inspect jsAST.toJSON()
         process.exit 0
       else process.exit 1
 
-    if options.debug and result?
+    if options.debug and jsAST?
       console.error "### COMPILED JS-AST ###"
-      console.error inspect result.toJSON()
+      console.error inspect jsAST.toJSON()
 
 
     if options['source-map']
       # source map generation
-      try result = CoffeeScript.sourceMap result, options.input ? (options.cli and 'cli' or 'stdin')
+      try sourceMap = CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin')
       catch e
         console.error (e.stack or e.message)
         process.exit 1
       # --source-map
-      if result?
-        process.stdout.write "#{result}\n"
+      if sourceMap?
+        process.stdout.write "#{sourceMap}\n"
         process.exit 0
       else process.exit 1
     else
       # js code gen
-      try result = CoffeeScript.js result, minify: no
+      try js = CoffeeScript.js jsAST, minify: no
       catch e
         console.error (e.stack or e.message)
         process.exit 1
 
     # minification
-    if options.minify and result?
+    if options.minify and js?
       # TODO: uglifyjs options: --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
-      try result = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse result
+      try js = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse js
       catch e
         console.error (e.stack or e.message)
         process.exit 1
 
     # --js
     if options.js
-      if result?
-        console.log result
+      if js?
+        console.log js
         process.exit 0
       else process.exit 1
 
     # --eval
     if options.eval
-      do -> (0; eval) result
+      evalFn = -> (0;eval) js # TODO: rip off CoffeeScript.eval from jashkenas/coffee-script
+      domain = try require 'domain'
+      if domain?
+        d = domain.create()
+        d.on 'error', (err) ->
+          {SourceMapConsumer} = require 'source-map'
+          Error.prepareStackTrace = (err, stack) ->
+            sourceMap = new SourceMapConsumer CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin')
+            frames = stack.map (frame) ->
+              name = frame.getFunctionName() ? '(unknown)'
+              line = frame.getLineNumber()
+              column = frame.getColumnNumber()
+              filename = frame.getFileName()
+              if filename?
+                "  at #{name} (#{filename}:#{line}:#{column})"
+              else
+                source = sourceMap.originalPositionFor {line, column}
+                "  at #{name} (#{options.input ? '<input>'}:#{source.line}:#{source.column}, <js>:#{line}:#{column})"
+            errorPos = sourceMap.originalPositionFor {line: stack[0].getLineNumber(), column: stack[0].getColumnNumber()}
+            originalLine = input.split('\n')[errorPos.line - 1]
+            [
+              "ERROR: #{err.message}"
+              ''
+              "#{errorPos.line}: #{originalLine}"
+              "#{errorPos.line.toString().replace /./, '^'}: #{Array(errorPos.column).join '~'}^"
+              ''
+              frames.join '\n'
+            ].join '\n'
+          console.error err.stack
+        d.run evalFn
+      else
+        process.nextTick evalFn
 
 
   # choose input source

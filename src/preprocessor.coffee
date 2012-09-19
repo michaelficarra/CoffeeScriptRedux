@@ -1,6 +1,6 @@
 fs = require 'fs'
 {EventEmitter} = require 'events'
-StringScanner = require 'cjs-string-scanner'
+StringScanner = require 'StringScanner'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 

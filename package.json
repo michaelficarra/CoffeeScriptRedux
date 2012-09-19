@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "mocha": "~1.4.2",
-    "pegjs": "~0.7.0"
+    "pegjs": "git://github.com/michaelficarra/CoffeeScriptRedux.git#pegjs"
   },
   "dependencies": {
     "StringScanner": "~0.0.3"

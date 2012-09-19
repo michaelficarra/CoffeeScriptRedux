@@ -29,8 +29,8 @@ yet, you should check that out to find out more about this.
 
 ### Getting Started
 
-    make deps
-    make test
+    npm install
+    make -j test
     bin/coffee --help
 
 ### Development

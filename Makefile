@@ -8,20 +8,14 @@ TESTS = $(shell find test -name "*.coffee" -type f | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare
-# TODO: use `node_module/.bin` once we get rid of `make deps` in favour of `npm install`
-PEGJS = node_modules/pegjs/bin/pegjs --track-line-and-column --cache
-MOCHA = node_modules/mocha/bin/mocha --compilers coffee:. -u tdd
-MINIFIER = node_modules/uglify-js/bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
+PEGJS = node_modules/.bin/pegjs --track-line-and-column --cache
+MOCHA = node_modules/.bin/mocha --compilers coffee:. -u tdd
+MINIFIER = node_modules/.bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
 
 all: $(LIB)
 build: all
 parser: lib/coffee-script/parser.js
 minify: $(LIBMIN)
-deps:
-	git submodule update --init
-	cd $(ROOT)/node_modules/mocha && npm install
-	cd $(ROOT)/node_modules/pegjs && make build
-	cd $(ROOT)
 # TODO: build-browser
 # TODO: test-browser
 # TODO: doc
@@ -36,9 +30,10 @@ lib/coffee-script: lib
 lib/coffee-script/bootstrap: lib/coffee-script
 	mkdir -p lib/coffee-script/bootstrap
 
-lib/coffee-script/parser.js: src/grammar.pegjs lib/coffee-script
-	printf %s "module.exports = " >"$@"
-	$(PEGJS) <"$<" >>"$@"
+lib/coffee-script/parser.js: src/grammar.pegjs bootstraps lib/coffee-script
+	printf %s "module.exports = " >"$(@:%=%.tmp)"
+	$(PEGJS) <"$<" >>"$(@:%=%.tmp)"
+	mv "$(@:%=%.tmp)" "$@"
 lib/coffee-script/bootstrap/parser.js: src/grammar.pegjs lib/coffee-script/bootstrap
 	printf %s "module.exports = " >"$@"
 	$(PEGJS) <"$<" >>"$@"

@@ -22,7 +22,8 @@ createNodes = (subclasses, superclasses = []) ->
         else ->
           for param, i in params
             @[param] = arguments[i]
-          @initialise?.apply this, arguments
+          if @initialise?
+            @initialise.apply this, arguments
           this
       className: className
       @superclasses = superclasses
@@ -38,16 +39,19 @@ createNodes = (subclasses, superclasses = []) ->
 # Note: primitive values are represented in lowercase
 # Note: type classes are pluralised
 createNodes
-  Nodes: [ [],
-
-    BinOps: [ ['left', 'right'],
-      AssignOps: [ ['assignee', 'expression'],
+  Nodes: [
+    []
+    BinOps: [
+      ['left', 'right']
+      AssignOps: [
+        ['assignee', 'expression']
         AssignOp: null # :: Assignables -> Exprs -> AssignOp
         ClassProtoAssignOp: null # :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
         CompoundAssignOp: [['op', 'assignee', 'expression']] # :: string -> Assignables -> Exprs -> CompoundAssignOp
         ExistsAssignOp: null # :: Assignables -> Exprs -> ExistsAssignOp
       ]
-      BitOps: [ null
+      BitOps: [
+        null
         BitAndOp: null # :: Exprs -> Exprs -> BitAndOp
         BitOrOp: null # :: Exprs -> Exprs -> BitOrOp
         BitXorOp: null # :: Exprs -> Exprs -> BitXorOp
@@ -55,7 +59,8 @@ createNodes
         SignedRightShiftOp: null # :: Exprs -> Exprs -> SignedRightShiftOp
         UnsignedRightShiftOp: null # :: Exprs -> Exprs -> UnsignedRightShiftOp
       ]
-      ComparisonOps: [ null
+      ComparisonOps: [
+        null
         EQOp: null # :: Exprs -> Exprs -> EQOp
         GTEOp: null # :: Exprs -> Exprs -> GTEOp
         GTOp: null # :: Exprs -> Exprs -> GTOp
@@ -69,11 +74,13 @@ createNodes
       ExtendsOp: null # :: Exprs -> Exprs -> ExtendsOp
       InOp: null # :: Exprs -> Exprs -> InOp
       InstanceofOp: null # :: Exprs -> Exprs -> InstanceofOp
-      LogicalOps: [ null
+      LogicalOps: [
+        null
         LogicalAndOp: null # :: Exprs -> Exprs -> LogicalAndOp
         LogicalOrOp: null # :: Exprs -> Exprs -> LogicalOrOp
       ]
-      MathsOps: [ null
+      MathsOps: [
+        null
         ExpOp: null # :: Exprs -> Exprs -> ExpOp
         DivideOp: null # :: Exprs -> Exprs -> DivideOp
         MultiplyOp: null # :: Exprs -> Exprs -> MultiplyOp
@@ -86,14 +93,16 @@ createNodes
       SeqOp: null # :: Exprs -> Exprs -> SeqOp
     ]
 
-    Statements: [ [],
+    Statements: [
+      []
       Break: null # :: Break
       Continue: null # :: Continue
       Return: [['expression']] # :: Maybe Exprs -> Return
       Throw: [['expression']] # :: Exprs -> Throw
     ]
 
-    UnaryOps: [ ['expression'],
+    UnaryOps: [
+      ['expression']
       BitNotOp: null # :: Exprs -> BitNotOp
       DeleteOp: null # :: MemberAccessOps -> DeleteOp
       DoOp: null # :: Exprs -> DoOp
@@ -109,14 +118,17 @@ createNodes
       UnaryPlusOp: null # :: Exprs -> UnaryPlusOp
     ]
 
-    MemberAccessOps: [ null
-      StaticMemberAccessOps: [ ['expression', 'memberName'],
+    MemberAccessOps: [
+      null
+      StaticMemberAccessOps: [
+        ['expression', 'memberName']
         MemberAccessOp: null # :: Exprs -> MemberNames -> MemberAccessOp
         ProtoMemberAccessOp: null # :: Exprs -> MemberNames -> ProtoMemberAccessOp
         SoakedMemberAccessOp: null # :: Exprs -> MemberNames -> SoakedMemberAccessOp
         SoakedProtoMemberAccessOp: null # :: Exprs -> MemberNames -> SoakedProtoMemberAccessOp
       ]
-      DynamicMemberAccessOps: [ ['expression', 'indexingExpr'],
+      DynamicMemberAccessOps: [
+        ['expression', 'indexingExpr']
         DynamicMemberAccessOp: null # :: Exprs -> Exprs -> DynamicMemberAccessOp
         DynamicProtoMemberAccessOp: null # :: Exprs -> Exprs -> DynamicProtoMemberAccessOp
         SoakedDynamicMemberAccessOp: null # :: Exprs -> Exprs -> SoakedDynamicMemberAccessOp
@@ -124,7 +136,10 @@ createNodes
       ]
     ]
 
-    FunctionApplications: [ ['function', 'arguments'],
+    ChainedComparisonOp: [['expression']] # :: ComparisonOps -> ChainedComparisonOp
+
+    FunctionApplications: [
+      ['function', 'arguments']
       FunctionApplication: null # :: Exprs -> [Arguments] -> FunctionApplication
       SoakedFunctionApplication: null # :: Exprs -> [Arguments] -> SoakedFunctionApplication
     ]
@@ -145,26 +160,31 @@ createNodes
     ObjectInitialiserMember: [['key', 'expression']] # :: ObjectInitialiserKeys -> Exprs -> ObjectInitialiserMember
     Class: [['nameAssignee', 'parent', 'ctor', 'body', 'boundMembers']] # :: Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Maybe Exprs -> [ClassProtoAssignOp] -> Class
     Constructor: [['expression']] # :: Exprs -> Constructor
-    Functions: [ ['parameters', 'body'],
+    Functions: [
+      ['parameters', 'body']
       Function: null # :: [Parameters] -> Maybe Exprs -> Function
       BoundFunction: null # :: [Parameters] -> Maybe Exprs -> BoundFunction
     ]
     DefaultParam: [['param', 'default']] # :: Parameters -> Exprs -> DefaultParam
-    Identifiers: [ ['data'],
+    Identifiers: [
+      ['data']
       Identifier: null # :: string -> Identifier
       GenSym: null # :: string -> string -> GenSym
     ]
     Null: null # :: Null
-    Primitives: [ ['data'],
+    Primitives: [
+      ['data']
       Bool: null # :: bool -> Bool
       JavaScript: null # :: string -> JavaScript
-      Numbers: [ null,
+      Numbers: [
+        null
         Int: null # :: float -> Int
         Float: null # :: float -> Float
       ]
       String: null # :: string -> String
     ]
-    RegExps: [ null
+    RegExps: [
+      null
       RegExp: [['data', 'flags']] # :: string -> [string] -> RegExp
       HeregExp: [['expression', 'flags']] # :: Exprs -> [string] -> HeregExp
     ]
@@ -195,7 +215,7 @@ Nodes::toJSON = ->
     @line, @column
     range: [
       @offset
-      if @raw? then @offset + @raw.length - 1 else undefined
+      if @raw? then @offset + @raw.length else undefined
     ]
     @raw
   }
@@ -203,7 +223,7 @@ Nodes::toJSON = ->
     if child in @listMembers
       json[child] = (p.toJSON() for p in @[child])
     else
-      json[child] = @[child]?.toJSON()
+      json[child] = if @[child]? then @[child].toJSON()
   json
 Nodes::fold = (memo, fn) ->
   for child in @childNodes
@@ -293,6 +313,7 @@ RegExps::initialise = (_, flags) ->
   @flags = {}
   for flag in ['g', 'i', 'm', 'y']
     @flags[flag] = flag in flags
+  return
 
 
 ## Syntactic nodes
@@ -301,14 +322,16 @@ RegExps::initialise = (_, flags) ->
 # "unless". The node should be treated in all other ways as a Conditional.
 # NegatedConditional :: Exprs -> Maybe Exprs -> Maybe Exprs -> NegatedConditional
 class exports.NegatedConditional extends Conditional
+  constructor: -> Conditional.apply this, arguments
 
 # Note: This only represents the original syntactic specification as an
 # "until". The node should be treated in all other ways as a While.
 # NegatedWhile :: Exprs -> Maybe Exprs -> NegatedWhile
 class exports.NegatedWhile extends While
+  constructor: -> While.apply this, arguments
 
 # Note: This only represents the original syntactic specification as a "loop".
 # The node should be treated in all other ways as a While.
 # Loop :: Maybe Exprs -> Loop
 class exports.Loop extends While
-  constructor: (body) -> super (new Bool true).g(), body
+  constructor: (body) -> While.call this, (new Bool true).g(), body

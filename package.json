@@ -1,31 +1,48 @@
 {
-  "name":         "CoffeeScriptRedux",
-  "description":  "Unfancy JavaScript",
-  "keywords":     ["javascript", "language", "coffeescript", "compiler"],
-  "author":       "Michael Ficarra",
-  "version":      "2.0.0",
-  "licenses":     [{
-    "type":       "3-clause BSD",
-    "url":        "https://raw.github.com/michaelficarra/CoffeeScriptRedux/master/LICENSE"
-  }],
-  "engines":      {
-    "node":       ">=0.6.0"
+  "name": "CoffeeScriptRedux",
+  "author": "Michael Ficarra",
+  "version": "2.0.0-dev",
+  "homepage": "https://github.com/michaelficarra/CoffeeScriptRedux",
+  "bugs": "https://github.com/michaelficarra/CoffeeScriptRedux/issues",
+  "description": "Unfancy JavaScript",
+  "keywords": [
+    "coffeescript",
+    "javascript",
+    "language",
+    "compiler"
+  ],
+  "main": "./lib/coffee-script/module",
+  "bin": {
+    "coffee": "./bin/coffee",
+    "cake": "./bin/cake"
   },
-  "directories" : {
-    "lib" : "./lib/coffee-script"
-  },
-  "main" : "./lib/coffee-script/module",
-  "bin":          {
-    "coffee":     "./bin/coffee",
-    "cake":       "./bin/cake"
-  },
-  "homepage":     "https://github.com/michaelficarra/CoffeeScriptRedux",
-  "bugs":         "https://github.com/michaelficarra/CoffeeScriptRedux/issues",
-  "repository":   {
+  "repository": {
     "type": "git",
     "url": "git://github.com/michaelficarra/CoffeeScriptRedux.git"
   },
+  "scripts": {
+    "build": "make build",
+    "test": "make test"
+  },
   "devDependencies": {
-    "uglify-js":  ">=1.3.0"
-  }
+    "mocha": "~1.4.2",
+    "pegjs": "~0.7.0"
+  },
+  "dependencies": {
+    "StringScanner": "~0.0.3"
+  },
+  "optionalDependencies": {
+    "uglify-js": "~1.3.3",
+    "source-map": "~0.1.2",
+    "escodegen": "~0.0.9",
+    "cscodegen": "~0.1.0"
+  },
+  "engines": { "node": "0.6.x || 0.8.x" },
+  "licenses": [
+    {
+      "type": "3-clause BSD",
+      "url": "https://raw.github.com/michaelficarra/CoffeeScriptRedux/master/LICENSE"
+    }
+  ],
+  "license": "3-clause BSD"
 }

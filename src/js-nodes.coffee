@@ -23,12 +23,12 @@ createNode = (type, props) ->
         json[child] = (p?.toJSON() for p in @[child])
       else
         json[child] = @[child]?.toJSON()
-    json.line = @line if @line?
-    json.column = @column if @column?
+    if @line? and @column?
+      json.loc = start: {@line, @column}
     if @offset?
       json.range = [
         @offset
-        if @raw? then @offset + @raw.length - 1 else undefined
+        if @raw? then @offset + @raw.length else undefined
       ]
     json.raw = @raw if @raw?
     json

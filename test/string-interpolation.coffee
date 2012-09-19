@@ -21,6 +21,10 @@ suite 'String Interpolation', ->
     c = 0
     eq 'ab0', "ab#{c}"
 
+  test 'interpolations always produce a string', ->
+    eq '0', "#{0}"
+    eq 'string', typeof "#{0 + 1}"
+
   test 'interpolate a function call', ->
     b = -> 'b'
     eq 'abc', "a#{b()}c"

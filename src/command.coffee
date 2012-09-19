@@ -44,6 +44,7 @@ if escodegen?
   [].push.apply optionArguments, [
     [['bare',    'b'], off, 'omit the top-level function wrapper']
     [['js',      'j'], off, 'generate JavaScript output']
+    [['source-map'  ], off, 'generate source map']
     [['eval',    'e'], off, 'evaluate compiled JavaScript']
     [['repl'        ], off, 'run an interactive CoffeeScript REPL']
   ]
@@ -107,7 +108,7 @@ while args.length
 # input validation
 
 positionalArgs = positionalArgs.concat additionalArgs
-unless options.compile or options.js or options.parse or options.eval or options.cscodegen
+unless options.compile or options.js or options['source-map'] or options.parse or options.eval or options.cscodegen
   if not escodegen?
     options.compile = on
   else if positionalArgs.length
@@ -118,9 +119,9 @@ unless options.compile or options.js or options.parse or options.eval or options
     options.repl = on
 
 # mutual exclusions
-# - p (parse), c (compile), j (js), e (eval), cscodegen, repl
-if 1 isnt options.parse + options.compile + (options.js ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
-  console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --eval (-e), --cscodegen, or --repl may be used."
+# - p (parse), c (compile), j (js), source-map, e (eval), cscodegen, repl
+if 1 isnt options.parse + options.compile + (options.js ? 0) + (options['source-map'] ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
+  console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --source-map, --eval (-e), --cscodegen, or --repl may be used."
   process.exit 1
 
 # - i (input), w (watch), cli
@@ -140,8 +141,8 @@ if options.minify and not (options.js or options.eval)
   process.exit 1
 
 # - b (bare) depends on escodegen and (c (compile) or e (eval)
-if options.bare and not (options.compile or options.js or options.eval)
-  console.error 'Error: --bare does not make sense without --compile, --js, or --eval'
+if options.bare and not (options.compile or options.js or options['source-map'] or options.eval)
+  console.error 'Error: --bare does not make sense without --compile, --js, --source-map, or --eval'
   process.exit 1
 
 # - i (input) depends on o (output) when input is a directory
@@ -170,11 +171,8 @@ if options.help
     rows.join "\n#{pad}"
 
   formatOptions = (opts) ->
-    opts = for opt in opts
-      switch opt.length
-        when 0 then continue
-        when 1 then "-#{opt}"
-        else "--#{opt}"
+    opts = for opt in opts when opt.length
+      if opt.length is 1 then "-#{opt}" else "--#{opt}"
     opts.sort (a, b) -> a.length - b.length
     opts.join ', '
 
@@ -215,10 +213,8 @@ if options.help
   """
 
 else if options.version
-  filename = path.join __dirname, '..', '..', 'package.json'
-  fs.readFile filename, (err, pkg) ->
-    throw err if err
-    console.log "CoffeeScript version #{(JSON.parse pkg).version}"
+  pkg = require path.join __dirname, '..', '..', 'package.json'
+  console.log "CoffeeScript version #{pkg.version}"
 
 else if options.repl
   # TODO: start repl
@@ -273,7 +269,7 @@ else
     if options.cscodegen
       try result = cscodegen.generate result
       catch e
-        console.error (e.stack || e.message)
+        console.error (e.stack or e.message)
         process.exit 1
       if result?
         console.log result
@@ -281,43 +277,87 @@ else
       else process.exit 1
 
     # compile
-    result = CoffeeScript.compile result, bare: options.bare
+    jsAST = CoffeeScript.compile result, bare: options.bare
 
     # --compile
     if options.compile
-      if result?
-        console.log inspect result.toJSON()
+      if jsAST?
+        console.log inspect jsAST.toJSON()
         process.exit 0
       else process.exit 1
 
-    if options.debug and result?
+    if options.debug and jsAST?
       console.error "### COMPILED JS-AST ###"
-      console.error inspect result.toJSON()
+      console.error inspect jsAST.toJSON()
 
-    # js code gen
-    try result = CoffeeScript.js result, minify: no
-    catch e
-      console.error (e.stack || e.message)
-      process.exit 1
+
+    if options['source-map']
+      # source map generation
+      try sourceMap = CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin')
+      catch e
+        console.error (e.stack or e.message)
+        process.exit 1
+      # --source-map
+      if sourceMap?
+        process.stdout.write "#{sourceMap}\n"
+        process.exit 0
+      else process.exit 1
+    else
+      # js code gen
+      try js = CoffeeScript.js jsAST, minify: no
+      catch e
+        console.error (e.stack or e.message)
+        process.exit 1
 
     # minification
-    if options.minify and result?
+    if options.minify and js?
       # TODO: uglifyjs options: --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
-      try result = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse result
+      try js = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse js
       catch e
-        console.error (e.stack || e.message)
+        console.error (e.stack or e.message)
         process.exit 1
 
     # --js
     if options.js
-      if result?
-        console.log result
+      if js?
+        console.log js
         process.exit 0
       else process.exit 1
 
     # --eval
     if options.eval
-      do -> (0; eval) result
+      evalFn = -> (0;eval) js # TODO: rip off CoffeeScript.eval from jashkenas/coffee-script
+      domain = try require 'domain'
+      if domain?
+        d = domain.create()
+        d.on 'error', (err) ->
+          {SourceMapConsumer} = require 'source-map'
+          Error.prepareStackTrace = (err, stack) ->
+            sourceMap = new SourceMapConsumer CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin')
+            frames = stack.map (frame) ->
+              name = frame.getFunctionName() ? '(unknown)'
+              line = frame.getLineNumber()
+              column = frame.getColumnNumber()
+              filename = frame.getFileName()
+              if filename?
+                "  at #{name} (#{filename}:#{line}:#{column})"
+              else
+                source = sourceMap.originalPositionFor {line, column}
+                "  at #{name} (#{options.input ? '<input>'}:#{source.line}:#{source.column}, <js>:#{line}:#{column})"
+            errorPos = sourceMap.originalPositionFor {line: stack[0].getLineNumber(), column: stack[0].getColumnNumber()}
+            originalLine = input.split('\n')[errorPos.line - 1]
+            [
+              "ERROR: #{err.message}"
+              ''
+              "#{errorPos.line}: #{originalLine}"
+              "#{errorPos.line.toString().replace /./, '^'}: #{Array(errorPos.column).join '~'}^"
+              ''
+              frames.join '\n'
+            ].join '\n'
+          console.error err.stack
+        d.run evalFn
+      else
+        process.nextTick evalFn
 
 
   # choose input source

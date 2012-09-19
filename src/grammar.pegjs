@@ -45,13 +45,13 @@ var CS = require("./nodes"),
       return memo;
     },
     createInterpolation = function(es){
-      var init = es.shift();
+      var init = new CS.String('').g();
       return foldl(function(memo, s){
         if(s instanceof CS.String) {
           var left = memo;
           while(left)
             if(left instanceof CS.String) {
-              if(left === init) delete left.p(s.line, s.column).generated;
+              if(left === init) delete left.p(s.line, s.column, s.offset).generated;
               left.data = left.data + s.data;
               return memo;
             } else if(left instanceof CS.ConcatOp) {
@@ -70,7 +70,7 @@ var CS = require("./nodes"),
         var o = new F;
         // rather safely assumes access.op is returning non-Object
         access.op.apply(o, [left].concat(access.operands));
-        return o.r(left.raw + access.raw).p(access.line, access.column);
+        return o.r(left.raw + access.raw).p(access.line, access.column, access.offset);
       }, e, accesses);
     },
     isValidRegExpFlags = function(flags) {
@@ -105,29 +105,14 @@ start = program
 // TODO: this is JS; equality comparisons should have literals on left if possible
 
 
-TERMINATOR = ws:_ necessary:TERM superfluous:(_ TERM)* {
-    return ws + necessary + superfluous.map(function(s){ return s[0] + s[1]; }).join('');
-  }
-
-INDENT = ws:__ "\uEFEF" { return ws; }
-DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws; }
-TERM
-  = "\r"? "\n" { return '\n'; }
-  / "\uEFFF" { return ''; }
-
-TERMINDENT = t:TERMINATOR i:INDENT {
-    return t + i;
-  }
-
 program
-  = leader:(_ TERM)* b:(_ toplevelBlock)? {
+  = leader:TERMINATOR? b:(_ toplevelBlock)? {
       var block;
-      leader = leader.map(function(s){ return s.join(''); }).join('');
       if(b) {
         block = b[1];
         return new CS.Program(block).r(leader + b[0] + block.raw).p(line, column, offset);
       } else {
-        return new CS.Program(null).r(leader).p(line, column, offset);
+        return new CS.Program().r(leader).p(line, column, offset);
       }
     }
 
@@ -256,7 +241,7 @@ assignmentExpression
   compoundAssignmentOp
     = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
         var raw = left.raw + ws0 + op + '=' + ws1 + right.raw;
-        return new CS.CompoundAssignOp(constructorLookup[op], left, right).r(raw).p(line, column, offset);
+        return new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right).r(raw).p(line, column, offset);
       }
   existsAssignmentOp
     = left:ExistsAssignable ws0:_ "?=" ws1:_ right:secondaryExpression {
@@ -304,37 +289,38 @@ bitwiseAndExpression
       }, left, rights);
     }
 existentialExpression
-  = left:equalityExpression right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))? {
+  = left:comparisonExpression right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))? {
       if(!right) return left;
       var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
       return new CS.ExistsOp(left, right[5]).r(raw).p(line, column, offset);
     }
-equalityExpression
-  = left:relationalExpression rights:(_ ("==" / IS / "!=" / ISNT) TERMINATOR? _ (expressionworthy / relationalExpression))* {
+comparisonExpression
+  = left:relationalExpression rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / relationalExpression))* {
       if(!rights) return left;
-      return foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1] + right[2] + right[3] + right[4].raw;
-        return new constructorLookup[right[1]](expr, right[4]).r(raw).p(line, column, offset);
+      var tree = foldl(function(expr, right){
+        var raw = expr.raw + right[0] + right[1] + right[2] + right[3].raw;
+        return new constructorLookup[right[1]](expr, right[3]).r(raw).p(line, column, offset);
       }, left, rights);
+      return rights.length < 2 ? tree : new CS.ChainedComparisonOp(tree).r(tree.raw).p(line, column, offset);
     }
 relationalExpression
   = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         var raw = expr.raw + right[0] + right[1].raw + right[2] + right[3] + right[4].raw;
-        return right[1](expr, right[4], raw, line, column);
+        return right[1](expr, right[4], raw, line, column, offset);
       }, left, rights);
     }
   relationalExpressionOperator
-    = op:("<=" / ">=" / "<" / ">" / EXTENDS / INSTANCEOF / IN / OF) {
-        var fn = function(left, right, raw, line, column){
+    = op:(EXTENDS / INSTANCEOF / IN / OF) {
+        var fn = function(left, right, raw, line, column, offset){
           return new constructorLookup[op](left, right).r(raw).p(line, column, offset);
         };
         fn.raw = op;
         return fn;
       }
     / NOT ws:_ op:(INSTANCEOF / IN / OF) {
-        var fn = function(left, right, raw, line, column){
+        var fn = function(left, right, raw, line, column, offset){
           return new CS.LogicalNotOp(new constructorLookup[op](left, right).r(raw).p(line, column, offset)).r(raw).g();
         };
         fn.raw = 'not' + ws + op;
@@ -395,25 +381,29 @@ postfixExpression
     }
 leftHandSideExpression = callExpression / newExpression
   argumentList
-    = "(" ws:_ a:(argumentListContents _)? ")" {
+    = soaked:"?"? "(" ws0:_ a:argumentListContents? ws1:_ ")" {
         return 0,
-          { op: CS.FunctionApplication
-          , operands: [a ? a[0].list : []]
-          , raw: '(' + ws + (a ? a[0].raw + a[1] : '') + ')'
+          { op: soaked ? CS.SoakedFunctionApplication : CS.FunctionApplication
+          , operands: [a ? a.list : []]
+          , raw: '(' + ws0 + (a ? a.raw : '') + ws1 + ')'
           , line: line
           , column: column
+          , offset: offset
           };
       }
   argumentListContents
-    = e:argument es:(_ "," _ argument)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
+    = e:argument es:(_ ("," / TERMINATOR) _ argument)* t:TERMINATOR? {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + t;
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
+      }
+    / t0:TERMINDENT a:argumentListContents d:DEDENT t1:TERMINATOR? {
+        return {list: a.list, raw: t0 + a.raw + d + t1};
       }
   argument
     = spread
     / expression
   secondaryArgumentList
-    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERM? _ secondaryArgument)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
+    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERMINATOR? _ secondaryArgument)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
         var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1] + obj[2].raw + obj[3] : '');
         es = [e].concat(es.map(function(e){ return e[5]; }));
         if(obj) es.push(obj[2]);
@@ -457,20 +447,20 @@ memberExpression
   MemberNames
     = identifierName
   MemberAccessOps
-    = ws0:_ ws1:(TERM _)? "." ws2:_ ws3:(TERM _)? e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + (ws1 ? ws1[0] + ws1[1] : '') + '.' + ws2 + (ws3 ? ws3[0] + ws3[1] : '') + e, line: line, column: column}; }
-    / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column}; }
-    / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column}; }
-    / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column}; }
-    / "::" ws:_ e:MemberNames { return {op: CS.ProtoMemberAccessOp, operands: [e], raw: '::' + ws + e, line: line, column: column}; }
-    / "::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicProtoMemberAccessOp, operands: [e], raw: '::[' + ws0 + e + ws1 + ']', line: line, column: column}; }
-    / "?::" ws:_ e:MemberNames { return {op: CS.SoakedProtoMemberAccessOp, operands: [e], raw: '?::' + ws + e, line: line, column: column}; }
-    / "?::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicProtoMemberAccessOp, operands: [e], raw: '?::[' + ws0 + e + ws1 + ']', line: line, column: column}; }
+    = ws0:TERMINATOR? ws1:_ "." ws2:TERMINATOR? ws3:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + ws1 + '.' + ws2 + ws3 + e, line: line, column: column, offset: offset}; }
+    / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column, offset: offset}; }
+    / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
+    / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
+    / "::" ws:_ e:MemberNames { return {op: CS.ProtoMemberAccessOp, operands: [e], raw: '::' + ws + e, line: line, column: column, offset: offset}; }
+    / "::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicProtoMemberAccessOp, operands: [e], raw: '::[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
+    / "?::" ws:_ e:MemberNames { return {op: CS.SoakedProtoMemberAccessOp, operands: [e], raw: '?::' + ws + e, line: line, column: column, offset: offset}; }
+    / "?::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicProtoMemberAccessOp, operands: [e], raw: '?::[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
     / "[" ws0:_ maybeLeft:(assignmentExpression _)? ".." exclusive:"."? ws1:_ maybeRight:(assignmentExpression _)? "]" {
         var left = maybeLeft ? maybeLeft[0] : null,
             right = maybeRight ? maybeRight[0] : null;
         var raw = '[' + ws0 + (left ? left.raw + maybeLeft[1] : '') + '..' + exclusive +
           ws1 + (right ? right.raw + maybeRight[1] : '') + ']';
-        return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column};
+        return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column, offset: offset};
       }
 primaryExpression
   = Numbers
@@ -484,20 +474,27 @@ primaryExpression
   / arrayLiteral
   / objectLiteral
   / interpolation
+  / JSLiteral
   / string
   / regexp
-  / "(" t:TERMINDENT e:expression d:DEDENT ")" {
-      e.raw = '(' + t + e.raw + d + ')';
+  / "(" t0:TERMINDENT e:expression d:DEDENT t1:TERMINATOR? ")" {
+      e = e.clone();
+      e.raw = '(' + t0 + e.raw + d + t1 + ')';
       return e;
     }
-  / "(" ws0:_ e:expression ws1:_ ")" {
+  / "(" ws0:_ e:expression ws1:_ t:TERMINATOR? ")" {
       e = e.clone();
-      e.raw = '(' + ws0 + e.raw + ws1 + ')';
+      e.raw = '(' + ws0 + e.raw + ws1 + t + ')';
       return e;
     }
   contextVar
     = "@" m:MemberNames {
         return new CS.MemberAccessOp((new CS.This).r("@").p(line, column, offset), m).r("@" + m).p(line, column, offset);
+      }
+  JSLiteral
+    = "`" data:[^`]* "`" {
+        data = data.join('');
+        return new CS.JavaScript(data).r('`' + data + '`').p(line, column, offset);
       }
 
 spread
@@ -549,7 +546,7 @@ try
     }
   tryBody = functionBody / conditionalBody
   catchClause
-    = t:TERM? ws0:_ CATCH ws1:_ e:Assignable body:conditionalBody {
+    = t:TERMINATOR? ws0:_ CATCH ws1:_ e:Assignable body:conditionalBody {
       return {block: body.block, assignee: e, raw: t + ws0 + 'catch' + ws1 + e.raw + body.raw};
     }
   finallyClause
@@ -715,9 +712,11 @@ functionLiteral
         var raw = param.raw + ws0 + '=' + ws1 + default_.raw;
         return new CS.DefaultParam(param, default_).r(raw).p(line, column, offset);
       }
-    / a:Assignable rest:"..."? {
-        return (rest ? new CS.Rest(a) : a).r(a.raw + rest).p(line, column, offset);
-      }
+    / rest
+    rest
+      = a:Assignable rest:"..."? {
+          return (rest ? new CS.Rest(a) : a).r(a.raw + rest).p(line, column, offset);
+        }
   parameterList
     = e:parameter es:(_ "," _ parameter)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
@@ -733,16 +732,15 @@ range
     }
 
 arrayLiteral
-  = "[" ws0:_ members:arrayLiteralBody t:TERMINATOR? ws1:_ "]" {
-      var raw = "[" + ws0 + members.raw + t + ws1 + "]";
-      members = members.list;
-      return new CS.ArrayInitialiser(members).r(raw).p(line, column, offset);
+  = "[" members:arrayLiteralBody t:TERMINATOR? ws:_ "]" {
+      var raw = "[" + members.raw + t + ws + "]";
+      return new CS.ArrayInitialiser(members.list).r(raw).p(line, column, offset);
     }
   arrayLiteralBody
     = t:TERMINDENT members:arrayLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
-    / members:arrayLiteralMemberList? { return members ? members : {list: [], raw: ''}; }
+    / ws:_ members:arrayLiteralMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
   arrayLiteralMemberList
-    = e:arrayLiteralMember ws:_ es:(arrayLiteralMemberSeparator _ arrayLiteralMember _)* trail:","? {
+    = e:arrayLiteralMember ws:_ es:(arrayLiteralMemberSeparator _ arrayLiteralMember _)* trail:arrayLiteralMemberSeparator? {
         var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
         return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
       }
@@ -758,11 +756,13 @@ arrayLiteral
 
 
 objectLiteral
-  = "{" ws0:_ members:objectLiteralMemberList? t:TERMINATOR? ws1:_ "}" {
-    var raw = "{" + ws0 + (members ? members.raw : '') + t + ws1 + "}";
-    members = members ? members.list : [];
-    return new CS.ObjectInitialiser(members).r(raw).p(line, column, offset);
+  = "{" members:objectLiteralBody t:TERMINATOR? ws:_ "}" {
+    var raw = '{' + members.raw + t + ws + '}'
+    return new CS.ObjectInitialiser(members.list).r(raw).p(line, column, offset);
   }
+  objectLiteralBody
+    = t:TERMINDENT members:objectLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
+    / ws:_ members:objectLiteralMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
   objectLiteralMemberList
     = e:objectLiteralMember ws:_ es:(objectLiteralMemberSeparator _ objectLiteralMember _)* trail:","? {
         var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
@@ -946,21 +946,32 @@ Assignable
   = memberAccess
   / !unassignable i:identifier { return i; }
   / contextVar
-  / "[" ws0:_ args:positionalDestructuringList? ws1:_ "]" {
-      var raw = "[" + ws0 + args.raw + ws1 + "]";
-      args = args ? args.list : [];
-      return new CS.ArrayInitialiser(args).r(raw).p(line, column, offset);
+  / positionalDestructuring
+  / namedDestructuring
+
+positionalDestructuring
+  = "[" members:positionalDestructuringBody  t:TERMINATOR? ws:_ "]" {
+      var raw = '{' + members.raw + t + ws + '}'
+      return new CS.ArrayInitialiser(members.list).r(raw).p(line, column, offset);
     }
-  / "{" ws:(TERMINATOR / _) members:(namedDestructuringMemberList _)? t:TERMINATOR? "}" {
-    var raw = "{" + ws + (members ? members[0].raw + members[1] : '') + t + "}";
-    members = members ? members[0].list : [];
-    return new CS.ObjectInitialiser(members).r(raw).p(line, column, offset);
-  }
-  positionalDestructuringList
-    = e:Assignable es:(_ "," _ Assignable)* {
+  positionalDestructuringBody
+    = t:TERMINDENT members:positionalDestructuringMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
+    / ws:_ members:positionalDestructuringMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
+  positionalDestructuringMemberList
+    = e:positionalDestructuringMember es:(_ "," _ positionalDestructuringMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
+  positionalDestructuringMember = rest / Assignable
+
+namedDestructuring
+  = "{" members:namedDestructuringBody  t:TERMINATOR? ws:_ "}" {
+    var raw = '{' + members.raw + t + ws + '}'
+    return new CS.ObjectInitialiser(members.list).r(raw).p(line, column, offset);
+  }
+  namedDestructuringBody
+    = t:TERMINDENT members:namedDestructuringMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
+    / ws:_ members:namedDestructuringMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
   namedDestructuringMemberList
     = e:namedDestructuringMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ namedDestructuringMember)* {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
@@ -1000,10 +1011,30 @@ identifierPart
 
 // whitespace / indentation
 
-_ = ws:whitespace* { return ws.join(''); }
-__ = ws:whitespace+ { return ws.join(''); }
+__ = ws:whitespace+ c:(blockComment whitespace+)? { return ws.join('') + (c && c[0] + c[1].join('')); }
+_ = __?
 
-whitespace = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000] / "\\" "\r"? "\n" { return ''; }
+comment =  blockComment / singleLineComment
+singleLineComment = "#" cs:(!TERM c:. { return c})* { return '#' + (cs && cs.join('')); }
+blockComment = "###" c:[^#] cs:([^#] / (a:"#" b:"#"? !"#") {return a + b;})* "###" { return '###' + c + cs.join('') + '###'; }
+
+whitespace
+  = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]
+  / "\\" "\r"? "\n" { return ''; }
+
+INDENT = ws:__ "\uEFEF" { return ws; }
+DEDENT = t:TERMINATOR? ws:_ "\uEFFE" { return t + ws; }
+TERM
+  = "\r"? "\n" { return '\n'; }
+  / "\uEFFF" { return ''; }
+
+TERMINATOR = ws:(_ comment? TERM blockComment?)+ {
+    return ws.map(function(s){ return s.join(''); }).join('');
+  }
+
+TERMINDENT = t:TERMINATOR i:INDENT {
+    return t + i;
+  }
 
 
 // keywords

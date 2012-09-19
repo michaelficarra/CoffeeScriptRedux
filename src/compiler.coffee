@@ -134,6 +134,7 @@ collectIdentifiers = (node) -> nub switch
 
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->
+  return no unless node?
   (envEnrichments node, []).length > 0 or
   (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp, CS.PreIncrementOp, CS.PostIncrementOp, CS.PreDecrementOp, CS.PostDecrementOp) or
   (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
@@ -155,7 +156,8 @@ makeVarDeclaration = (vars) ->
   new JS.VariableDeclaration 'var', decls
 
 memberAccess = (e, member) ->
-  if member in jsReserved or +member.toString()[0] in [0..9]
+  isIdentifierName = /^[$_a-z][$_a-z0-9]*$/i # this can be made more permissive
+  if member in jsReserved or not isIdentifierName.test member
   then new JS.MemberExpression yes, (expr e), new JS.Literal member
   else new JS.MemberExpression no, (expr e), new JS.Identifier member
 
@@ -164,35 +166,126 @@ dynamicMemberAccess = (e, index) ->
   then memberAccess e, index.value
   else new JS.MemberExpression yes, e, index
 
-assignment = (assignee, expression, valueUsed = no) -> switch
-  # TODO: DRY?
-  when assignee.instanceof JS.ArrayExpression, JS.ObjectExpression
-    assignments = []
-    numericallyIndexed = assignee.instanceof JS.ArrayExpression
-    membersName = if numericallyIndexed then 'elements' else 'properties'
+# TODO: rewrite this whole thing using the CS AST nodes
+assignment = (assignee, expression, valueUsed = no) ->
+  assignments = []
+  switch
+    when assignee.rest then # do nothing for right now
+    when assignee.instanceof JS.ArrayExpression
+      e = expression
+      # TODO: only cache expression when it needs it
+      #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
+      if valueUsed or assignee.elements.length > 1
+        e = genSym 'cache'
+        assignments.push new JS.AssignmentExpression '=', e, expression
 
-    e = expression
-    # TODO: only cache expression when it needs it
-    #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
-    if valueUsed or assignee[membersName].length > 1
-      e = genSym 'cache'
-      assignments.push new JS.AssignmentExpression '=', e, expression
+      elements = assignee.elements
 
-    for m, i in assignee[membersName]
-      if numericallyIndexed
+      for m, i in elements
+        break if m.rest
         assignments.push assignment m, (dynamicMemberAccess e, new JS.Literal i), valueUsed
-      else
+
+      if elements.length > 0
+        # TODO: see if this logic can be combined with rest-parameter handling
+        if elements[-1..][0].rest
+          numElements = elements.length
+          restName = elements[numElements - 1] = elements[numElements - 1].expression
+          test = new JS.BinaryExpression '<=', (new JS.Literal numElements), memberAccess e, 'length'
+          consequent = helpers.slice e, new JS.Literal (numElements - 1)
+          alternate = new JS.ArrayExpression []
+          assignments.push stmt new JS.AssignmentExpression '=', restName, new JS.ConditionalExpression test, consequent, alternate
+        else if any elements, ((p) -> p.rest)
+          restName = index = null
+          for p, i in elements when p.rest
+            restName = p.expression
+            index = i
+            break
+          elements.splice index, 1
+          numElements = elements.length
+          size = genSym 'size'
+          assignments.push new JS.AssignmentExpression '=', size, memberAccess e, 'length'
+          test = new JS.BinaryExpression '>', size, new JS.Literal numElements
+          consequent = helpers.slice e, (new JS.Literal index), new JS.BinaryExpression '-', size, new JS.Literal numElements - index
+          assignments.push new JS.AssignmentExpression '=', restName, new JS.ConditionalExpression test, consequent, new JS.ArrayExpression []
+          for p, i in elements[index...]
+            assignments.push stmt new JS.AssignmentExpression '=', p, new JS.MemberExpression yes, e, new JS.BinaryExpression '-', size, new JS.Literal numElements - index - i
+        if any elements, ((p) -> p.rest)
+          throw new Error 'Positional destructuring assignments may not have more than one rest operator'
+
+    when assignee.instanceof JS.ObjectExpression
+      e = expression
+      # TODO: only cache expression when it needs it
+      #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
+      if valueUsed or assignee.properties.length > 1
+        e = genSym 'cache'
+        assignments.push new JS.AssignmentExpression '=', e, expression
+
+      for m in assignee.properties
         propName = if m.key.instanceof JS.Identifier then new JS.Literal m.key.name else m.key
         assignments.push assignment m.value, (dynamicMemberAccess e, propName), valueUsed
 
-    switch assignments.length
-      when 0 then (if e is expression then helpers.undef() else expression)
-      when 1 then assignments[0]
-      else new JS.SequenceExpression if valueUsed then [assignments..., e] else assignments
-  when assignee.instanceof JS.Identifier, JS.GenSym, JS.MemberExpression
-    new JS.AssignmentExpression '=', assignee, expr expression
+    when assignee.instanceof JS.Identifier, JS.GenSym, JS.MemberExpression
+      assignments.push new JS.AssignmentExpression '=', assignee, expr expression
+    else
+      throw new Error "compile: assignment: unassignable assignee: #{assignee.type}"
+  switch assignments.length
+    when 0 then (if e is expression then helpers.undef() else expression)
+    when 1 then assignments[0]
+    else new JS.SequenceExpression if valueUsed then [assignments..., e] else assignments
+
+hasSoak = (node) -> switch
+  when node.instanceof CS.SoakedFunctionApplication, CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+    yes
+  when node.instanceof CS.FunctionApplication
+    hasSoak node.function
+  when node.instanceof CS.MemberAccessOps
+    hasSoak node.expression
   else
-    throw new Error "compile: AssignOp: unassignable assignee: #{assignee.className}"
+    no
+
+generateSoak = do ->
+  # this function builds a tuple containing
+  # * a list of conjuncts for the conditional's test
+  # * the expression to be used as the consequent
+  fn = (node) -> switch
+    when node.instanceof CS.MemberAccessOp, CS.ProtoMemberAccessOp
+      [tests, e] = fn node.expression
+      [tests, new node.constructor e, node.memberName]
+    when node.instanceof CS.DynamicMemberAccessOp, CS.DynamicProtoMemberAccessOp
+      [tests, e] = fn node.expression
+      [tests, new node.constructor e, node.indexingExpr]
+    when node.instanceof CS.FunctionApplication
+      [tests, e] = fn node.function
+      [tests, new CS.FunctionApplication e, node.arguments]
+    when node.instanceof CS.SoakedFunctionApplication
+      [tests, e] = fn node.function
+      typeofTest = (e) -> new CS.EQOp (new CS.String 'function'), new CS.TypeofOp e
+      if needsCaching e
+        sym = new CS.GenSym 'cache'
+        [[tests..., typeofTest new CS.AssignOp sym, e], new CS.FunctionApplication sym, node.arguments]
+      else
+        [[tests..., typeofTest e], new CS.FunctionApplication e, node.arguments]
+    when node.instanceof CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+      memberName = switch
+        when node.instanceof CS.SoakedMemberAccessOp, CS.SoakedProtoMemberAccessOp then 'memberName'
+        when node.instanceof CS.SoakedDynamicMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp then 'indexingExpr'
+      ctor = switch
+        when node.instanceof CS.SoakedMemberAccessOp then CS.MemberAccessOp
+        when node.instanceof CS.SoakedProtoMemberAccessOp then CS.ProtoMemberAccessOp
+        when node.instanceof CS.SoakedDynamicMemberAccessOp then CS.DynamicMemberAccessOp
+        when node.instanceof CS.SoakedDynamicProtoMemberAccessOp then CS.DynamicProtoMemberAccessOp
+      [tests, e] = fn node.expression
+      if needsCaching e
+        sym = new CS.GenSym 'cache'
+        [[tests..., new CS.UnaryExistsOp new CS.AssignOp sym, e], new ctor sym, node[memberName]]
+      else
+        [[tests..., new CS.UnaryExistsOp e], new ctor e, node[memberName]]
+    else
+      [[], node]
+
+  (node) ->
+    [tests, e] = fn node
+    new CS.Conditional (foldl1 tests, (memo, t) -> new CS.LogicalAndOp memo, t), e
 
 
 helperNames = {}
@@ -204,7 +297,7 @@ helpers =
     ctor = new JS.Identifier 'ctor'
     key = new JS.Identifier 'key'
     block = [
-      new JS.ForInStatement key, parent, new JS.IfStatement (helpers.isOwn parent, key),
+      new JS.ForInStatement key, parent, new JS.IfStatement (helpers.isOwn parent, key), f = # TODO: figure out how we can allow this
         stmt new JS.AssignmentExpression '=', (new JS.MemberExpression yes, child, key), new JS.MemberExpression yes, parent, key
       new JS.FunctionDeclaration ctor, [], new JS.BlockStatement [
         stmt new JS.AssignmentExpression '=', (memberAccess new JS.ThisExpression, 'constructor'), child
@@ -314,6 +407,7 @@ class exports.Compiler
         alternate = forceBlock alternate unless alternate.instanceof JS.IfStatement
       if alternate? or ancestry[0]?.instanceof CS.Conditional
         consequent = forceBlock consequent
+      inspect = (o) -> require('util').inspect o, no, 2, yes
       new JS.IfStatement (expr condition), (stmt consequent), alternate
     ]
     [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body}) ->
@@ -357,7 +451,7 @@ class exports.Compiler
           c.test = new JS.UnaryExpression '!', c.test
       if alternate?
         cases.push new JS.SwitchCase null, [stmt alternate]
-      for c in cases[...-1] when c.consequent.length > 0
+      for c in cases[...-1] when c.consequent?.length > 0
         c.consequent.push new JS.BreakStatement
       new JS.SwitchStatement expression, cases
     ]
@@ -365,18 +459,19 @@ class exports.Compiler
       cases = map conditions, (c) ->
         new JS.SwitchCase c, []
       block = stmt consequent
-      block = if block.instanceof JS.BlockStatement then block.body else [block]
+      block = if block?
+        if block.instanceof JS.BlockStatement then block.body else [block]
+      else []
       cases[cases.length - 1].consequent = block
       cases
     ]
     [CS.Try, ({body, catchAssignee, catchBody, finallyBody}) ->
       finallyBlock = if finallyBody? then forceBlock finallyBody else null
-      handlers = []
-      if catchBody? or catchAssignee?
-        e = genSym 'e'
-        catchBlock = forceBlock catchBody
+      e = genSym 'e'
+      catchBlock = forceBlock catchBody
+      if catchAssignee?
         catchBlock.body.unshift stmt assignment catchAssignee, e
-        handlers = [new JS.CatchClause e, catchBlock]
+      handlers = [new JS.CatchClause e, catchBlock]
       new JS.TryStatement (forceBlock body), handlers, finallyBlock
     ]
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]
@@ -513,7 +608,7 @@ class exports.Compiler
           ]
         else fn
     ]
-    [CS.Rest, ({expression}) -> {rest: yes, expression}]
+    [CS.Rest, ({expression}) -> {rest: yes, expression, isExpression: yes, isStatement: yes}]
 
     # TODO: comment
     [CS.Class, ({nameAssignee, parent, name, ctor, body, compile}) ->
@@ -539,7 +634,7 @@ class exports.Compiler
       if @ctor? and not @ctor.expression.instanceof CS.Functions
         ctorRef = genSym 'externalCtor'
         ctor.body.body.push makeReturn new JS.CallExpression (memberAccess ctorRef, 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
-        block.body.splice ctorIndex, 0, stmt new JS.AssignmentExpression '=', ctorRef, compile @ctor.expression
+        block.body.splice ctorIndex, 0, stmt new JS.AssignmentExpression '=', ctorRef, expr compile @ctor.expression
 
       if @boundMembers.length > 0
         instance = genSym 'instance'
@@ -585,23 +680,25 @@ class exports.Compiler
     ]
 
     # more complex operations
-    [CS.AssignOp, ({assignee, expression, ancestry}) -> assignment.call this, assignee, expression, usedAsExpression this, ancestry]
+    [CS.AssignOp, ({assignee, expression, ancestry}) ->
+      assignment assignee, expression, usedAsExpression this, ancestry
+    ]
     [CS.CompoundAssignOp, ({assignee, expression}) ->
       op = switch @op
-        when CS.LogicalAndOp         then '&&'
-        when CS.LogicalOrOp          then '||'
-        when CS.BitOrOp              then '|'
-        when CS.BitXorOp             then '^'
-        when CS.BitAndOp             then '&'
-        when CS.LeftShiftOp          then '<<'
-        when CS.SignedRightShiftOp   then '>>'
-        when CS.UnsignedRightShiftOp then '>>>'
-        when CS.PlusOp               then '+'
-        when CS.SubtractOp           then '-'
-        when CS.MultiplyOp           then '*'
-        when CS.DivideOp             then '/'
-        when CS.RemOp                then '%'
-        when CS.ExpOp                then '**'
+        when CS.LogicalAndOp::className         then '&&'
+        when CS.LogicalOrOp::className          then '||'
+        when CS.BitOrOp::className              then '|'
+        when CS.BitXorOp::className             then '^'
+        when CS.BitAndOp::className             then '&'
+        when CS.LeftShiftOp::className          then '<<'
+        when CS.SignedRightShiftOp::className   then '>>'
+        when CS.UnsignedRightShiftOp::className then '>>>'
+        when CS.PlusOp::className               then '+'
+        when CS.SubtractOp::className           then '-'
+        when CS.MultiplyOp::className           then '*'
+        when CS.DivideOp::className             then '/'
+        when CS.RemOp::className                then '%'
+        when CS.ExpOp::className                then '**'
         else throw new Error 'Unrecognised compound assignment operator'
       # TODO: if assignee is an identifier, fail unless assignee is in scope
       if op in ['&&', '||']
@@ -616,6 +713,18 @@ class exports.Compiler
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), assignee
       new JS.ConditionalExpression condition, assignee, new JS.AssignmentExpression '=', assignee, expr expression
     ]
+    [CS.ChainedComparisonOp, ({expression, compile}) ->
+      return expression unless @expression.left.instanceof CS.ComparisonOps
+      left = expression.left.right
+      lhs = compile new CS.ChainedComparisonOp @expression.left
+      if needsCaching @expression.left.right
+        left = genSym 'cache'
+        # WARN: mutation
+        if @expression.left.left.instanceof CS.ComparisonOps
+          lhs.right.right = new JS.AssignmentExpression '=', left, lhs.right.right
+        else lhs.right = new JS.AssignmentExpression '=', left, lhs.right
+      new JS.BinaryExpression '&&', lhs, new JS.BinaryExpression expression.operator, left, expression.right
+    ]
     [CS.FunctionApplication, ({function: fn, arguments: args, compile}) ->
       if any args, ((m) -> m.spread)
         lhs = @function
@@ -629,13 +738,19 @@ class exports.Compiler
           else new CS.AssignOp context, lhs
         else if lhs.instanceof CS.MemberAccessOps
           context = lhs.expression
+        if @function.instanceof CS.ProtoMemberAccessOp, CS.DynamicProtoMemberAccessOp
+          context = new CS.MemberAccessOp context, 'prototype'
+        else if @function.instanceof CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
+          context = new CS.SoakedMemberAccessOp context, 'prototype'
         compile new CS.FunctionApplication (new CS.MemberAccessOp lhs, 'apply'), [context, new CS.ArrayInitialiser @arguments]
+      else if hasSoak this then compile generateSoak this
       else new JS.CallExpression (expr fn), map args, expr
     ]
+    [CS.SoakedFunctionApplication, ({compile}) -> compile generateSoak this]
     [CS.NewOp, ({ctor, arguments: args, compile}) ->
       if any args, ((m) -> m.spread)
         helpers.construct ctor, compile new CS.ArrayInitialiser @arguments
-      else new JS.NewExpression ctor, args
+      else new JS.NewExpression ctor, map args, expr
     ]
     [CS.HeregExp, ({expression}) ->
       args = [expression]
@@ -653,30 +768,26 @@ class exports.Compiler
       plusOp = new JS.BinaryExpression '+', (expr left), expr right
       unless ancestry[0].instanceof CS.ConcatOp
         leftmost = plusOp
-        leftmost = leftmost.left while leftmost.left?.left
-        unless leftmost.left.instanceof JS.Literal
+        leftmost = leftmost.left while leftmost.left?.left?
+        unless (leftmost.left.instanceof JS.Literal) and 'string' is typeof leftmost.left.value
           leftmost.left = new JS.BinaryExpression '+', (new JS.Literal ''), leftmost.left
       plusOp
     ]
-    [CS.MemberAccessOp, ({expression}) -> memberAccess expression, @memberName]
-    [CS.ProtoMemberAccessOp, ({expression}) -> memberAccess (memberAccess expression, 'prototype'), @memberName]
-    [CS.DynamicMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess expression, indexingExpr]
-    [CS.DynamicProtoMemberAccessOp, ({expression, indexingExpr}) -> dynamicMemberAccess (memberAccess expression, 'prototype'), indexingExpr]
-    [CS.SoakedMemberAccessOp, CS.SoakedDynamicMemberAccessOp, CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp, ({expression, indexingExpr, inScope}) ->
-      e = if needsCaching @expression then genSym 'cache' else expression
-      condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
-      if (e.instanceof JS.Identifier) and e.name not in inScope
-        condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
-      target =
-        if @instanceof CS.SoakedProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp
-          memberAccess e, 'prototype'
-        else e
-      index =
-        if @instanceof CS.DynamicMemberAccessOps then new JS.MemberExpression yes, target, indexingExpr
-        else memberAccess target, @memberName
-      node = new JS.ConditionalExpression condition, index, helpers.undef()
-      if e is expression then node
-      else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, expression), node]
+    [CS.MemberAccessOp, CS.SoakedMemberAccessOp, ({expression, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else memberAccess expression, @memberName
+    ]
+    [CS.ProtoMemberAccessOp, CS.SoakedProtoMemberAccessOp, ({expression, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else memberAccess (memberAccess expression, 'prototype'), @memberName
+    ]
+    [CS.DynamicMemberAccessOp, CS.SoakedDynamicMemberAccessOp, ({expression, indexingExpr, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else dynamicMemberAccess expression, indexingExpr
+    ]
+    [CS.DynamicProtoMemberAccessOp, CS.SoakedDynamicProtoMemberAccessOp, ({expression, indexingExpr, compile}) ->
+      if hasSoak this then expr compile generateSoak this
+      else dynamicMemberAccess (memberAccess expression, 'prototype'), indexingExpr
     ]
     [CS.Slice, ({expression, left, right}) ->
       args = if left? then [left] else if right? then [new JS.Literal 0] else []
@@ -732,11 +843,21 @@ class exports.Compiler
 
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
     [CS.InOp, ({left, right}) ->
-      if not (needsCaching left) and (@right.instanceof CS.ArrayInitialiser) and @right.members.length < 5 # TODO: and no splats
-        if right.elements.length is 0 then new JS.Literal false
-        else
-          comparisons = map right.elements, (e) -> new JS.BinaryExpression '===', left, e
-          foldl1 comparisons, (l, r) -> new JS.BinaryExpression '||', l, r
+      if (right.instanceof JS.ArrayExpression) and right.elements.length < 5
+        switch right.elements.length
+          when 0
+            if needsCaching @left
+              # TODO: only necessary if value is used, which is almost always
+              new JS.SequenceExpression [left, new JS.Literal false]
+            else new JS.Literal false
+          when 1
+            new JS.BinaryExpression '===', left, right.elements[0]
+          else
+            if needsCaching @left
+              helpers.in (expr left), expr right
+            else
+              comparisons = map right.elements, (e) -> new JS.BinaryExpression '===', left, e
+              foldl1 comparisons, (l, r) -> new JS.BinaryExpression '||', l, r
       else
         helpers.in (expr left), expr right
     ]
@@ -787,6 +908,7 @@ class exports.Compiler
     [CS.Null, -> new JS.Literal null]
     [CS.Undefined, -> helpers.undef()]
     [CS.This, -> new JS.ThisExpression]
+    [CS.JavaScript, -> new JS.CallExpression (new JS.Identifier 'eval'), [new JS.Literal @data]]
   ]
 
   constructor: ->

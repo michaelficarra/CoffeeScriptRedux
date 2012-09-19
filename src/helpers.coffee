@@ -4,7 +4,7 @@ CS = require './nodes'
 
 @numberLines = numberLines = (input, startLine = 1) ->
   lines = input.split '\n'
-  padSize = ((lines.length + startLine - 1).toString 10).length
+  padSize = "#{lines.length + startLine - 1}".length
   numbered = for line, i in lines
     currLine = "#{i + startLine}"
     pad = ((Array padSize + 1).join '0')[currLine.length..]
@@ -14,7 +14,7 @@ CS = require './nodes'
 cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 
 @humanReadable = humanReadable = (str) ->
-  (((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE\uEFFF/g, '(DEDENT)').replace /\uEFFE/g, '(TERMINATOR)').replace /\uEFFF/g, '(DEDENT)'
+  ((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE/g, '(DEDENT)').replace /\uEFFF/g, '(TERM)'
 
 @formatParserError = (input, e) ->
   # configure how many lines of context to display
@@ -80,7 +80,7 @@ usedAsExpression_ = (ancestors) ->
       no
     when (parent.instanceof CS.Functions) and
     parent.body is this and
-    grandparent?.instanceof CS.Constructor
+    grandparent? and grandparent.instanceof CS.Constructor
       no
     else yes
 

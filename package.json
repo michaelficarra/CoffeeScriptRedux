@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "mocha": "~1.4.2",
-    "pegjs": "~0.7.0"
+    "pegjs": "git://github.com/michaelficarra/pegjs.git#extendError"
   },
   "dependencies": {
     "StringScanner": "~0.0.3"

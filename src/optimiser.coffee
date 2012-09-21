@@ -178,18 +178,18 @@ class exports.Optimiser
         if mayHaveSideEffects @right, inScope then this
         else if not canDropLast then this
         else if @right.instanceof CS.Undefined then @left
-        else new CS.SeqOp @left, declarationsFor @right, inScope
+        else new CS.SeqOp @left, declarationsFor @right, union inScope, envEnrichments @left, inScope
       else if (@right.instanceof CS.Identifier) and @right.data is 'eval' and
       ((ancestry[0]?.instanceof CS.FunctionApplication) and ancestry[0].function is this or
       (ancestry[0]?.instanceof CS.DoOp) and ancestry[0].expression is this)
-        return this if (@left.instanceof CS.Int) and @left.data is 0
-        ref = new CS.SeqOp (new CS.Int 0).g(), @right
-        if (envEnrichments @left, inScope).length is 0 then ref
-        else new CS.SeqOp (declarationsFor @left), ref
+        if (@left.instanceof CS.Int) and 0 <= @left.data <= 9 then this
+        else if mayHaveSideEffects @left, inScope then this
+        else new CS.SeqOp (new CS.Int 0).g(), @right
       else
         if mayHaveSideEffects @right, inScope
           if @left.instanceof CS.Undefined then @right
-          else new CS.SeqOp (declarationsFor @left, inScope), @right
+          #else new CS.SeqOp (declarationsFor @left, inScope), @right
+          else this # TODO: I would love to be able to do the above, but it will infinite loop
         else if canDropLast
           declarationsFor this, inScope
         else @right
@@ -359,17 +359,13 @@ class exports.Optimiser
       return this if this in ancestry
       ancestry.unshift this
       for childName in @childNodes when @[childName]?
-        @[childName] =
-          if childName in @listMembers
-            for member in @[childName]
-              while member isnt walk.call (member = fn.call member, {inScope, ancestry}), fn, inScope, ancestry then
-              inScope = union inScope, envEnrichments member, inScope
-              member
-          else
-            child = @[childName]
-            while child isnt walk.call (child = fn.call child, {inScope, ancestry}), fn, inScope, ancestry then
-            inScope = union inScope, envEnrichments child, inScope
-            child
+        if childName in @listMembers
+          for member, n in @[childName]
+            while @[childName][n] isnt walk.call (@[childName][n] = fn.call @[childName][n], {inScope, ancestry}), fn, inScope, ancestry then
+            inScope = union inScope, envEnrichments @[childName][n], inScope
+        else
+          while @[childName] isnt walk.call (@[childName] = fn.call @[childName], {inScope, ancestry}), fn, inScope, ancestry then
+          inScope = union inScope, envEnrichments @[childName], inScope
       do ancestry.shift
       jsNode = fn.call this, {inScope, ancestry}
       jsNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']

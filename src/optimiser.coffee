@@ -171,7 +171,6 @@ class exports.Optimiser
 
     # Reject unused and inconsequential expressions
     # TODO: comments
-    # TODO: review this whole thing with Aaron
     [CS.SeqOp, ({inScope, ancestry}) ->
       canDropLast = not usedAsExpression this, ancestry
       if mayHaveSideEffects @left, inScope
@@ -187,8 +186,9 @@ class exports.Optimiser
         else new CS.SeqOp (new CS.Int 0).g(), @right
       else
         if mayHaveSideEffects @right, inScope
-          if @left.instanceof CS.Undefined then @right
-          #else new CS.SeqOp (declarationsFor @left, inScope), @right
+          decls = declarationsFor @left, inScope
+          if decls.instanceof CS.Undefined then @right
+          #else new CS.SeqOp decls, @right
           else this # TODO: I would love to be able to do the above, but it will infinite loop
         else if canDropLast
           declarationsFor this, inScope

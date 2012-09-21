@@ -994,7 +994,7 @@ class exports.Compiler
           nsCounters_ = {}
           nsCounters_[k] = v for own k, v of nsCounters
           newNode = generateSymbols this, {
-            declaredSymbols
+            declaredSymbols: nub [declaredSymbols..., params...]
             usedSymbols: nub [usedSymbols..., params...]
             nsCounters: nsCounters_
           }

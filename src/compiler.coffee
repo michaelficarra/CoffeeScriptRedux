@@ -993,13 +993,12 @@ class exports.Compiler
           params = concatMap @params, collectIdentifiers
           nsCounters_ = {}
           nsCounters_[k] = v for own k, v of nsCounters
-          newNode = generateSymbols this, {
-            declaredSymbols: nub [declaredSymbols..., params...]
-            usedSymbols: nub [usedSymbols..., params...]
+          newNode = generateSymbols this,
+            declaredSymbols: union declaredSymbols, params
+            usedSymbols: union usedSymbols, params
             nsCounters: nsCounters_
-          }
           newNode.body = forceBlock newNode.body
-          declNames = nub difference (map (concatMap @body.body, declarationsNeededRecursive), (id) -> id.name), union declaredSymbols, params
+          declNames = nub difference (map (declarationsNeededRecursive @body), (id) -> id.name), union declaredSymbols, params
           decls = map declNames, (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode

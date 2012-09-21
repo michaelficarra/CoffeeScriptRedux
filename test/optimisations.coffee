@@ -12,24 +12,24 @@ suite 'Optimisations', ->
 
     test 'do not optimise away declarations in conditionals', ->
       if 0 then a = 0
-      ok not a
+      eq undefined, a
       if 1 then 0 else b = 0
-      ok not b
+      eq undefined, b
 
     test 'do not optimise away declarations in while loops', ->
       while 0 then a = 0
-      ok not a
+      eq undefined, a
 
     test 'do not optimise away declarations in for-in loops', ->
       for a in [] then b = 0
-      ok not a
-      ok not b
+      eq undefined, a
+      eq undefined, b
 
     test 'do not optimise away declarations in for-of loops', ->
       for own a of {} then b = 0
-      ok not a
-      ok not b
+      eq undefined, a
+      eq undefined, b
 
     test 'do not optimise away declarations in logical not ops', ->
       not (a = 0)
-      ok not a
+      eq 0, a

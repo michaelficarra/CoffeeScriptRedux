@@ -165,8 +165,12 @@ class exports.Optimiser
 
     # Turn blocks into expressions
     [CS.Block, ({inScope}) ->
-      foldl (new CS.Undefined).g(), @statements, (expr, s) ->
-        new CS.SeqOp expr, s
+      switch @statements.length
+        when 0 then (new CS.Undefined).g()
+        when 1 then @statements[0]
+        else
+          foldl @statements[0], @statements[1..], (expr, s) ->
+            new CS.SeqOp expr, s
     ]
 
     # Reject unused and inconsequential expressions

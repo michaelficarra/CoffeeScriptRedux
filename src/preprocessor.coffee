@@ -1,6 +1,6 @@
 fs = require 'fs'
 {EventEmitter} = require 'events'
-StringScanner = require 'cjs-string-scanner'
+StringScanner = require 'StringScanner'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
@@ -79,9 +79,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
               unless (@scan @base)?
                 throw new Error "inconsistent base indentation"
             else
-              # TODO: combine these next two lines once self-hosted
-              b = @scan /// [#{ws}]* ///
-              @base = /// #{b} ///
+              @base = /// #{@scan /// [#{ws}]* ///} ///
 
             if @indent?
               level = (0 for c in @context when c is INDENT).length

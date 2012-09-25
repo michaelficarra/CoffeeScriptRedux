@@ -108,6 +108,7 @@ envEnrichments_ = (inScope = []) ->
         beingDeclared @keyAssignee
         beingDeclared @valAssignee
       ]
+    when @instanceof CS.Functions then []
     else
       nub concatMap @childNodes, (child) =>
         if child in @listMembers

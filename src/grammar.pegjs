@@ -691,7 +691,7 @@ functionLiteral
   = params:("(" _ parameterList? _ ")" _)? arrow:("->" / "=>") body:functionBody? {
       if(!body) body = {block: null, raw: ''};
       var raw =
-        (params ? params[0] + params[1] + params[2].raw + params[3] + params[4] + params[5] : '') +
+        (params ? params[0] + params[1] + (params[2] && params[2].raw) + params[3] + params[4] + params[5] : '') +
         arrow + body.raw;
       var constructor;
       switch(arrow) {

@@ -67,7 +67,7 @@ expr = (s) ->
     new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression]
   else
     # TODO: comprehensive
-    throw new Error "expr: #{s.type}"
+    throw new Error "expr: Cannot use a #{s.type} as a value"
 
 makeReturn = (node) ->
   return new JS.ReturnStatement unless node?

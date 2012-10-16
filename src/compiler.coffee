@@ -43,11 +43,10 @@ expr = (s) ->
       when 0 then helpers.undef()
       when 1 then expr s.body[0]
       else new JS.SequenceExpression map s.body, expr
-  else if s.instanceof JS.BreakStatement, JS.ContinueStatement, JS.ReturnStatement
-    # TODO: better error
-    throw new Error "pure statement in an expression"
   else if s.instanceof JS.ExpressionStatement
     s.expression
+  else if s.instanceof JS.ThrowStatement
+    new JS.CallExpression (new JS.FunctionExpression null, [], forceBlock s), []
   else if s.instanceof JS.IfStatement
     consequent = expr (s.consequent ? helpers.undef())
     alternate = expr (s.alternate ? helpers.undef())
@@ -55,9 +54,15 @@ expr = (s) ->
   else if s.instanceof JS.ForInStatement, JS.ForStatement, JS.WhileStatement
     accum = genSym 'accum'
     # TODO: remove accidental mutation like this in these helpers
+    push = (x) -> stmt new JS.CallExpression (memberAccess accum, 'push'), [x]
     s.body = forceBlock s.body
-    push = memberAccess accum, 'push'
-    s.body.body[s.body.body.length - 1] = stmt new JS.CallExpression push, [expr s.body.body[-1..][0]]
+    if s.body.body.length
+      lastExpression = s.body.body[-1..][0]
+      unless lastExpression.instanceof JS.ThrowStatement
+        # WARN: more mutation!
+        s.body.body[s.body.body.length - 1] = push expr lastExpression
+    else
+      s.body.body.push push helpers.undef()
     block = new JS.BlockStatement [s, new JS.ReturnStatement accum]
     iife = new JS.FunctionExpression null, [accum], block
     new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression, new JS.ArrayExpression []]
@@ -67,7 +72,7 @@ expr = (s) ->
     new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression]
   else
     # TODO: comprehensive
-    throw new Error "expr: #{s.type}"
+    throw new Error "expr: Cannot use a #{s.type} as a value"
 
 makeReturn = (node) ->
   return new JS.ReturnStatement unless node?
@@ -415,6 +420,7 @@ class exports.Compiler
       i = genSym 'i'
       length = genSym 'length'
       block = forceBlock body
+      block.body.push stmt helpers.undef() unless block.body.length
       e = if needsCaching @target then genSym 'cache' else target
       varDeclaration = new JS.VariableDeclaration 'var', [
         new JS.VariableDeclarator i, new JS.Literal 0
@@ -432,6 +438,7 @@ class exports.Compiler
     ]
     [CS.ForOf, ({keyAssignee, valAssignee, target, filter, body}) ->
       block = forceBlock body
+      block.body.push stmt helpers.undef() unless block.body.length
       e = if @isOwn and needsCaching @target then genSym 'cache' else expr target
       if @filter?
         # TODO: if block only has a single statement, wrap it instead of continuing

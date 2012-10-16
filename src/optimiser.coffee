@@ -86,7 +86,7 @@ mayHaveSideEffects =
     [
       CS.Break, CS.Continue, CS.DeleteOp, CS.NewOp, CS.Return, CS.Super
       CS.PreDecrementOp, CS.PreIncrementOp, CS.PostDecrementOp, CS.PostIncrementOp
-      CS.ClassProtoAssignOp, CS.Constructor, CS.Throw
+      CS.ClassProtoAssignOp, CS.Constructor, CS.Throw, CS.JavaScript
       -> yes
     ]
     [CS.Class, (inScope) ->
@@ -137,7 +137,7 @@ mayHaveSideEffects =
       yes
     ]
     # category: Primitive
-    [CS.Bool, CS.Float, CS.Identifier, CS.Int, CS.JavaScript, CS.String, -> no]
+    [CS.Bool, CS.Float, CS.Identifier, CS.Int, CS.String, -> no]
   ], (inScope) ->
     any @childNodes, (child) =>
       if child in @listMembers

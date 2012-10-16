@@ -353,7 +353,7 @@ helpers =
     new JS.FunctionDeclaration helperNames.in, [member, list], makeReturn new JS.BlockStatement map functionBody, stmt
 
 enabledHelpers = []
-for h, fn of helpers
+for own h, fn of helpers
   helperNames[h] = genSym h
   helpers[h] = do (h, fn) -> ->
     enabledHelpers.push fn()
@@ -364,7 +364,7 @@ inlineHelpers =
   undef: -> new JS.UnaryExpression 'void', new JS.Literal 0
   slice: -> new JS.CallExpression (memberAccess (memberAccess (new JS.ArrayExpression []), 'slice'), 'call'), arguments
 
-for h, fn of inlineHelpers
+for own h, fn of inlineHelpers
   helpers[h] = fn
 
 

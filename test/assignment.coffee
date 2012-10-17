@@ -357,3 +357,16 @@ suite 'Assignment', ->
     #  throws -> CoffeeScript.compile '({a()})->'
     #  throws -> CoffeeScript.compile '({a:b()})->'
     #  throws -> CoffeeScript.compile '({a:b.c()})->'
+    #
+
+    test 'michaelficarra/CoffeeScriptRedux#72: parsing assignment fails when the assignee is member access of a result of a call', ->
+      f = (o) -> o
+      g = -> this
+
+      obj = {}
+      f(obj).a = true
+      ok obj.a
+
+      obj = {g: g}
+      obj.g().a = true
+      ok obj.a

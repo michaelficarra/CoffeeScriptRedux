@@ -441,8 +441,9 @@ memberExpression
   memberAccess
     = e:( primaryExpression
       / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r('new' + ws0 + e + args.raw).p(line, column, offset); }
-      ) accesses:MemberAccessOps+ {
-        return createMemberExpression(e, accesses);
+      ) accesses:(argumentList MemberAccessOps / MemberAccessOps)+ {
+        var acc = foldl(function(memo, a){ return memo.concat(a); }, [], accesses);
+        return createMemberExpression(e, acc);
       }
   MemberNames
     = identifierName

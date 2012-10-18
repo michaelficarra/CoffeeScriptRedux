@@ -239,14 +239,20 @@ assignmentExpression
   CompoundAssignmentOperators
     = "**" / "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / AND / OR / "&&" / "||" / "&" / "^" / "|"
   compoundAssignmentOp
-    = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" ws1:_ right:secondaryExpression {
-        var raw = left.raw + ws0 + op + '=' + ws1 + right.raw;
-        return new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right).r(raw).p(line, column, offset);
+    = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" right:
+      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {raw: t + e.raw + d, expr: e}; }
+      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {raw: t + ws1 + e.raw, expr: e}; }
+      ) {
+        var raw = left.raw + ws0 + op + '=' + right.raw;
+        return new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right.expr).r(raw).p(line, column, offset);
       }
   existsAssignmentOp
-    = left:ExistsAssignable ws0:_ "?=" ws1:_ right:secondaryExpression {
-        var raw = left.raw + ws0 + '?=' + ws1 + right.raw;
-        return new CS.ExistsAssignOp(left, right).r(raw).p(line, column, offset);
+    = left:ExistsAssignable ws0:_ "?=" ws1:_ right:
+      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {raw: t + e.raw + d, expr: e}; }
+      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {raw: t + ws1 + e.raw, expr: e}; }
+      ) {
+        var raw = left.raw + ws0 + '?=' + right.raw;
+        return new CS.ExistsAssignOp(left, right.expr).r(raw).p(line, column, offset);
       }
 logicalOrExpression
   = left:logicalAndExpression rights:(_ ("||" / OR) !"=" TERMINATOR? _ (expressionworthy / logicalAndExpression))* {

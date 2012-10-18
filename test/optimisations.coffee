@@ -33,3 +33,9 @@ suite 'Optimisations', ->
     test 'do not optimise away declarations in logical not ops', ->
       not (a = 0)
       eq 0, a
+
+    test '#71: assume JS literals have side effects, do not eliminate them', ->
+      nonce = {}
+      a = null
+      `a = nonce`
+      eq nonce, a

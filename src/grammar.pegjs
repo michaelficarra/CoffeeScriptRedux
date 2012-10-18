@@ -551,8 +551,8 @@ try
       return {block: body.block, assignee: e, raw: t + ws0 + 'catch' + ws1 + e.raw + body.raw};
     }
   finallyClause
-    = ws:_ FINALLY body:tryBody {
-      return {block: body.block, raw: ws + 'finally' + body.raw};
+    = t:TERMINATOR? ws:_ FINALLY body:tryBody {
+      return {block: body.block, raw: t + ws + 'finally' + body.raw};
     }
 
 

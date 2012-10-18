@@ -192,3 +192,9 @@ suite 'Function Literals', ->
     #    c
     #  ) -> b
     #  eq func(1, 2, 3), 2
+
+    test '#66: functions whose final expression is `throw` should compile', ->
+      (->) -> throw {}
+      (->) ->
+        a = Math.random()
+        if a then throw {}

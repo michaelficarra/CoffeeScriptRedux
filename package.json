@@ -13,8 +13,7 @@
   ],
   "main": "./lib/coffee-script/module",
   "bin": {
-    "coffee": "./bin/coffee",
-    "cake": "./bin/cake"
+    "coffee": "./bin/coffee"
   },
   "repository": {
     "type": "git",

@@ -83,18 +83,18 @@ suite 'Assignment', ->
     #  eq 5, base.five
     #  eq 5, count
 
-    #test "compound assignment with implicit objects", ->
-    #  obj = undefined
-    #  obj ?=
-    #    one: 1
+    test "compound assignment with implicit objects", ->
+      obj = undefined
+      obj ?=
+        one: 1
 
-    #  eq 1, obj.one
+      eq 1, obj.one
 
-    #  obj and=
-    #    two: 2
+      obj and=
+        two: 2
 
-    #  eq undefined, obj.one
-    #  eq         2, obj.two
+      eq undefined, obj.one
+      eq         2, obj.two
 
     test "compound assignment (math operators)", ->
       num = 10

@@ -392,7 +392,7 @@ leftHandSideExpression = callExpression / newExpression
           };
       }
   argumentListContents
-    = e:argument es:(_ ("," / TERMINATOR) _ argument)* t:TERMINATOR? {
+    = e:argument es:(_ ("," / TERMINATOR) _ argument)* t:("," / TERMINATOR)? {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + t;
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }

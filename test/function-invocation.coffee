@@ -44,9 +44,9 @@ suite 'Function Invocation', ->
 
   test "hanging commas and semicolons in argument list", ->
     fn = -> arguments.length
-    #eq 2, fn(0,1,)
-    #eq 3, fn 0, 1,
-    #2
+    eq 2, fn(0,1,)
+    eq 3, fn 0, 1,
+    2
     eq 2, fn(0, 1; 2)
 
   test "function invocation", ->

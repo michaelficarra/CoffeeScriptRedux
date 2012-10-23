@@ -413,16 +413,16 @@ leftHandSideExpression = callExpression / newExpression
         var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1] + obj[2].raw + obj[3] : '');
         es = [e].concat(es.map(function(e){ return e[5]; }));
         if(obj) es.push(obj[2]);
-        return {list: es, raw: raw};
+        return {list: es, op: CS.FunctionApplication, operands: [es], raw: raw};
       }
     / t:TERMINDENT o:implicitObjectLiteral d:DEDENT {
-        return {list: [o], raw: t + o.raw + d};
+        return {list: [o], op: CS.FunctionApplication, operands: [[o]], raw: t + o.raw + d};
       }
   secondaryArgument
     = spread
     / secondaryExpression
 callExpression
-  = fn:memberExpression accesses:(argumentList / MemberAccessOps)* secondaryArgs:secondaryArgumentList? {
+  = fn:memberExpression accesses:accesses? secondaryArgs:secondaryArgumentList? {
       if(accesses) fn = createMemberExpression(fn, accesses);
       if(secondaryArgs)
         fn = new CS.FunctionApplication(fn, secondaryArgs.list).r(fn.raw + secondaryArgs.raw).p(line, column, offset);
@@ -447,10 +447,16 @@ memberExpression
   memberAccess
     = e:( primaryExpression
       / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r('new' + ws0 + e + args.raw).p(line, column, offset); }
-      ) accesses:(argumentList MemberAccessOps / MemberAccessOps)+ {
-        var acc = foldl(function(memo, a){ return memo.concat(a); }, [], accesses);
-        return createMemberExpression(e, acc);
+      ) acc:(argumentList MemberAccessOps / MemberAccessOps)+ {
+        return createMemberExpression(e, foldl(function(memo, a){ return memo.concat(a); }, [], acc));
       }
+  accesses
+    = acc0:(argumentList / MemberAccessOps)* td:TERMINDENT acc1:MemberAccessOps acc2:(argumentList / secondaryArgumentList / MemberAccessOps)* d:DEDENT {
+        acc0 = acc0 || [];
+        acc2 = acc2 || [];
+        return acc0.concat(acc1, acc2);
+      }
+      / (argumentList / MemberAccessOps)*
   MemberNames
     = identifierName
   MemberAccessOps

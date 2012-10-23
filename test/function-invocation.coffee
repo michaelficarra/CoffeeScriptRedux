@@ -154,20 +154,20 @@ suite 'Function Invocation', ->
   #  , 2)
   #  ok result is 3
 
-  #test "Chained blocks, with proper indentation levels:", ->
-  #  counter =
-  #    results: []
-  #    tick: (func) ->
-  #      @results.push func()
-  #      this
-  #  counter
-  #    .tick ->
-  #      3
-  #    .tick ->
-  #      2
-  #    .tick ->
-  #      1
-  #  arrayEq [3,2,1], counter.results
+  test "Chained blocks, with proper indentation levels:", ->
+    counter =
+      results: []
+      tick: (func) ->
+        @results.push func()
+        this
+    counter
+      .tick ->
+        3
+      .tick ->
+        2
+      .tick ->
+        1
+    arrayEq [3,2,1], counter.results
 
   test "TODO: find out what this test case is testing and rename it", ->
     x = (obj, func) -> func obj
@@ -186,11 +186,11 @@ suite 'Function Invocation', ->
     result  = combine (-> 1 + 2), 3
     ok result is 9
 
-  #test "Test for calls/parens/multiline-chains.", ->
-  #  f = (x) -> x
-  #  result = (f 1).toString()
-  #    .length
-  #  ok result is 1
+  test "Test for calls/parens/multiline-chains.", ->
+    f = (x) -> x
+    result = (f 1).toString()
+      .length
+    ok result is 1
 
   #test "Test implicit calls in functions in parens:", ->
   #  result = ((val) ->
@@ -199,32 +199,32 @@ suite 'Function Invocation', ->
   #  )(10)
   #  ok result is 10
 
-  #test "Ensure that chained calls with indented implicit object literals below are alright.", ->
-  #  result = null
-  #  obj =
-  #    method: (val)  -> this
-  #    second: (hash) -> result = hash.three
-  #  obj
-  #    .method(
-  #      101
-  #    ).second(
-  #      one:
-  #        two: 2
-  #      three: 3
-  #    )
-  #  eq result, 3
+  test "Ensure that chained calls with indented implicit object literals below are alright.", ->
+    result = null
+    obj =
+      method: (val)  -> this
+      second: (hash) -> result = hash.three
+    obj
+      .method(
+        101
+      ).second(
+        one:
+          two: 2
+        three: 3
+      )
+    eq result, 3
 
-  #test "Test newline-supressed call chains with nested functions.", ->
-  #  obj  =
-  #    call: -> this
-  #  func = ->
-  #    obj
-  #      .call ->
-  #        one two
-  #      .call ->
-  #        three four
-  #    101
-  #  eq func(), 101
+  test "Test newline-supressed call chains with nested functions.", ->
+    obj  =
+      call: -> this
+    func = ->
+      obj
+        .call ->
+          one two
+        .call ->
+          three four
+      101
+    eq func(), 101
 
   #test "Implicit objects with number arguments.", ->
   #  func = (x, y) -> y

@@ -108,12 +108,12 @@ suite 'Function Invocation', ->
     fn.withAt()
     fn.withThis()
 
-  #test "Trying an implicit object call with a trailing function.", ->
-  #  a = null
-  #  meth = (arg, obj, func) -> a = [obj.a, arg, func()].join ' '
-  #  meth 'apple', b: 1, a: 13, ->
-  #    'orange'
-  #  ok a is '13 apple orange'
+  test "Trying an implicit object call with a trailing function.", ->
+    a = null
+    meth = (arg, obj, func) -> a = [obj.a, arg, func()].join ' '
+    meth 'apple', b: 1, a: 13, ->
+      'orange'
+    ok a is '13 apple orange'
 
   #test "Ensure that empty functions don't return mistaken values.", ->
   #  obj = {func: (@param, @rest...) ->}
@@ -192,12 +192,12 @@ suite 'Function Invocation', ->
   #    .length
   #  ok result is 1
 
-  #test "Test implicit calls in functions in parens:", ->
-  #  result = ((val) ->
-  #    [].push val
-  #    val
-  #  )(10)
-  #  ok result is 10
+  test "Test implicit calls in functions in parens:", ->
+    result = ((val) ->
+      [].push val
+      val
+    )(10)
+    ok result is 10
 
   #test "Ensure that chained calls with indented implicit object literals below are alright.", ->
   #  result = null
@@ -327,10 +327,10 @@ suite 'Function Invocation', ->
     eq fn, child
 
   test "implicit return", ->
-    #eq ok, new ->
-    #  ok
-    #  ### Should `return` implicitly   ###
-    #  ### even with trailing comments. ###
+    eq ok, new ->
+      ok
+      ### Should `return` implicitly   ###
+      ### even with trailing comments. ###
     eq ok, new ->
       ok
       # Should `return` implicitly
@@ -402,14 +402,14 @@ suite 'Function Invocation', ->
       'false'
     eq result, 'true'
 
-    #save try
-    #  doesnt exist
-    #catch error
-    #  'caught'
-    #eq result, 'caught'
-    #
-    #save try doesnt(exist) catch error then 'caught2'
-    #eq result, 'caught2'
+    save try
+      doesnt exist
+    catch error
+      'caught'
+    eq result, 'caught'
+
+    save try doesnt(exist) catch error then 'caught2'
+    eq result, 'caught2'
 
   test "jashkenas/coffee-script#1420: things like `(fn() ->)`; there are no words for this one", ->
     fn = -> (f) -> f()

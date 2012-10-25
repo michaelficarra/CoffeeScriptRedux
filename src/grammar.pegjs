@@ -422,10 +422,14 @@ leftHandSideExpression = callExpression / newExpression
     = spread
     / secondaryExpression
 callExpression
-  = fn:memberExpression accesses:(argumentList / MemberAccessOps)* secondaryArgs:secondaryArgumentList? {
+  = fn:memberExpression accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentList)? {
       if(accesses) fn = createMemberExpression(fn, accesses);
-      if(secondaryArgs)
-        fn = new CS.FunctionApplication(fn, secondaryArgs.list).r(fn.raw + secondaryArgs.raw).p(line, column, offset);
+      var soaked, secondaryCtor;
+      if(secondaryArgs) {
+        soaked = secondaryArgs[0];
+        secondaryCtor = soaked ? CS.SoakedFunctionApplication : CS.FunctionApplication;
+        fn = new secondaryCtor(fn, secondaryArgs[1].list).r(fn.raw + secondaryArgs[1].raw).p(line, column, offset);
+      }
       return fn;
     }
 newExpression
@@ -785,7 +789,7 @@ objectLiteral
         var key = new CS.String(v.memberName).r(v.memberName).p(line, column + 1)
         return new CS.ObjectInitialiserMember(key, v).r(v.raw).p(line, column, offset);
       }
-	/ v:ObjectInitialiserKeys {
+    / v:ObjectInitialiserKeys {
         return new CS.ObjectInitialiserMember(v, v).r(v.raw).p(line, column, offset);
       }
   ObjectInitialiserKeys
@@ -993,7 +997,7 @@ namedDestructuring
         var key = new CS.String(v.memberName).r(v.memberName).p(line, column + 1)
         return new CS.ObjectInitialiserMember(key, v).r(v.raw).p(line, column, offset);
       }
-	/ !unassignable i:identifier {
+    / !unassignable i:identifier {
         return new CS.ObjectInitialiserMember(i, i).r(i.raw).p(line, column, offset);
       }
 

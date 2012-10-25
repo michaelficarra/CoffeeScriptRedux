@@ -458,3 +458,19 @@ suite 'Function Invocation', ->
     #  eq two, 2
     #  func
     #eq ret, func
+
+  test "soaked function application", ->
+    nonce = {}
+    eq undefined, f?(0, 1)
+    eq undefined, f? 0, 1
+    eq undefined, f?
+      a: 0
+    eq undefined, f? 0,
+      a: 1
+    f = -> nonce
+    eq nonce, f?(0, 1)
+    eq nonce, f? 0, 1
+    eq nonce, f?
+      a: 0
+    eq nonce, f? 0,
+      a: 1

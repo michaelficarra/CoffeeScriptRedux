@@ -111,7 +111,7 @@ mayHaveSideEffects =
       return no if @left.instanceof CS.Undefined, CS.Null
       mayHaveSideEffects @right, inScope
     ]
-    [CS.FunctionApplication, (inScope) ->
+    [CS.FunctionApplication, CS.SoakedFunctionApplication, (inScope) ->
       return yes unless @function.instanceof CS.Function, CS.BoundFunction
       newScope = difference inScope, concatMap @function.parameters, beingDeclared
       return yes if any @arguments, (a) -> mayHaveSideEffects a, newScope

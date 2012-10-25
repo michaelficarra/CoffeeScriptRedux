@@ -83,18 +83,18 @@ suite 'Assignment', ->
     #  eq 5, base.five
     #  eq 5, count
 
-    #test "compound assignment with implicit objects", ->
-    #  obj = undefined
-    #  obj ?=
-    #    one: 1
+    test "compound assignment with implicit objects", ->
+      obj = undefined
+      obj ?=
+        one: 1
 
-    #  eq 1, obj.one
+      eq 1, obj.one
 
-    #  obj and=
-    #    two: 2
+      obj and=
+        two: 2
 
-    #  eq undefined, obj.one
-    #  eq         2, obj.two
+      eq undefined, obj.one
+      eq         2, obj.two
 
     test "compound assignment (math operators)", ->
       num = 10
@@ -357,3 +357,16 @@ suite 'Assignment', ->
     #  throws -> CoffeeScript.compile '({a()})->'
     #  throws -> CoffeeScript.compile '({a:b()})->'
     #  throws -> CoffeeScript.compile '({a:b.c()})->'
+
+    test '#72: parsing assignment fails when the assignee is member access of a result of a call', ->
+      f = (o) -> o
+      g = -> this
+      nonce = {}
+
+      obj = {}
+      f(obj).a = nonce
+      eq nonce, obj.a
+
+      obj = {g: g}
+      obj.g().a = nonce
+      eq nonce, obj.a

@@ -808,11 +808,11 @@ class exports.Compiler
       new JS.CallExpression (memberAccess expression, 'slice'), args
     ]
     [CS.ExistsOp, ({left, right, inScope}) ->
-      e = if needsCaching @left then genSym 'cache' else left
+      e = if needsCaching @left then genSym 'cache' else expr left
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
       if (e.instanceof JS.Identifier) and e.name not in inScope
         condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
-      node = new JS.ConditionalExpression condition, e, right
+      node = new JS.ConditionalExpression condition, e, expr right
       if e is left then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, left), node]
     ]

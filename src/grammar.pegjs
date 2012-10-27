@@ -409,10 +409,9 @@ leftHandSideExpression = callExpression / newExpression
     = spread
     / expression
   secondaryArgumentList
-    = ws0:__ !([+-/] __) e:secondaryArgument es:(secondaryArgumentRest)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
-        var raw = ws0 + e.raw + es.map(function(e){ return e.raw; }).join('') + (obj ? obj[0] + obj[1] + obj[2].raw + obj[3] : '');
+    = ws0:__ !([+-/] __) e:secondaryArgument es:(secondaryArgumentRest)* {
+        var raw = ws0 + e.raw + es.map(function(e){ return e.raw; }).join('');
         es = [e].concat(es.map(function(e){ return e.list[0]; }));
-        if(obj) es.push(obj[2]);
         return {list: es, raw: raw};
       }
     / t:TERMINDENT o:implicitObjectLiteral d:DEDENT {
@@ -421,6 +420,9 @@ leftHandSideExpression = callExpression / newExpression
   secondaryArgumentRest
     = ws0:_ t0:TERM? ws1:_ "," ws2:_ t1:TERMINATOR? ws3:_ e:secondaryArgument {
         return {list: [e], raw: ws0 + t0 + ws1 + "," + ws2 + t1 + ws3 + e.raw};
+      }
+    / ws0:_ t0:TERM? ws1:_ "," ws2:_ t1:TERMINDENT o:implicitObjectLiteral d:DEDENT {
+        return {list: [o], raw: ws0 + t0 + ws1 + "," + ws2 + t1 + o.raw + d};
       }
   secondaryArgument
     = spread

@@ -493,9 +493,9 @@ primaryExpression
       e.raw = '(' + t0 + e.raw + d + t1 + ')';
       return e;
     }
-  / "(" ws0:_ e:expression ws1:_ t:TERMINATOR? ")" {
+  / "(" ws0:_ e:expression ws1:_ t:TERMINATOR? ws2:_ ")" {
       e = e.clone();
-      e.raw = '(' + ws0 + e.raw + ws1 + t + ')';
+      e.raw = '(' + ws0 + e.raw + ws1 + t + ws2 + ')';
       return e;
     }
   contextVar

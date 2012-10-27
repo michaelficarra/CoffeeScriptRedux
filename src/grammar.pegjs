@@ -473,6 +473,9 @@ memberExpression
           ws1 + (right ? right.raw + maybeRight[1] : '') + ']';
         return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column, offset: offset};
       }
+    / "::" {
+        return {op: CS.MemberAccessOp, operands: ["prototype"], raw: "::", line: line, column: column, offset: offset};
+      }
 primaryExpression
   = Numbers
   / bool

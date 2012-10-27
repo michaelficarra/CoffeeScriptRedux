@@ -39,6 +39,7 @@ suite 'Member Access', ->
     eq undefined, nil?::b[a]
     # dynamic proto-member access
     eq nonceB, obj::[b]
+    eq nonceB, (obj::)[b]
     eq nonceB, obj?::[b]
     eq nonceA, obj?::[b].a
     eq nonceA, obj?::[b][a]

@@ -398,7 +398,7 @@ leftHandSideExpression = callExpression / newExpression
           };
       }
   argumentListContents
-    = e:argument es:(_ TERM? _ ("," / TERMINATOR) _ argument)* t:("," / TERMINATOR)? {
+    = e:argument es:(_ TERM? _ ("," _ TERMINATOR? INDENT* / TERMINATOR) _ argument DEDENT*)* t:("," _ DEDENT* TERMINATOR? / TERMINATOR)? {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('') + t;
         return {list: [e].concat(es.map(function(e){ return e[5]; })), raw: raw};
       }
@@ -406,7 +406,8 @@ leftHandSideExpression = callExpression / newExpression
         return {list: a.list, raw: t0 + a.raw + d + t1};
       }
   argument
-    = spread
+    = t:TERMINDENT o:implicitObjectLiteral d:DEDENT { return o; }
+    / spread
     / expression
   secondaryArgumentList
     = ws0:__ !([+-/] __) e:secondaryArgument es:(secondaryArgumentRest)* {

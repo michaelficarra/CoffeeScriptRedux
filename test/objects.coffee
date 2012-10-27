@@ -153,6 +153,74 @@ suite 'Object Literals', ->
 
       throws -> CoffeeScript.compile 'a = b:1, c'
 
+    test 'invoking functions with implicit object literals (with parens)', ->
+      generateGetter = (prop) -> (obj) -> obj[prop]
+      getA = generateGetter 'a'
+      getArgs = -> arguments
+      a = b = 30
+
+      result = getA(
+        a: 10
+      )
+      eq 10, result
+
+      result = getA(
+        'a': 20
+      )
+      eq 20, result
+
+      result = getA(a,
+        b:1
+      )
+      eq undefined, result
+
+      result = getA(b:1,
+      a:43
+      )
+      eq 43, result
+
+      result = getA(b:1,
+        a:62
+      )
+      eq undefined, result
+    # result = getA(
+    #   b:1
+    #   a
+    # )
+    # eq undefined, result
+
+      result = getA(
+        a:
+          b:2
+        b:1
+      )
+      eq 2, result.b
+
+    # result = getArgs(
+    #   a:1
+    #   b
+    #   c:1
+    # )
+    # ok result.length is 3
+    # ok result[2].c is 1
+
+      result = getA(b: 13, a: 42, 2)
+      eq 42, result
+
+      result = getArgs(a:1, (1 + 1))
+      ok result[1] is 2
+
+      result = getArgs(a:1, b)
+      ok result.length is 2
+      ok result[1] is 30
+
+      result = getArgs(a:1, b, b:1, a)
+      ok result.length is 4
+      ok result[2].b is 1
+
+      throws -> CoffeeScript.compile 'a = b:1, c'
+
+
     #test 'multiple dedentations in implicit object literals', ->
     #  nonce0 = {}
     #  nonce1 = {}

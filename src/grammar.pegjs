@@ -398,12 +398,12 @@ leftHandSideExpression = callExpression / newExpression
           };
       }
   argumentListContents
-    = e:argument es:(_ TERM? _ ("," _ TERMINATOR? INDENT* / TERMINATOR) _ argument DEDENT*)* t:("," _ DEDENT* TERMINATOR? / TERMINATOR)? {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('') + t;
-        return {list: [e].concat(es.map(function(e){ return e[5]; })), raw: raw};
+    = e:argument es:(_ (TERM? _ "," _ TERMINATOR? INDENT* / TERMINATOR) _ argument DEDENT*)* t:("," _ DEDENT* TERMINATOR? / TERMINATOR)? {
+        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + t;
+        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
-    / t0:TERMINDENT a:argumentListContents d:DEDENT t1:TERMINATOR? {
-        return {list: a.list, raw: t0 + a.raw + d + t1};
+    / t0:TERMINDENT a:argumentListContents {
+        return {list: a.list, raw: t0 + a.raw};
       }
   argument
     = t:TERMINDENT o:implicitObjectLiteral d:DEDENT { return o; }

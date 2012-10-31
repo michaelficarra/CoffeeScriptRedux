@@ -1,5 +1,6 @@
 fs = require 'fs'
 {EventEmitter} = require 'events'
+{formatParserError} = require './helpers'
 StringScanner = require 'StringScanner'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
@@ -100,8 +101,12 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
               else if @ss.check /// (?:#{@indent}){#{level}} [^#{ws}] ///
                 @scan /// (?:#{@indent}){#{level}} ///
               else
-                # TODO: show line number and expected indentation
-                throw new Error "invalid indentation"
+                lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
+                throw new Error formatParserError @ss.str, {
+                  line: lines.length
+                  column: 1 + lines[lines.length - 1].length
+                  found: "indentation at level #{level}"
+                }
             else if @ss.check /// [#{ws}]+ [^#{ws}#] ///
               # first indentation
               @indent = @scan /// [#{ws}]+ ///

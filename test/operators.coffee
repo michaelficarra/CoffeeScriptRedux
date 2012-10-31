@@ -285,3 +285,9 @@ suite 'Operators', ->
     f = ->
     f (a ? a?.b())
     f (a ? while 0 then)
+
+  test "#89: extends operator has side effects and should not be optimised away", ->
+    class A
+    class B
+    B extends A
+    ok new B instanceof A

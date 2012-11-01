@@ -22,7 +22,9 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
     return "Syntax error on line #{e.line}, column #{realColumn}: unexpected end of input"
   found = JSON.stringify humanReadable e.found
   found = ((found.replace /^"|"$/g, '').replace /'/g, '\\\'').replace /\\"/g, '"'
-  message = "Syntax error on line #{e.line}, column #{realColumn}: unexpected '#{found}'"
+  unicode = ((e.found.charCodeAt 0).toString 16).toUpperCase()
+  unicode = "\\u#{"0000"[unicode.length..]}#{unicode}"
+  message = "Syntax error on line #{e.line}, column #{realColumn}: unexpected '#{found}' (#{unicode})"
   "#{message}\n#{pointToErrorLocation input, e.line, realColumn}"
 
 @pointToErrorLocation = pointToErrorLocation = (source, line, column, numLinesOfContext = 3) ->

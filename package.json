@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "mocha": "~1.6.0",
-    "pegjs": "git://github.com/dmajda/pegjs.git#a7584fa8784fa082db85c3c1b598870ad7ff4213",
+    "pegjs": "git://github.com/michaelficarra/CoffeeScriptRedux.git#pegjs",
     "browserify": "~1.16"
   },
   "dependencies": {

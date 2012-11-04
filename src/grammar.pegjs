@@ -370,6 +370,9 @@ prefixExpression
   / "-" ws:_ e:(expressionworthy / prefixExpression) { return new CS.UnaryNegateOp(e).r('-' + ws + e.raw).p(line, column, offset); }
   / o:("!" / NOT) ws:_ e:(expressionworthy / prefixExpression) { return new CS.LogicalNotOp(e).r(o + ws + e.raw).p(line, column, offset); }
   / "~" ws:_ e:(expressionworthy / prefixExpression) { return new CS.BitNotOp(e).r('~' + ws + e.raw).p(line, column, offset); }
+  / DO ws0:_ !unassignable a:identifier ws1:_ "=" ws2:_ f:functionLiteral {
+      return new CS.DoOp(new CS.AssignOp(a, f)).r('do' + ws0 + a.raw + ws1 + '+' + ws2 + f.raw).p(line, column, offset);
+    }
   / DO ws:_ e:(expressionworthy / prefixExpression) { return new CS.DoOp(e).r('do' + ws + e.raw).p(line, column, offset); }
   / TYPEOF ws:_ e:(expressionworthy / prefixExpression) { return new CS.TypeofOp(e).r('typeof' + ws + e.raw).p(line, column, offset); }
   / DELETE ws:_ e:(expressionworthy / prefixExpression) { return new CS.DeleteOp(e).r('delete' + ws + e.raw).p(line, column, offset); }

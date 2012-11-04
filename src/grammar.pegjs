@@ -474,7 +474,8 @@ memberExpression
         return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column, offset: offset};
       }
 primaryExpression
-  = Numbers
+  = macro
+  / Numbers
   / bool
   / null
   / undefined
@@ -817,6 +818,12 @@ implicitObjectLiteral
     = e:expression { return {value: e, raw: e.raw}; }
     / i:TERMINDENT o:implicitObjectLiteral d:DEDENT { return {value: o, raw: i + o.raw + d}; }
 
+// TODO: __FILENAME__
+macro
+  = r:"__LINE__" { return new CS.Int(line).r(r).p(line, column, offset); }
+  / r:"__DATE__" { return new CS.String(new Date().toDateString().slice(4)).r(r).p(line, column, offset); }
+  / r:"__TIME__" { return new CS.String(new Date().toTimeString().slice(0, 8)).r(r).p(line, column, offset); }
+  / r:"__DATETIMEMS__" { return new CS.Int(+new Date).r(r).p(line, column, offset); }
 
 bool
   = match:(TRUE / YES / ON) { return new CS.Bool(true).r(match).p(line, column, offset); }
@@ -1108,8 +1115,12 @@ CSKeywords
   = ("undefined" / "then" / "unless" / "until" / "loop" / "off" / "by" / "when" /
   "and" / "or" / "isnt" / "is" / "not" / "yes" / "no" / "on" / "of") !identifierPart
 
+StandardPredefinedMacros
+  = "__" ("FILENAME" / "LINE" / "DATETIMEMS" / "DATE" / "TIME") "__"
+
 reserved
-  = SharedKeywords
+  = StandardPredefinedMacros
+  / SharedKeywords
   / CSKeywords
   / JSKeywords
 

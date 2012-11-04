@@ -213,7 +213,7 @@ if options.help
   """
 
 else if options.version
-  pkg = require path.join __dirname, '..', '..', 'package.json'
+  pkg = require './../../package.json'
   console.log "CoffeeScript version #{pkg.version}"
 
 else if options.repl

@@ -392,7 +392,7 @@ class exports.Compiler
           # add a function wrapper
           block = [stmt new JS.UnaryExpression 'void', new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
       # generate node
-      pkg = require (require 'path').join __dirname, '..', '..', 'package.json'
+      pkg = require './../../package.json'
       program = new JS.Program block
       program.leadingComments = [
         type: 'Line'

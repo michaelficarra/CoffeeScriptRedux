@@ -24,17 +24,18 @@
     "test": "make -j test"
   },
   "devDependencies": {
-    "mocha": "~1.4.2",
-    "pegjs": "git://github.com/michaelficarra/CoffeeScriptRedux.git#pegjs"
+    "mocha": "~1.6.0",
+    "pegjs": "git://github.com/dmajda/pegjs.git#a7584fa8784fa082db85c3c1b598870ad7ff4213",
+    "browserify": "~1.16"
   },
   "dependencies": {
     "StringScanner": "~0.0.3"
   },
   "optionalDependencies": {
-    "uglify-js": "~1.3.3",
-    "source-map": "~0.1.2",
-    "escodegen": "~0.0.9",
-    "cscodegen": "~0.1.0"
+    "uglify-js": "~1.3.4",
+    "source-map": "~0.1.7",
+    "escodegen": "~0.0.12",
+    "cscodegen": "git://github.com/michaelficarra/cscodegen.git#73fd7202ac086c26f18c9d56f025b18b3c6f5383"
   },
   "engines": { "node": "0.6.x || 0.8.x" },
   "licenses": [

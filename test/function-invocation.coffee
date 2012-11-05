@@ -121,38 +121,52 @@ suite 'Function Invocation', ->
   #  ok obj.param is 101
   #  ok obj.rest.join(' ') is '102 103 104'
 
-  #test "Passing multiple functions without paren-wrapping is legal, and should compile.", ->
-  #  sum = (one, two) -> one() + two()
-  #  eq 20, sum ->
-  #    7 + 9
-  #  , ->
-  #    1 + 3
-  #  eq 16, sum -> 5 + 7, -> 2 + 3
-  #  eq 6, sum( ->
-  #    1 + 2
-  #  , ->
-  #    2 + 1
-  #  )
+  test "Passing multiple functions without paren-wrapping is legal, and should compile.", ->
+    sum = (one, two) -> one() + two()
+    eq 20, sum ->
+      7 + 9
+    , ->
+      1 + 3
+    eq 17, sum -> 5 + 7, -> 2 + 3
+    eq 6, sum( ->
+      1 + 2
+    , ->
+      2 + 1
+    )
 
   test "Implicit call with a trailing if statement as a param.", ->
     func = -> arguments[1]
     result = func 'one', if false then 100 else 13
     ok result is 13
 
-  #test "Test more function passing:", ->
-  #  sum = (one, two) -> one() + two()
-  #
-  #  result = sum( ->
-  #    1 + 2
-  #  , ->
-  #    2 + 1
-  #  )
-  #  ok result is 6
-  #
-  #  sum = (a, b) -> a + b
-  #  result = sum(1
-  #  , 2)
-  #  ok result is 3
+  test "Test more function passing:", ->
+    sum = (one, two) -> one() + two()
+
+    result = sum( ->
+      1 + 2
+    , ->
+      2 + 1
+    )
+    ok result is 6
+
+    sum = (a, b) -> a + b
+    result = sum(1
+    , 2)
+    ok result is 3
+
+  test "Test more function passing, this time without parens:", ->
+    sum = (one, two) -> one() + two()
+
+    result = sum ->
+      1 + 2
+    , ->
+      2 + 1
+    ok result is 6
+
+    sum = (a, b) -> a + b
+    result = sum 1
+    , 2
+    ok result is 3
 
   #test "Chained blocks, with proper indentation levels:", ->
   #  counter =

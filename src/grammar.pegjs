@@ -401,25 +401,32 @@ leftHandSideExpression = callExpression / newExpression
           };
       }
   argumentListContents
-    = e:argument es:(_ ("," / TERMINATOR) _ argument)* t:("," / TERMINATOR)? {
+    = e:argument es:(_ (TERM? _ "," _ TERMINATOR? INDENT* / TERMINATOR) _ argument DEDENT*)* t:("," _ DEDENT* TERMINATOR? / TERMINATOR)? {
         var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + t;
         return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
       }
-    / t0:TERMINDENT a:argumentListContents d:DEDENT t1:TERMINATOR? {
+    / t0:TERMINDENT a:argumentListContents d:DEDENT? t1:TERMINATOR? {
         return {list: a.list, raw: t0 + a.raw + d + t1};
       }
   argument
-    = spread
+    = t:TERMINDENT o:implicitObjectLiteral d:DEDENT { return o; }
+    / spread
     / expression
   secondaryArgumentList
-    = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERMINATOR? _ secondaryArgument)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
-        var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1] + obj[2].raw + obj[3] : '');
-        es = [e].concat(es.map(function(e){ return e[5]; }));
-        if(obj) es.push(obj[2]);
+    = ws0:__ !([+-/] __) e:secondaryArgument es:(secondaryArgumentRest)* {
+        var raw = ws0 + e.raw + es.map(function(e){ return e.raw; }).join('');
+        es = [e].concat(es.map(function(e){ return e.list[0]; }));
         return {list: es, raw: raw};
       }
     / t:TERMINDENT o:implicitObjectLiteral d:DEDENT {
         return {list: [o], raw: t + o.raw + d};
+      }
+  secondaryArgumentRest
+    = ws0:_ t0:TERM? ws1:_ "," ws2:_ t1:TERMINATOR? ws3:_ e:secondaryArgument {
+        return {list: [e], raw: ws0 + t0 + ws1 + "," + ws2 + t1 + ws3 + e.raw};
+      }
+    / ws0:_ t0:TERM? ws1:_ "," ws2:_ t1:TERMINDENT o:implicitObjectLiteral d:DEDENT {
+        return {list: [o], raw: ws0 + t0 + ws1 + "," + ws2 + t1 + o.raw + d};
       }
   secondaryArgument
     = spread

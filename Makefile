@@ -8,7 +8,7 @@ TESTS = $(shell find test -name "*.coffee" -type f | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare
-PEGJS = node_modules/.bin/pegjs --track-line-and-column --cache
+PEGJS = node_modules/.bin/pegjs --track-line-and-column --cache --export-var 'module.exports'
 MOCHA = node_modules/.bin/mocha --compilers coffee:. -u tdd
 BROWSERIFY = node_modules/.bin/browserify
 MINIFIER = node_modules/.bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window,CoffeeScript
@@ -32,11 +32,9 @@ lib/coffee-script/bootstrap: lib/coffee-script
 
 
 lib/coffee-script/parser.js: src/grammar.pegjs bootstraps lib/coffee-script
-	printf %s "module.exports = " >"$(@:%=%.tmp)"
-	$(PEGJS) <"$<" >>"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
+	$(PEGJS) <"$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
 lib/coffee-script/bootstrap/parser.js: src/grammar.pegjs lib/coffee-script/bootstrap
-	printf %s "module.exports = " >"$@"
-	$(PEGJS) <"$<" >>"$@"
+	$(PEGJS) <"$<" >"$@"
 lib/coffee-script/bootstrap/%.js: src/%.coffee lib/coffee-script/bootstrap
 	$(COFFEE) <"$<" >"$@"
 bootstraps: $(BOOTSTRAPS) lib/coffee-script/bootstrap

@@ -49,7 +49,7 @@ the project. Without you, I wouldn't be able to do this.
 * [Abakas](http://abakas.com)
 * [37signals](http://37signals.com)
 * [Brightcove](http://www.brightcove.com)
-* [Gaslight Software](http://gaslightsoftware.com)
+* [Gaslight](http://gaslight.co)
 * [Pantheon](https://www.getpantheon.com)
 * Benbria
 * Sam Stephenson

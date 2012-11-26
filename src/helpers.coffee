@@ -17,36 +17,36 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   ((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE/g, '(DEDENT)').replace /\uEFFF/g, '(TERM)'
 
 @formatParserError = (input, e) ->
-  # configure how many lines of context to display
-  numLinesOfContext = 3
-  if e.found?
-    lines = input.split '\n'
-    # figure out which lines are needed for context
-    currentLineOffset = e.line - 1
-    startLine = currentLineOffset - numLinesOfContext
-    if startLine < 0 then startLine = 0
-    # get the context lines
-    preLines = lines[startLine..currentLineOffset]
-    postLines = lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext]
-    numberedLines = (numberLines (cleanMarkers [preLines..., postLines...].join '\n'), startLine + 1).split '\n'
-    preLines = numberedLines[0...preLines.length]
-    postLines = numberedLines[preLines.length...]
-    # set the column number to the position of the error in the cleaned string
-    e.column = (cleanMarkers "#{lines[currentLineOffset]}\n"[...e.column]).length
-  found = if e.found?
-    "'#{(((JSON.stringify humanReadable e.found).replace /^"|"$/g, '').replace /'/g, '\\\'').replace /\\"/g, '"'}'"
-  else 'end of input'
-  message = "Syntax error on line #{e.line}, column #{e.column}: unexpected #{found}"
-  if e.found?
-    padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
-    message = [
-      message
-      preLines...
-      "#{(Array padSize + 1).join '^'} :~#{(Array e.column).join '~'}^"
-      postLines...
-    ].join '\n'
-  message
+  realColumn = (cleanMarkers "#{(input.split '\n')[e.line - 1]}\n"[...e.column]).length
+  unless e.found?
+    return "Syntax error on line #{e.line}, column #{realColumn}: unexpected end of input"
+  found = JSON.stringify humanReadable e.found
+  found = ((found.replace /^"|"$/g, '').replace /'/g, '\\\'').replace /\\"/g, '"'
+  unicode = ((e.found.charCodeAt 0).toString 16).toUpperCase()
+  unicode = "\\u#{"0000"[unicode.length..]}#{unicode}"
+  message = "Syntax error on line #{e.line}, column #{realColumn}: unexpected '#{found}' (#{unicode})"
+  "#{message}\n#{pointToErrorLocation input, e.line, realColumn}"
 
+@pointToErrorLocation = pointToErrorLocation = (source, line, column, numLinesOfContext = 3) ->
+  lines = source.split '\n'
+  # figure out which lines are needed for context
+  currentLineOffset = line - 1
+  startLine = currentLineOffset - numLinesOfContext
+  if startLine < 0 then startLine = 0
+  # get the context lines
+  preLines = lines[startLine..currentLineOffset]
+  postLines = lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext]
+  numberedLines = (numberLines (cleanMarkers [preLines..., postLines...].join '\n'), startLine + 1).split '\n'
+  preLines = numberedLines[0...preLines.length]
+  postLines = numberedLines[preLines.length...]
+  # set the column number to the position of the error in the cleaned string
+  column = (cleanMarkers "#{lines[currentLineOffset]}\n"[...column]).length
+  padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
+  [
+    preLines...
+    "#{(Array padSize + 1).join '^'} :~#{(Array column).join '~'}^"
+    postLines...
+  ].join '\n'
 
 # these are the identifiers that need to be declared when the given value is
 # being used as the target of an assignment

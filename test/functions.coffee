@@ -16,6 +16,10 @@ suite 'Function Literals', ->
       fn = () ->
       eq 'function', typeof fn
       eq undefined, fn()
+      fn = (->
+      )
+      eq 'function', typeof fn
+      eq undefined, fn()
 
     test 'multiple nested single-line functions', ->
       func = (x) -> (x) -> (x) -> x

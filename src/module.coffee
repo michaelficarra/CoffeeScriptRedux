@@ -13,7 +13,7 @@ uglifyjs = try require 'uglify-js'
 
 
 CoffeeScript = null
-pkg = require path.join __dirname, '..', '..', 'package.json'
+pkg = require './../../package.json'
 
 escodegenFormatDefaults =
   indent:

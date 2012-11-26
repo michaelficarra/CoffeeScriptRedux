@@ -370,6 +370,9 @@ prefixExpression
   / "-" ws:_ e:(expressionworthy / prefixExpression) { return new CS.UnaryNegateOp(e).r('-' + ws + e.raw).p(line, column, offset); }
   / o:("!" / NOT) ws:_ e:(expressionworthy / prefixExpression) { return new CS.LogicalNotOp(e).r(o + ws + e.raw).p(line, column, offset); }
   / "~" ws:_ e:(expressionworthy / prefixExpression) { return new CS.BitNotOp(e).r('~' + ws + e.raw).p(line, column, offset); }
+  / DO ws0:_ !unassignable a:identifier ws1:_ "=" ws2:_ f:functionLiteral {
+      return new CS.DoOp(new CS.AssignOp(a, f)).r('do' + ws0 + a.raw + ws1 + '+' + ws2 + f.raw).p(line, column, offset);
+    }
   / DO ws:_ e:(expressionworthy / prefixExpression) { return new CS.DoOp(e).r('do' + ws + e.raw).p(line, column, offset); }
   / TYPEOF ws:_ e:(expressionworthy / prefixExpression) { return new CS.TypeofOp(e).r('typeof' + ws + e.raw).p(line, column, offset); }
   / DELETE ws:_ e:(expressionworthy / prefixExpression) { return new CS.DeleteOp(e).r('delete' + ws + e.raw).p(line, column, offset); }
@@ -474,7 +477,8 @@ memberExpression
         return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column, offset: offset};
       }
 primaryExpression
-  = Numbers
+  = macro
+  / Numbers
   / bool
   / null
   / undefined
@@ -493,9 +497,9 @@ primaryExpression
       e.raw = '(' + t0 + e.raw + d + t1 + ')';
       return e;
     }
-  / "(" ws0:_ e:expression ws1:_ t:TERMINATOR? ")" {
+  / "(" ws0:_ e:expression ws1:_ t:TERMINATOR? ws2:_ ")" {
       e = e.clone();
-      e.raw = '(' + ws0 + e.raw + ws1 + t + ')';
+      e.raw = '(' + ws0 + e.raw + ws1 + t + ws2 + ')';
       return e;
     }
   contextVar
@@ -817,6 +821,12 @@ implicitObjectLiteral
     = e:expression { return {value: e, raw: e.raw}; }
     / i:TERMINDENT o:implicitObjectLiteral d:DEDENT { return {value: o, raw: i + o.raw + d}; }
 
+// TODO: __FILENAME__
+macro
+  = r:"__LINE__" { return new CS.Int(line).r(r).p(line, column, offset); }
+  / r:"__DATE__" { return new CS.String(new Date().toDateString().slice(4)).r(r).p(line, column, offset); }
+  / r:"__TIME__" { return new CS.String(new Date().toTimeString().slice(0, 8)).r(r).p(line, column, offset); }
+  / r:"__DATETIMEMS__" { return new CS.Int(+new Date).r(r).p(line, column, offset); }
 
 bool
   = match:(TRUE / YES / ON) { return new CS.Bool(true).r(match).p(line, column, offset); }
@@ -1108,8 +1118,12 @@ CSKeywords
   = ("undefined" / "then" / "unless" / "until" / "loop" / "off" / "by" / "when" /
   "and" / "or" / "isnt" / "is" / "not" / "yes" / "no" / "on" / "of") !identifierPart
 
+StandardPredefinedMacros
+  = "__" ("FILENAME" / "LINE" / "DATETIMEMS" / "DATE" / "TIME") "__"
+
 reserved
-  = SharedKeywords
+  = StandardPredefinedMacros
+  / SharedKeywords
   / CSKeywords
   / JSKeywords
 

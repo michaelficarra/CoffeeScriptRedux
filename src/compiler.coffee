@@ -843,6 +843,7 @@ class exports.Compiler
     [CS.Return, ({expression: e}) -> new JS.ReturnStatement expr e]
     [CS.Break, -> new JS.BreakStatement]
     [CS.Continue, -> new JS.ContinueStatement]
+    [CS.Debugger, -> new JS.DebuggerStatement]
 
     # straightforward operators
     [CS.ExpOp, ({left, right}) ->

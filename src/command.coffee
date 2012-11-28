@@ -366,7 +366,7 @@ else
     fs.stat options.input, (err, stats) ->
       throw err if err?
       if stats.isDirectory()
-        options.input = "#{options.input}/index.coffee"
+        options.input = path.join options.input, 'index.coffee'
       fs.readFile options.input, (err, contents) ->
         throw err if err?
         input = contents

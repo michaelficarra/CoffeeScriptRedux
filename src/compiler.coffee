@@ -92,7 +92,8 @@ makeReturn = (node) ->
     new JS.TryStatement (makeReturn node.block), (map node.handlers, makeReturn), if node.finalizer? then makeReturn node.finalizer else null
   else if node.instanceof JS.CatchClause
     new JS.CatchClause node.param, makeReturn node.body
-  else if node.instanceof JS.ThrowStatement, JS.ReturnStatement, JS.BreakStatement, JS.ContinueStatement then node
+  # These are CoffeeScript statements. They can't be used in expression position and they don't trigger auto-return behaviour in functions.
+  else if node.instanceof JS.ThrowStatement, JS.ReturnStatement, JS.BreakStatement, JS.ContinueStatement, JS.DebuggerStatement then node
   else if (node.instanceof JS.UnaryExpression) and node.operator is 'void' then new JS.ReturnStatement
   else new JS.ReturnStatement expr node
 

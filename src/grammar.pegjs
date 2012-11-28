@@ -136,6 +136,7 @@ statement
   / continue
   / break
   / throw
+  / debugger
 expression = expressionworthy / seqExpression
 
 secondaryStatement
@@ -144,6 +145,7 @@ secondaryStatement
   / continue
   / break
   / throw
+  / debugger
 // secondaryExpression forbids anything lower precedence than assignmentExpression
 secondaryExpression = expressionworthy / assignmentExpression
 
@@ -951,7 +953,7 @@ return
     }
 continue = CONTINUE { return (new CS.Continue).r('continue').p(line, column, offset); }
 break = BREAK { return (new CS.Break).r('break').p(line, column, offset); }
-
+debugger = DEBUGGER { return (new CS.Debugger).r('debugger').p(line, column, offset); }
 
 undefined = UNDEFINED { return (new CS.Undefined).r('undefined').p(line, column, offset); }
 null = NULL { return (new CS.Null).r('null').p(line, column, offset); }
@@ -1067,6 +1069,7 @@ CATCH = w:"catch" !identifierPart { return w; }
 CONTINUE = w:"continue" !identifierPart { return w; }
 CLASS = w:"class" !identifierPart { return w; }
 DELETE = w:"delete" !identifierPart { return w; }
+DEBUGGER = w:"debugger" !identifierPart { return w; }
 DO = w:"do" !identifierPart { return w; }
 ELSE = w:"else" !identifierPart { return w; }
 EXTENDS = w:"extends" !identifierPart { return w; }

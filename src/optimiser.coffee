@@ -84,7 +84,7 @@ mayHaveSideEffects =
       -> no
     ]
     [
-      CS.Break, CS.Continue, CS.DeleteOp, CS.NewOp, CS.Return, CS.Super
+      CS.Break, CS.Continue, CS.Debugger, CS.DeleteOp, CS.NewOp, CS.Return, CS.Super
       CS.PreDecrementOp, CS.PreIncrementOp, CS.PostDecrementOp, CS.PostIncrementOp
       CS.ClassProtoAssignOp, CS.Constructor, CS.Throw, CS.JavaScript, CS.ExtendsOp
       -> yes

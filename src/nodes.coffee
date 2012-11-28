@@ -97,6 +97,7 @@ createNodes
       []
       Break: null # :: Break
       Continue: null # :: Continue
+      Debugger: null # :: Debugger
       Return: [['expression']] # :: Maybe Exprs -> Return
       Throw: [['expression']] # :: Exprs -> Throw
     ]

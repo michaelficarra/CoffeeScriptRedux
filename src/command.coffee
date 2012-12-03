@@ -363,11 +363,14 @@ else
   # choose input source
 
   if options.input?
-    # TODO: handle directories
-    fs.readFile options.input, (err, contents) ->
+    fs.stat options.input, (err, stats) ->
       throw err if err?
-      input = contents
-      do processInput
+      if stats.isDirectory()
+        options.input = path.join options.input, 'index.coffee'
+      fs.readFile options.input, (err, contents) ->
+        throw err if err?
+        input = contents
+        do processInput
   else if options.watch?
     options.watch # TODO: watch
   else if options.cli?

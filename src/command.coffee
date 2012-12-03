@@ -4,6 +4,7 @@ path = require 'path'
 {numberLines, humanReadable} = require './helpers'
 {Preprocessor} = require './preprocessor'
 {Optimiser} = require './optimiser'
+{runMain} = require './run'
 CoffeeScript = require './module'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
@@ -331,40 +332,7 @@ else
 
     # --eval
     if options.eval
-      evalFn = -> (0;eval) js # TODO: rip off CoffeeScript.eval from jashkenas/coffee-script
-      domain = try require 'domain'
-      if domain?
-        d = domain.create()
-        d.on 'error', (err) ->
-          {SourceMapConsumer} = require 'source-map'
-          Error.prepareStackTrace = (err, stack) ->
-            sourceMap = new SourceMapConsumer CoffeeScript.sourceMap jsAST, inputSource
-            frames = stack.map (frame) ->
-              name = frame.getFunctionName() ? '(unknown)'
-              line = frame.getLineNumber()
-              column = frame.getColumnNumber()
-              filename = frame.getFileName()
-              if filename?
-                "  at #{name} (#{filename}:#{line}:#{column})"
-              else
-                source = sourceMap.originalPositionFor {line, column}
-                "  at #{name} (#{options.input ? '<input>'}:#{source.line}:#{source.column}, <js>:#{line}:#{column})"
-            errorPos = sourceMap.originalPositionFor {line: stack[0].getLineNumber(), column: stack[0].getColumnNumber()}
-            originalLine = input.split('\n')[errorPos.line - 1]
-            [
-              "ERROR: #{err.message}"
-              ''
-              "#{errorPos.line}: #{originalLine}"
-              "#{errorPos.line.toString().replace /./, '^'}: #{Array(errorPos.column).join '~'}^"
-              ''
-              frames.join '\n'
-            ].join '\n'
-          console.error err.stack
-        d.run evalFn
-      else
-        process.nextTick evalFn
-
-
+      runMain input, js, jsAST, inputSource
   # choose input source
 
   if options.input?

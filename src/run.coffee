@@ -110,19 +110,19 @@ exports.runMain = (csSource, jsSource, jsAst, filename) ->
   # up the main (command.coffee) module object instead of making a new one.
 
   # Set the filename.
-  mainModule.filename = process.argv[1] = fs.realpathSync(filename)
+  mainModule.filename = process.argv[1] = filename
 
   # Clear the module cache.
   # TODO: does this actually do anything? This isn't the cache...
   mainModule.moduleCache and= {}
 
   # Add the module to the cache with the right name so getSourceMapping finds it
-  module._cache[mainModule.filename] = mainModule
+  module._cache[filename] = mainModule
 
   # Assign paths for node_modules loading
-  mainModule.paths = require('module')._nodeModulePaths path.dirname fs.realpathSync filename
+  mainModule.paths = require('module')._nodeModulePaths path.dirname filename
 
-  runModule mainModule, jsSource, jsAst, mainModule.filename
+  runModule mainModule, jsSource, jsAst, filename
 
 runModule = (module, jsSource, jsAst, filename) ->
   patchStackTrace()

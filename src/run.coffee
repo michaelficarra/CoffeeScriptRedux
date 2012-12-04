@@ -16,31 +16,29 @@ CoffeeScript = require './module'
 # API. The following maybe should be in its own npm module that multiple
 # compilers can include.
 
-# The require.extensions hook adds a getSourceMap function to the module
-# object that returns the sourceMap file content for that module. The modified
-# stack trace formatter looks up the module by filename and uses the
-# sourceMap.
-
 patched = false
 patchStackTrace = ->
   return if patched
   patched = true
 
+  # Map of filenames -> functions that return a sourceMap string.
+  Module._sourceMaps = {}
+
+  # (Assigning to a property of the Module object in the normal module cache is
+  # unsuitable, because node deletes those objects from the cache if an
+  # exception is thrown in the module body.)
+
   Error.prepareStackTrace = (err, stack) ->
     sourceFiles = {}
 
     getSourceMapping = (filename, line, column) ->
-      mod = Module._cache[filename]
-      if mod and mod.getSourceMap
-        sourceMap = sourceFiles[filename] ?= new SourceMapConsumer mod.getSourceMap()
+      mapString = Module._sourceMaps[filename]?()
+      if mapString
+        sourceMap = sourceFiles[filename] ?= new SourceMapConsumer mapString
         sourceMap.originalPositionFor {line, column}
 
     frames = stack.map (frame) ->
-      try
-        "  at #{formatSourcePosition frame, getSourceMapping}"
-      catch e
-        console.log e
-        ''
+      "  at #{formatSourcePosition frame, getSourceMapping}"
 
     # TODO: Display a line of source? Not very useful, IMHO
     # "#{errorPos.line}: #{originalLine}"
@@ -120,8 +118,8 @@ exports.runMain = (csSource, jsSource, jsAst, filename) ->
 
 runModule = (module, jsSource, jsAst, filename) ->
   patchStackTrace()
-
-  module.getSourceMap = ->
+  
+  Module._sourceMaps[filename] = ->
     CoffeeScript.sourceMap jsAst, filename
 
   module._compile jsSource, filename

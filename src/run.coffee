@@ -37,7 +37,8 @@ patchStackTrace = ->
         sourceMap = sourceFiles[filename] ?= new SourceMapConsumer mapString
         sourceMap.originalPositionFor {line, column}
 
-    frames = stack.map (frame) ->
+    frames = for frame in stack
+      break if frame.getFunction() is exports.runMain
       "  at #{formatSourcePosition frame, getSourceMapping}"
 
     # TODO: Display a line of source? Not very useful, IMHO
@@ -45,8 +46,7 @@ patchStackTrace = ->
     # "#{errorPos.line.toString().replace /./, '^'}: #{Array(errorPos.column).join '~'}^"
     
     [
-      "ERROR: #{err.message}"
-      ""
+      "Error: #{err.message}"
       frames.join '\n'
     ].join '\n'
 

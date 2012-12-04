@@ -2,7 +2,7 @@
 
 fs = require 'fs'
 path = require 'path'
-module = require 'module'
+Module = require 'module'
 CoffeeScript = require './module'
 {SourceMapConsumer} = require 'source-map'
 
@@ -30,7 +30,7 @@ patchStackTrace = ->
     sourceFiles = {}
 
     getSourceMapping = (filename, line, column) ->
-      mod = module._cache[filename]
+      mod = Module._cache[filename]
       if mod and mod.getSourceMap
         sourceMap = sourceFiles[filename] ?= new SourceMapConsumer mod.getSourceMap()
         sourceMap.originalPositionFor {line, column}
@@ -104,23 +104,17 @@ formatSourcePosition = (frame, getSourceMapping) ->
 
 # Run JavaScript as a main program - resetting process.argv and module lookup paths
 exports.runMain = (csSource, jsSource, jsAst, filename) ->
-  mainModule = require.main
-
-  # This is what jashkenas/coffee-script does. I'm not sure why we're patching
-  # up the main (command.coffee) module object instead of making a new one.
-
-  # Set the filename.
+  mainModule = new Module('.')
   mainModule.filename = process.argv[1] = filename
 
-  # Clear the module cache.
-  # TODO: does this actually do anything? This isn't the cache...
-  mainModule.moduleCache and= {}
+  # Set it as the main module -- this is used for require.main
+  process.mainModule = mainModule
 
   # Add the module to the cache with the right name so getSourceMapping finds it
-  module._cache[filename] = mainModule
+  Module._cache[mainModule.filename] = mainModule
 
   # Assign paths for node_modules loading
-  mainModule.paths = require('module')._nodeModulePaths path.dirname filename
+  mainModule.paths = Module._nodeModulePaths path.dirname filename
 
   runModule mainModule, jsSource, jsAst, filename
 

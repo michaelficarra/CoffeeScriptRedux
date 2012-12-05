@@ -41,15 +41,7 @@ patchStackTrace = ->
       break if frame.getFunction() is exports.runMain
       "  at #{formatSourcePosition frame, getSourceMapping}"
 
-    # TODO: Display a line of source? Not very useful, IMHO
-    # "#{errorPos.line}: #{originalLine}"
-    # "#{errorPos.line.toString().replace /./, '^'}: #{Array(errorPos.column).join '~'}^"
-    
-    [
-      "Error: #{err.message}"
-      frames.join '\n'
-    ].join '\n'
-
+    "#{err.name}: #{err.message ? ''}\n#{frames.join '\n'}\n"
 
 # Based on http://v8.googlecode.com/svn/tags/3.9.9/src/messages.js
 # Modified to handle sourceMap
@@ -108,7 +100,7 @@ exports.runMain = (csSource, jsSource, jsAst, filename) ->
   # Set it as the main module -- this is used for require.main
   process.mainModule = mainModule
 
-  # Add the module to the cache with the right name so getSourceMapping finds it
+  # Add the module to the cache
   Module._cache[mainModule.filename] = mainModule
 
   # Assign paths for node_modules loading

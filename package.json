@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "mocha": "~1.6.0",
-    "pegjs": "git://github.com/dmajda/pegjs.git#ee1a0b5810c8369c76b4d55752862674ce46c381",
+    "pegjs": "git://github.com/dmajda/pegjs.git#bea6b1fde74c8aebf802f9bcc3380c65b241e1b7",
     "browserify": "~1.16"
   },
   "dependencies": {

@@ -70,7 +70,7 @@ var CS = require("./nodes"),
         var o = new F;
         // rather safely assumes access.op is returning non-Object
         access.op.apply(o, [left].concat(access.operands));
-        return o.r(left.raw + access.raw).p(access.line, access.column, access.offset);
+        return o.r(raw(offset)).p(access.line, access.column, access.offset);
       }, e, accesses);
     },
     isValidRegExpFlags = function(flags) {
@@ -95,6 +95,9 @@ var CS = require("./nodes"),
       if(indent) str = str.replace(new RegExp('\\n' + indent, 'g'), '\n');
       str = str.replace(/^\n/, '');
       return str;
+    },
+    raw = function(offset){
+      return input.substring(offset, pos.offset);
     };
 }
 
@@ -110,23 +113,21 @@ program
       var block;
       if(b) {
         block = b[1];
-        return new CS.Program(block).r(leader + b[0] + block.raw).p(line, column, offset);
+        return new CS.Program(block).r(raw(offset)).p(line, column, offset);
       } else {
-        return new CS.Program().r(leader).p(line, column, offset);
+        return new CS.Program().r(raw(offset)).p(line, column, offset);
       }
     }
 
 toplevelBlock
   = s:toplevelStatement ss:(_ TERMINATOR _ toplevelStatement)* term:TERMINATOR? {
-      var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
-      return new CS.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column, offset);
+      return new CS.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw(offset)).p(line, column, offset);
     }
   toplevelStatement = !(return / continue / break) s:statement { return s; }
 
 block
   = s:statement ss:(_ TERMINATOR _ statement)* term:TERMINATOR? {
-      var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
-      return new CS.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column, offset);
+      return new CS.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw(offset)).p(line, column, offset);
     }
 
 
@@ -166,22 +167,18 @@ expressionworthy
 seqExpression
   = left:postfixControlFlowExpression right:(_ ";" TERMINATOR? _ expression)? {
       if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[2] + right[3] + right[4].raw;
-      return new CS.SeqOp(left, right[4]).r(raw).p(line, column, offset);
+      return new CS.SeqOp(left, right[4]).r(raw(offset)).p(line, column, offset);
     }
 postfixControlFlowOp
-  = kw:(IF / UNLESS) ws:_ e:assignmentExpression { return {type: kw, cond: e, raw: kw + ws + e.raw}; }
-  / kw:(WHILE / UNTIL) ws:_ e:assignmentExpression { return {type: kw, cond: e, raw: kw + ws + e.raw}; }
+  = kw:(IF / UNLESS) ws:_ e:assignmentExpression { return {type: kw, cond: e}; }
+  / kw:(WHILE / UNTIL) ws:_ e:assignmentExpression { return {type: kw, cond: e}; }
   / FOR ws0:_ val:Assignable ws1:_ maybeKey:("," _ Assignable _)? IN ws2:_ list:assignmentExpression maybeStep:(_ BY _ assignmentExpression)? maybeFilter:(_ WHEN _ assignmentExpression)? {
       var key = maybeKey ? maybeKey[2] : null,
-          step = maybeStep ? maybeStep[3] : new CS.Int(1).r('1').g(),
+          step = maybeStep ? maybeStep[3] : new CS.Int(1).r(raw(offset)).g(),
           filter = maybeFilter ? maybeFilter[3] : null;
       return 0,
         { type: 'for-in'
         , val: val, key: key, list: list, step: step, filter: filter
-        , raw: 'for' + ws0 + val.raw + ws1 + (key ? maybeKey[0] + maybeKey[1] + key.raw + maybeKey[3] : '') +
-          'in' + ws2 + list.raw + (step ? maybeStep[0] + 'by' + maybeStep[2] + step.raw : '') +
-          (filter ? maybeFilter[0] + 'when' + maybeFilter[2] + filter.raw : '')
         };
     }
   / FOR ws0:_ maybeOwn:(OWN _)? key:Assignable ws1:_ maybeVal:("," _ Assignable _)? OF ws2:_ obj:assignmentExpression maybeFilter:(_ WHEN _ assignmentExpression)? {
@@ -191,37 +188,30 @@ postfixControlFlowOp
       return 0,
         { type: 'for-of'
         , own: own, key: key, val: val, obj: obj, filter: filter
-        , raw: 'for' + ws0 + (own ? 'own' + maybeOwn[1] : '') + key.raw + ws1 +
-          (val ? maybeVal[0] + maybeVal[1] + val.raw + maybeVal[3] : '') + 'of' + ws2 + obj.raw +
-          (filter ? maybeFilter[0] + 'when' + maybeFilter[2] + filter.raw : '')
         };
     }
 postfixControlFlowExpression
   = expr:secondaryStatement postfixes:(_ postfixControlFlowOp)* {
       return foldl(function(expr, postfixContainer){
-        var raw, constructor, cond,
+        var constructor, cond,
             ws = postfixContainer[0],
             postfix = postfixContainer[1],
             indicator = postfix.type;
         switch(indicator){
           case 'if':
           case 'unless':
-            raw = expr.raw + ws + postfix.raw;
             constructor = (indicator == 'unless') ? CS.NegatedConditional : CS.Conditional;
             cond = (indicator == 'unless') ? new CS.LogicalNotOp(postfix.cond).g() : postfix.cond;
-            return new constructor(cond, expr, null).r(raw).p(line, column, offset)
+            return new constructor(cond, expr, null).r(raw(offset)).p(line, column, offset)
           case 'while':
           case 'until':
-            raw = expr.raw + ws + postfix.raw;
             constructor = (indicator == 'until') ? CS.NegatedWhile : CS.While;
             cond = (indicator == 'until') ? new CS.LogicalNotOp(postfix.cond).g() : postfix.cond;
-            return new constructor(cond, expr).r(raw).p(line, column, offset)
+            return new constructor(cond, expr).r(raw(offset)).p(line, column, offset)
           case 'for-in':
-            raw = expr.raw + ws + postfix.raw;
-            return new CS.ForIn(postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, expr).r(raw).p(line, column, offset);
+            return new CS.ForIn(postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, expr).r(raw(offset)).p(line, column, offset);
           case 'for-of':
-            raw = expr.raw + ws + postfix.raw;
-            return new CS.ForOf(postfix.own, postfix.key, postfix.val, postfix.obj, postfix.filter, expr).r(raw).p(line, column, offset);
+            return new CS.ForOf(postfix.own, postfix.key, postfix.val, postfix.obj, postfix.filter, expr).r(raw(offset)).p(line, column, offset);
         }
       }, expr, postfixes)
     }
@@ -232,161 +222,143 @@ assignmentExpression
   / logicalOrExpression
   assignmentOp
     = left:Assignable ws0:_ "=" !"=" right:
-      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {raw: t + e.raw + d, expr: e}; }
-      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {raw: t + ws1 + e.raw, expr: e}; }
+      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {expr: e}; }
+      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {expr: e}; }
       ) {
-        var raw = left.raw + ws0 + '=' + right.raw;
-        return new CS.AssignOp(left, right.expr).r(raw).p(line, column, offset);
+        return new CS.AssignOp(left, right.expr).r(raw(offset)).p(line, column, offset);
       }
   CompoundAssignmentOperators
     = "**" / "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / AND / OR / "&&" / "||" / "&" / "^" / "|"
   compoundAssignmentOp
     = left:CompoundAssignable ws0:_ op:CompoundAssignmentOperators "=" right:
-      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {raw: t + e.raw + d, expr: e}; }
-      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {raw: t + ws1 + e.raw, expr: e}; }
+      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {expr: e}; }
+      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {expr: e}; }
       ) {
-        var raw = left.raw + ws0 + op + '=' + right.raw;
-        return new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right.expr).r(raw).p(line, column, offset);
+        return new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right.expr).r(raw(offset)).p(line, column, offset);
       }
   existsAssignmentOp
     = left:ExistsAssignable ws0:_ "?=" ws1:_ right:
-      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {raw: t + e.raw + d, expr: e}; }
-      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {raw: t + ws1 + e.raw, expr: e}; }
+      ( t:TERMINDENT e:secondaryExpression d:DEDENT { return {expr: e}; }
+      / t:TERMINATOR? ws1:_ e:secondaryExpression { return {expr: e}; }
       ) {
-        var raw = left.raw + ws0 + '?=' + right.raw;
-        return new CS.ExistsAssignOp(left, right.expr).r(raw).p(line, column, offset);
+        return new CS.ExistsAssignOp(left, right.expr).r(raw(offset)).p(line, column, offset);
       }
 logicalOrExpression
   = left:logicalAndExpression rights:(_ ("||" / OR) !"=" TERMINATOR? _ (expressionworthy / logicalAndExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-        return new CS.LogicalOrOp(expr, right[5]).r(raw).p(line, column, offset);
+        return new CS.LogicalOrOp(expr, right[5]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 logicalAndExpression
   = left:bitwiseOrExpression rights:(_ ("&&" / AND) !"=" TERMINATOR? _ (expressionworthy / bitwiseOrExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-        return new CS.LogicalAndOp(expr, right[5]).r(raw).p(line, column, offset);
+        return new CS.LogicalAndOp(expr, right[5]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 bitwiseOrExpression
   = left:bitwiseXorExpression rights:(_ "|" !"=" TERMINATOR? _ (expressionworthy / bitwiseXorExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-        return new CS.BitOrOp(expr, right[5]).r(raw).p(line, column, offset);
+        return new CS.BitOrOp(expr, right[5]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 bitwiseXorExpression
   = left:bitwiseAndExpression rights:(_ "^" !"=" TERMINATOR? _ (expressionworthy / bitwiseAndExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-        return new CS.BitXorOp(expr, right[5]).r(raw).p(line, column, offset);
+        return new CS.BitXorOp(expr, right[5]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 bitwiseAndExpression
   = left:existentialExpression rights:(_ "&" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-        return new CS.BitAndOp(expr, right[5]).r(raw).p(line, column, offset);
+        return new CS.BitAndOp(expr, right[5]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 existentialExpression
   = left:comparisonExpression right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))? {
       if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-      return new CS.ExistsOp(left, right[5]).r(raw).p(line, column, offset);
+      return new CS.ExistsOp(left, right[5]).r(raw(offset)).p(line, column, offset);
     }
 comparisonExpression
   = left:relationalExpression rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / relationalExpression))* {
       if(!rights) return left;
       var tree = foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1] + right[2] + right[3].raw;
-        return new constructorLookup[right[1]](expr, right[3]).r(raw).p(line, column, offset);
+        return new constructorLookup[right[1]](expr, right[3]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
-      return rights.length < 2 ? tree : new CS.ChainedComparisonOp(tree).r(tree.raw).p(line, column, offset);
+      return rights.length < 2 ? tree : new CS.ChainedComparisonOp(tree).r(raw(offset)).p(line, column, offset);
     }
 relationalExpression
   = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1].raw + right[2] + right[3] + right[4].raw;
-        return right[1](expr, right[4], raw, line, column, offset);
+        return right[1](expr, right[4], line, column, offset);
       }, left, rights);
     }
   relationalExpressionOperator
     = op:(EXTENDS / INSTANCEOF / IN / OF) {
-        var fn = function(left, right, raw, line, column, offset){
-          return new constructorLookup[op](left, right).r(raw).p(line, column, offset);
+        var fn = function(left, right, line, column, offset){
+          return new constructorLookup[op](left, right).r(raw(offset)).p(line, column, offset);
         };
-        fn.raw = op;
         return fn;
       }
     / NOT ws:_ op:(INSTANCEOF / IN / OF) {
-        var fn = function(left, right, raw, line, column, offset){
-          return new CS.LogicalNotOp(new constructorLookup[op](left, right).r(raw).p(line, column, offset)).r(raw).g();
+        var fn = function(left, right, line, column, offset){
+          return new CS.LogicalNotOp(new constructorLookup[op](left, right).r(raw(offset)).p(line, column, offset)).g();
         };
-        fn.raw = 'not' + ws + op;
         return fn;
       }
 bitwiseShiftExpression
   = left:additiveExpression rights:(_ ("<<" / ">>>" / ">>") !"=" TERMINATOR? _ (expressionworthy / additiveExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-        return new constructorLookup[right[1]](expr, right[5]).r(raw).p(line, column, offset);
+        return new constructorLookup[right[1]](expr, right[5]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 additiveExpression
   = left:multiplicativeExpression rights:(_ ("+" ![+=] / "-" ![-=]) TERMINATOR? _ (expressionworthy / multiplicativeExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = expr.raw + right[0] + right[1][0] + right[2] + right[3] + right[4].raw;
-        return new constructorLookup[right[1][0]](expr, right[4]).r(raw).p(line, column, offset);
+        return new constructorLookup[right[1][0]](expr, right[4]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 multiplicativeExpression
   = left:exponentiationExpression rights:(_ [*/%] !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))* {
       if(!rights) return left;
       return foldl(function(expr, right){
-        var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-        return new constructorLookup[right[1]](expr, right[5]).r(raw).p(line, column, offset);
+        return new constructorLookup[right[1]](expr, right[5]).r(raw(offset)).p(line, column, offset);
       }, left, rights);
     }
 exponentiationExpression
   = left:prefixExpression right:(_ "**" !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))? {
       if(!right) return left;
-      var raw = left.raw + right[0] + right[1] + right[3] + right[4] + right[5].raw;
-      return new CS.ExpOp(left, right[5]).r(raw).p(line, column, offset);
+      return new CS.ExpOp(left, right[5]).r(raw(offset)).p(line, column, offset);
     }
 prefixExpression
   = postfixExpression
-  / "++" ws:_ e:(expressionworthy / prefixExpression) { return new CS.PreIncrementOp(e).r('++' + ws + e.raw).p(line, column, offset); }
-  / "--" ws:_ e:(expressionworthy / prefixExpression) { return new CS.PreDecrementOp(e).r('--' + ws + e.raw).p(line, column, offset); }
-  / "+" ws:_ e:(expressionworthy / prefixExpression) { return new CS.UnaryPlusOp(e).r('+' + ws + e.raw).p(line, column, offset); }
-  / "-" ws:_ e:(expressionworthy / prefixExpression) { return new CS.UnaryNegateOp(e).r('-' + ws + e.raw).p(line, column, offset); }
-  / o:("!" / NOT) ws:_ e:(expressionworthy / prefixExpression) { return new CS.LogicalNotOp(e).r(o + ws + e.raw).p(line, column, offset); }
-  / "~" ws:_ e:(expressionworthy / prefixExpression) { return new CS.BitNotOp(e).r('~' + ws + e.raw).p(line, column, offset); }
+  / "++" ws:_ e:(expressionworthy / prefixExpression) { return new CS.PreIncrementOp(e).r(raw(offset)).p(line, column, offset); }
+  / "--" ws:_ e:(expressionworthy / prefixExpression) { return new CS.PreDecrementOp(e).r(raw(offset)).p(line, column, offset); }
+  / "+" ws:_ e:(expressionworthy / prefixExpression) { return new CS.UnaryPlusOp(e).r(raw(offset)).p(line, column, offset); }
+  / "-" ws:_ e:(expressionworthy / prefixExpression) { return new CS.UnaryNegateOp(e).r(raw(offset)).p(line, column, offset); }
+  / o:("!" / NOT) ws:_ e:(expressionworthy / prefixExpression) { return new CS.LogicalNotOp(e).r(raw(offset)).p(line, column, offset); }
+  / "~" ws:_ e:(expressionworthy / prefixExpression) { return new CS.BitNotOp(e).r(raw(offset)).p(line, column, offset); }
   / DO ws0:_ !unassignable a:identifier ws1:_ "=" ws2:_ f:functionLiteral {
-      return new CS.DoOp(new CS.AssignOp(a, f)).r('do' + ws0 + a.raw + ws1 + '+' + ws2 + f.raw).p(line, column, offset);
+      return new CS.DoOp(new CS.AssignOp(a, f)).r(raw(offset)).p(line, column, offset);
     }
-  / DO ws:_ e:(expressionworthy / prefixExpression) { return new CS.DoOp(e).r('do' + ws + e.raw).p(line, column, offset); }
-  / TYPEOF ws:_ e:(expressionworthy / prefixExpression) { return new CS.TypeofOp(e).r('typeof' + ws + e.raw).p(line, column, offset); }
-  / DELETE ws:_ e:(expressionworthy / prefixExpression) { return new CS.DeleteOp(e).r('delete' + ws + e.raw).p(line, column, offset); }
+  / DO ws:_ e:(expressionworthy / prefixExpression) { return new CS.DoOp(e).r(raw(offset)).p(line, column, offset); }
+  / TYPEOF ws:_ e:(expressionworthy / prefixExpression) { return new CS.TypeofOp(e).r(raw(offset)).p(line, column, offset); }
+  / DELETE ws:_ e:(expressionworthy / prefixExpression) { return new CS.DeleteOp(e).r(raw(offset)).p(line, column, offset); }
 postfixExpression
   = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
       return foldl(function(expr, op){
-        var raw;
         switch(op){
-          case '?': return new CS.UnaryExistsOp(expr).r(expr.raw + op).p(line, column, offset)
-          case '[..]': return new CS.ShallowCopyArray(expr).r(expr.raw + op).p(line, column, offset)
-          case '++': return new CS.PostIncrementOp(expr).r(expr.raw + op).p(line, column, offset)
-          case '--': return new CS.PostDecrementOp(expr).r(expr.raw + op).p(line, column, offset)
+          case '?': return new CS.UnaryExistsOp(expr).r(raw(offset)).p(line, column, offset)
+          case '[..]': return new CS.ShallowCopyArray(expr).r(raw(offset)).p(line, column, offset)
+          case '++': return new CS.PostIncrementOp(expr).r(raw(offset)).p(line, column, offset)
+          case '--': return new CS.PostDecrementOp(expr).r(raw(offset)).p(line, column, offset)
         }
       }, expr, ops);
     }
@@ -396,7 +368,6 @@ leftHandSideExpression = callExpression / newExpression
         return 0,
           { op: soaked ? CS.SoakedFunctionApplication : CS.FunctionApplication
           , operands: [a ? a.list : []]
-          , raw: '(' + ws0 + (a ? a.raw : '') + ws1 + ')'
           , line: line
           , column: column
           , offset: offset
@@ -404,24 +375,22 @@ leftHandSideExpression = callExpression / newExpression
       }
   argumentListContents
     = e:argument es:(_ ("," / TERMINATOR) _ argument)* t:("," / TERMINATOR)? {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('') + t;
-        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[3]; }))};
       }
     / t0:TERMINDENT a:argumentListContents d:DEDENT t1:TERMINATOR? {
-        return {list: a.list, raw: t0 + a.raw + d + t1};
+        return {list: a.list};
       }
   argument
     = spread
     / expression
   secondaryArgumentList
     = ws0:__ !([+-/] __) e:secondaryArgument es:(_ "," _ TERMINATOR? _ secondaryArgument)* obj:(","? TERMINDENT implicitObjectLiteral DEDENT)? {
-        var raw = ws0 + e.raw + es.map(function(e){ return e[0] + ',' + e[2] + e[3] + e[4] + e[5].raw; }).join('') + (obj ? obj[0] + obj[1] + obj[2].raw + obj[3] : '');
         es = [e].concat(es.map(function(e){ return e[5]; }));
         if(obj) es.push(obj[2]);
-        return {list: es, raw: raw};
+        return {list: es};
       }
     / t:TERMINDENT o:implicitObjectLiteral d:DEDENT {
-        return {list: [o], raw: t + o.raw + d};
+        return {list: [o]};
       }
   secondaryArgument
     = spread
@@ -433,29 +402,28 @@ callExpression
       if(secondaryArgs) {
         soaked = secondaryArgs[0];
         secondaryCtor = soaked ? CS.SoakedFunctionApplication : CS.FunctionApplication;
-        fn = new secondaryCtor(fn, secondaryArgs[1].list).r(fn.raw + secondaryArgs[1].raw).p(line, column, offset);
+        fn = new secondaryCtor(fn, secondaryArgs[1].list).r(raw(offset)).p(line, column, offset);
       }
       return fn;
     }
 newExpression
   = memberExpression
   / NEW ws:__ e:(expressionworthy / newExpression / prefixExpression) {
-      return new CS.NewOp(e, []).r('new' + ws + e.raw).p(line, column, offset);
+      return new CS.NewOp(e, []).r(raw(offset)).p(line, column, offset);
     }
 memberExpression
   = e:
     ( primaryExpression
-    / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r('new' + ws0 + e + args.raw).p(line, column, offset); }
+    / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r(raw(offset)).p(line, column, offset); }
     ) accesses:MemberAccessOps* {
       return createMemberExpression(e, accesses || []);
     }
   / NEW ws0:__ e:memberExpression args:secondaryArgumentList {
-      var raw = 'new' + ws0 + e.raw + args.raw;
-      return new CS.NewOp(e, args.list).r(raw).p(line, column, offset);
+      return new CS.NewOp(e, args.list).r(raw(offset)).p(line, column, offset);
     }
   memberAccess
     = e:( primaryExpression
-      / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r('new' + ws0 + e + args.raw).p(line, column, offset); }
+      / NEW ws0:__ e:memberExpression args:argumentList { return new CS.NewOp(e, args.operands[0]).r(raw(offset)).p(line, column, offset); }
       ) accesses:(argumentList MemberAccessOps / MemberAccessOps)+ {
         var acc = foldl(function(memo, a){ return memo.concat(a); }, [], accesses);
         return createMemberExpression(e, acc);
@@ -463,20 +431,18 @@ memberExpression
   MemberNames
     = identifierName
   MemberAccessOps
-    = ws0:TERMINATOR? ws1:_ "." ws2:TERMINATOR? ws3:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], raw: ws0 + ws1 + '.' + ws2 + ws3 + e, line: line, column: column, offset: offset}; }
-    / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], raw: '?.' + ws + e, line: line, column: column, offset: offset}; }
-    / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], raw: '[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
-    / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], raw: '?[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
-    / "::" ws:_ e:MemberNames { return {op: CS.ProtoMemberAccessOp, operands: [e], raw: '::' + ws + e, line: line, column: column, offset: offset}; }
-    / "::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicProtoMemberAccessOp, operands: [e], raw: '::[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
-    / "?::" ws:_ e:MemberNames { return {op: CS.SoakedProtoMemberAccessOp, operands: [e], raw: '?::' + ws + e, line: line, column: column, offset: offset}; }
-    / "?::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicProtoMemberAccessOp, operands: [e], raw: '?::[' + ws0 + e + ws1 + ']', line: line, column: column, offset: offset}; }
+    = ws0:TERMINATOR? ws1:_ "." ws2:TERMINATOR? ws3:_ e:MemberNames { return {op: CS.MemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
+    / "?." ws:_ e:MemberNames { return {op: CS.SoakedMemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
+    / "[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicMemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
+    / "?[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicMemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
+    / "::" ws:_ e:MemberNames { return {op: CS.ProtoMemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
+    / "::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.DynamicProtoMemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
+    / "?::" ws:_ e:MemberNames { return {op: CS.SoakedProtoMemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
+    / "?::[" ws0:_ e:expression ws1:_ "]" { return {op: CS.SoakedDynamicProtoMemberAccessOp, operands: [e], line: line, column: column, offset: offset}; }
     / "[" ws0:_ maybeLeft:(assignmentExpression _)? ".." exclusive:"."? ws1:_ maybeRight:(assignmentExpression _)? "]" {
         var left = maybeLeft ? maybeLeft[0] : null,
             right = maybeRight ? maybeRight[0] : null;
-        var raw = '[' + ws0 + (left ? left.raw + maybeLeft[1] : '') + '..' + exclusive +
-          ws1 + (right ? right.raw + maybeRight[1] : '') + ']';
-        return {op: CS.Slice, operands: [!exclusive, left, right], raw: raw, line: line, column: column, offset: offset};
+        return {op: CS.Slice, operands: [!exclusive, left, right], line: line, column: column, offset: offset};
       }
 primaryExpression
   = macro
@@ -485,7 +451,7 @@ primaryExpression
   / null
   / undefined
   / contextVar
-  / r:(THIS / "@") { return (new CS.This).r(r).p(line, column, offset); }
+  / r:(THIS / "@") { return (new CS.This).r(raw(offset)).p(line, column, offset); }
   / identifier
   / range
   / arrayLiteral
@@ -496,88 +462,80 @@ primaryExpression
   / regexp
   / "(" t0:TERMINDENT e:expression d:DEDENT t1:TERMINATOR? ")" {
       e = e.clone();
-      e.raw = '(' + t0 + e.raw + d + t1 + ')';
       return e;
     }
   / "(" ws0:_ e:expression ws1:_ t:TERMINATOR? ws2:_ ")" {
       e = e.clone();
-      e.raw = '(' + ws0 + e.raw + ws1 + t + ws2 + ')';
       return e;
     }
   contextVar
     = "@" m:MemberNames {
-        return new CS.MemberAccessOp((new CS.This).r("@").p(line, column, offset), m).r("@" + m).p(line, column, offset);
+        return new CS.MemberAccessOp((new CS.This).r(raw(offset)).p(line, column, offset), m).r(raw(offset)).p(line, column, offset);
       }
   JSLiteral
     = "`" data:[^`]* "`" {
         data = data.join('');
-        return new CS.JavaScript(data).r('`' + data + '`').p(line, column, offset);
+        return new CS.JavaScript(data).r(raw(offset)).p(line, column, offset);
       }
 
 spread
   = e:postfixExpression "..." {
-      return new CS.Spread(e).r(e.raw + "...").p(line, column, offset);
+      return new CS.Spread(e).r(raw(offset)).p(line, column, offset);
     }
 
 
 conditional
   = kw:(IF / UNLESS) ws0:_ cond:assignmentExpression body:conditionalBody elseClause:elseClause? {
-      var raw = kw + ws0 + cond.raw + body.raw + (elseClause ? elseClause.raw : '');
       var constructor = kw == 'unless' ? CS.NegatedConditional : CS.Conditional;
       if(kw == 'unless') cond = new CS.LogicalNotOp(cond).g();
       var elseBlock = elseClause ? elseClause.block : null;
-      return new constructor(cond, body.block, elseBlock).r(raw).p(line, column, offset);
+      return new constructor(cond, body.block, elseBlock).r(raw(offset)).p(line, column, offset);
     }
   conditionalBody
-    = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b, raw: t + b.raw + d}; }
+    = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b}; }
     / t:TERMINATOR? ws0:_ THEN ws1:_ s:statement {
-        return {block: s, raw: ws0 + t + 'then' + ws1 + s.raw};
+        return {block: s};
       }
     / ws:_ THEN {
-        return {block: null, raw: ws + 'then'};
+        return {block: null};
       }
-  elseClause = ws0:_ term:TERMINATOR? ws1:_ ELSE b:elseBody { return {block: b.block, raw: ws0 + term + ws1 + 'else' + b.raw}; }
+  elseClause = ws0:_ term:TERMINATOR? ws1:_ ELSE b:elseBody { return {block: b.block}; }
   elseBody = functionBody
 
 
 while
   = kw:(WHILE / UNTIL) ws:_ cond:assignmentExpression body:whileBody {
-      var raw = kw + ws + cond.raw + body.raw;
       var constructor = kw == 'until' ? CS.NegatedWhile : CS.While;
       if(kw == 'until') cond = new CS.LogicalNotOp(cond).g();
-      return new constructor(cond, body.block).r(raw).p(line, column, offset);
+      return new constructor(cond, body.block).r(raw(offset)).p(line, column, offset);
     }
   whileBody = conditionalBody
 
 
 loop
   = LOOP body:whileBody {
-      return new CS.Loop(body.block).r('loop' + body.raw).p(line, column, offset);
+      return new CS.Loop(body.block).r(raw(offset)).p(line, column, offset);
     }
 
 
 try
   = TRY body:tryBody c:catchClause? f:finallyClause? {
-      var raw = 'try' + body.block + (c ? c.raw : '') + (f ? f.raw : '');
-      return new CS.Try(body.block, c ? c.assignee : null, c ? c.block : null, f ? f.block : null).r(raw).p(line, column, offset);
+      return new CS.Try(body.block, c ? c.assignee : null, c ? c.block : null, f ? f.block : null).r(raw(offset)).p(line, column, offset);
     }
   tryBody = functionBody / conditionalBody
   catchClause
     = t:TERMINATOR? ws0:_ CATCH ws1:_ e:Assignable body:conditionalBody {
-      return {block: body.block, assignee: e, raw: t + ws0 + 'catch' + ws1 + e.raw + body.raw};
+      return {block: body.block, assignee: e};
     }
   finallyClause
     = t:TERMINATOR? ws:_ FINALLY body:tryBody {
-      return {block: body.block, raw: t + ws + 'finally' + body.raw};
+      return {block: body.block};
     }
 
 
 class
   = CLASS name:(_ Assignable)? parent:(_ EXTENDS _ extendee)? body:classBody {
       var ctor = null;
-      var raw = 'class' + (name ? name[0] + name[1].raw : '') +
-        (parent ? parent[0] + 'parent' + parent[2] + parent[3].raw : '') +
-        body.raw;
       name = name ? name[1] : null;
       parent = parent ? parent[3] : null;
       var boundMembers = [];
@@ -590,7 +548,7 @@ class
           boundMembers.push(m);
         }
       }
-      return new CS.Class(name, parent, ctor, body.block, boundMembers).r(raw).p(line, column, offset);
+      return new CS.Class(name, parent, ctor, body.block, boundMembers).r(raw(offset)).p(line, column, offset);
     }
   extendee
     = expressionworthy
@@ -603,17 +561,16 @@ class
         return fn;
       }
   classBody
-    = ws:_ t:TERMINDENT b:classBlock d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }
+    = ws:_ t:TERMINDENT b:classBlock d:DEDENT { return {block: b}; }
     / ws0:_ t:THEN ws1:_ s:classStatement {
-        return {block: s, raw: ws0 + t + ws1 + s.raw};
+        return {block: s};
       }
     / all:(_ THEN)? {
-        return {block: null, raw: all ? all[0] + all[1] : ''};
+        return {block: null};
       }
   classBlock
     = s:classStatement ss:(_ TERMINATOR _ classStatement)* term:TERMINATOR? {
-        var raw = s.raw + ss.map(function(s){ return s[0] + s[1] + s[2] + s[3].raw; }).join('') + term;
-        return new CS.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw).p(line, column, offset);
+        return new CS.Block([s].concat(ss.map(function(s){ return s[3]; }))).r(raw(offset)).p(line, column, offset);
       }
   classStatement
     = classProtoAssignment
@@ -622,94 +579,72 @@ class
     / expression
   constructor
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:
-      ( t:TERMINDENT e:expression d:DEDENT { return {raw: t + e.raw + d, expr: e}; }
-      / t:TERMINATOR? ws1:_ e:expression { return {raw: t + ws1 + e.raw, expr: e}; }
+      ( t:TERMINDENT e:expression d:DEDENT { return {expr: e}; }
+      / t:TERMINATOR? ws1:_ e:expression { return {expr: e}; }
       ) {
         if(!key.instanceof(CS.String, CS.Identifier) || key.data !== 'constructor') return null;
-        var raw = key.raw + ws0 + ":" + ws1 + e.raw;
         e = e.expr;
         if(e.instanceof(CS.BoundFunction))
-          e = new CS.Function(e.parameters, e.block).r(e.raw).p(e.line, e.column);
-        return new CS.Constructor(e).r(raw).p(line, column, offset);
+          e = new CS.Function(e.parameters, e.block).r(raw(offset)).p(e.line, e.column);
+        return new CS.Constructor(e).r(raw(offset)).p(line, column, offset);
       }
   staticAssignment
     = key:contextVar ws0:_ ":" ws1:_ e:expression {
-        var raw = key.raw + ws0 + ":" + ws1 + e.raw;
-        return new CS.AssignOp(key, e).r(raw).p(line, column, offset);
+        return new CS.AssignOp(key, e).r(raw(offset)).p(line, column, offset);
       }
   classProtoAssignment
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ e:
-      ( t:TERMINDENT e:expression d:DEDENT { return {raw: t + e.raw + d, expr: e}; }
-      / t:TERMINATOR? ws1:_ e:expression { return {raw: t + ws1 + e.raw, expr: e}; }
+      ( t:TERMINDENT e:expression d:DEDENT { return {expr: e}; }
+      / t:TERMINATOR? ws1:_ e:expression { return {expr: e}; }
       ) {
         if(key.data === 'constructor') return null;
-        var raw = key.raw + ws0 + ":" + ws1 + e.raw;
-        return new CS.ClassProtoAssignOp(key, e.expr).r(raw).p(line, column, offset);
+        return new CS.ClassProtoAssignOp(key, e.expr).r(raw(offset)).p(line, column, offset);
       }
 
 
 forBody = conditionalBody
 forOf
   = FOR ws0:_ own:(OWN _)? key:Assignable ws1:_ maybeVal:("," _ Assignable _)? OF ws2:_ obj:assignmentExpression ws3:_ maybeFilter:(WHEN _ assignmentExpression _)? body:forBody {
-      var raw = 'for' + ws0 + (own ? 'own' + own[1] : '') + key.raw + ws1 +
-        (maybeVal ? ',' + maybeVal[1] + maybeVal[2].raw + maybeVal[3] : '') +
-        'of' + ws2 + obj.raw + ws3 +
-        (maybeFilter ? 'when' + maybeFilter[1] + maybeFilter[2].raw + maybeFilter[3] : '') +
-        body.raw;
       var val = maybeVal ? maybeVal[2] : null;
       var filter = maybeFilter ? maybeFilter[2] : null;
-      return new CS.ForOf(!!own, key, val, obj, filter, body.block).r(raw).p(line, column, offset);
+      return new CS.ForOf(!!own, key, val, obj, filter, body.block).r(raw(offset)).p(line, column, offset);
     }
 forIn
   = FOR ws0:_ val:Assignable ws1:_ maybeKey:("," _ Assignable _)? IN ws2:_ list:assignmentExpression ws3:_ maybeStep:(BY _ assignmentExpression _)? maybeFilter:(WHEN _ assignmentExpression _)? body:forBody {
-      var raw = 'for' + ws0 + val.raw + ws1 +
-        (maybeKey ? ',' + maybeKey[1] + maybeKey[2].raw + maybeKey[3] : '') +
-        'in' + ws2 + list.raw + ws3 +
-        (maybeStep ? 'by' + maybeStep[1] + maybeStep[2].raw + maybeStep[3] : '') +
-        (maybeFilter ? 'when' + maybeFilter[1] + maybeFilter[2].raw + maybeFilter[3] : '') +
-        body.raw;
       var key = maybeKey ? maybeKey[2] : null;
-      var step = maybeStep ? maybeStep[2] : new CS.Int(1).r('1').g();
+      var step = maybeStep ? maybeStep[2] : new CS.Int(1).r(raw(offset)).g();
       var filter = maybeFilter ? maybeFilter[2] : null;
-      return new CS.ForIn(val, key, list, step, filter, body.block).r(raw).p(line, column, offset);
+      return new CS.ForIn(val, key, list, step, filter, body.block).r(raw(offset)).p(line, column, offset);
     }
 
 switch
   = SWITCH ws:_ e:(expressionworthy / assignmentExpression)? body:switchBody {
-      var raw = 'switch' + ws + (e ? e.raw : '') + body.raw;
-      return new CS.Switch(e || null, body.cases, body['else'] || null).r(raw).p(line, column, offset);
+      return new CS.Switch(e || null, body.cases, body['else'] || null).r(raw(offset)).p(line, column, offset);
     }
   switchBody
-    = ws:_ t:TERMINDENT b:switchBlock d:DEDENT { return {cases: b.cases, 'else': b['else'], raw: ws + t + b.raw + d}; }
-    / ws0:_ t:THEN ws1:_ c:case { return {cases: [c], raw: ws0 + t + ws1 + c.raw}; }
-    / ws:_ THEN { return {cases: [], raw: ws + 'then'}; }
+    = ws:_ t:TERMINDENT b:switchBlock d:DEDENT { return {cases: b.cases, 'else': b['else']}; }
+    / ws0:_ t:THEN ws1:_ c:case { return {cases: [c]}; }
+    / ws:_ THEN { return {cases: []}; }
   switchBlock
     = w:case ws:(_ TERMINATOR _ case)* elseClause:(_ TERMINATOR _ elseClause)? term:TERMINATOR? {
-        var raw = w.raw + ws.map(function(w){ return w[0] + w[1] + w[2] + w[3].raw; }).join('') +
-          (elseClause ? elseClause[0] + elseClause[1] + elseClause[2] + elseClause[3].raw : '') + term;
         var cases = [w].concat(ws.map(function(w){ return w[3]; }));
-        return {cases: cases, 'else': elseClause ? elseClause[3].block : null, raw: raw};
+        return {cases: cases, 'else': elseClause ? elseClause[3].block : null};
       }
   case
     = WHEN ws:_ conditions:caseConditions body:caseBody {
-        var raw = 'when' + ws + conditions.raw + body.raw
-        return new CS.SwitchCase(conditions.list, body.block).r(raw).p(line, column, offset);
+        return new CS.SwitchCase(conditions.list, body.block).r(raw(offset)).p(line, column, offset);
       }
   caseCondition = assignmentExpression
   caseConditions
     = c:caseCondition cs:(_ "," _ caseCondition)* {
-        var raw = c.raw + cs.map(function(c){ return c[0] + c[1] + c[2] + c[3].raw; }).join('');
-        return {list: [c].concat(cs.map(function(c){ return c[3]; })), raw: raw};
+        return {list: [c].concat(cs.map(function(c){ return c[3]; }))};
       }
   caseBody = conditionalBody
 
 
 functionLiteral
-  = params:("(" _ (td:TERMINDENT p:parameterList d:DEDENT t:TERMINATOR { return {e: p, raw: td + p.raw + d + t}; } / p:parameterList { return {e: p, raw: p.raw}; })? _ ")" _)?  arrow:("->" / "=>") body:functionBody? {
-      if(!body) body = {block: null, raw: ''};
-      var raw =
-        (params ? params[0] + params[1] + (params[2] && params[2].raw) + params[3] + params[4] + params[5] : '') +
-        arrow + body.raw;
+  = params:("(" _ (td:TERMINDENT p:parameterList d:DEDENT t:TERMINATOR { return {e: p}; } / p:parameterList { return {e: p}; })? _ ")" _)?  arrow:("->" / "=>") body:functionBody? {
+      if(!body) body = {block: null};
       var constructor;
       switch(arrow) {
         case '->': constructor = CS.Function; break;
@@ -717,49 +652,44 @@ functionLiteral
         default: throw new Error('parsed function arrow ("' + arrow + '") not associated with a constructor');
       }
       params = params && params[2] && params[2].e ? params[2].e.list : [];
-      return new constructor(params, body.block).r(raw).p(line, column, offset);
+      return new constructor(params, body.block).r(raw(offset)).p(line, column, offset);
     }
   functionBody
-    = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b, raw: ws + t + b.raw + d}; }
+    = ws:_ t:TERMINDENT b:block d:DEDENT { return {block: b}; }
     / ws:_ s:statement {
-        return {block: s, raw: ws + s.raw};
+        return {block: s};
       }
   parameter
     = param:Assignable ws0:_ "=" ws1:_ default_:secondaryExpression {
-        var raw = param.raw + ws0 + '=' + ws1 + default_.raw;
-        return new CS.DefaultParam(param, default_).r(raw).p(line, column, offset);
+        return new CS.DefaultParam(param, default_).r(raw(offset)).p(line, column, offset);
       }
     / rest
     rest
       = a:Assignable rest:"..."? {
-          return (rest ? new CS.Rest(a) : a).r(a.raw + rest).p(line, column, offset);
+          return (rest ? new CS.Rest(a) : a).r(raw(offset)).p(line, column, offset);
         }
   parameterList
     = e:parameter es:(_ (c:"," t:TERMINATOR? { return c + t; } / TERMINATOR) _ parameter)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
-        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[3]; }))};
       }
 
 
 range
   = "[" ws0:_ left:secondaryExpression ws1:_ ".." exclusiveDot:"."? ws2:_ right:secondaryExpression ws3:_ "]" {
-      var raw = '[' + ws0 + left.raw + ws1 + '..' + exclusiveDot + ws2 + right.raw + ws3 + ']';
       var inclusive = !exclusiveDot;
-      return new CS.Range(inclusive, left, right).r(raw).p(line, column, offset);
+      return new CS.Range(inclusive, left, right).r(raw(offset)).p(line, column, offset);
     }
 
 arrayLiteral
   = "[" members:arrayLiteralBody t:TERMINATOR? ws:_ "]" {
-      var raw = "[" + members.raw + t + ws + "]";
-      return new CS.ArrayInitialiser(members.list).r(raw).p(line, column, offset);
+      return new CS.ArrayInitialiser(members.list).r(raw(offset)).p(line, column, offset);
     }
   arrayLiteralBody
-    = t:TERMINDENT members:arrayLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
-    / ws:_ members:arrayLiteralMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
+    = t:TERMINDENT members:arrayLiteralMemberList d:DEDENT { return {list: members.list}; }
+    / ws:_ members:arrayLiteralMemberList? { return {list: members ? members.list : []}; }
   arrayLiteralMemberList
     = e:arrayLiteralMember ws:_ es:(arrayLiteralMemberSeparator _ arrayLiteralMember _)* trail:arrayLiteralMemberSeparator? {
-        var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
-        return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[2]; }))};
       }
   arrayLiteralMember
     = spread
@@ -774,73 +704,68 @@ arrayLiteral
 
 objectLiteral
   = "{" members:objectLiteralBody t:TERMINATOR? ws:_ "}" {
-    var raw = '{' + members.raw + t + ws + '}'
-    return new CS.ObjectInitialiser(members.list).r(raw).p(line, column, offset);
+    return new CS.ObjectInitialiser(members.list).r(raw(offset)).p(line, column, offset);
   }
   objectLiteralBody
-    = t:TERMINDENT members:objectLiteralMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
-    / ws:_ members:objectLiteralMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
+    = t:TERMINDENT members:objectLiteralMemberList d:DEDENT { return {list: members.list}; }
+    / ws:_ members:objectLiteralMemberList? { return {list: members ? members.list : []}; }
   objectLiteralMemberList
     = e:objectLiteralMember ws:_ es:(objectLiteralMemberSeparator _ objectLiteralMember _)* trail:","? {
-        var raw = e.raw + ws + es.map(function(e){ return e[0] + e[1] + e[2].raw + e[3]; }).join('') + trail;
-        return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[2]; }))};
       }
   objectLiteralMemberSeparator = arrayLiteralMemberSeparator
   objectLiteralMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:expression {
-        var raw = key.raw + ws0 + ':' + ws1 + val.raw;
-        return new CS.ObjectInitialiserMember(key, val).r(raw).p(line, column, offset);
+        return new CS.ObjectInitialiserMember(key, val).r(raw(offset)).p(line, column, offset);
       }
     / v:contextVar {
-        var key = new CS.String(v.memberName).r(v.memberName).p(line, column + 1)
-        return new CS.ObjectInitialiserMember(key, v).r(v.raw).p(line, column, offset);
+        var key = new CS.String(v.memberName).r(raw(offset)).p(line, column + 1)
+        return new CS.ObjectInitialiserMember(key, v).r(raw(offset)).p(line, column, offset);
       }
     / v:ObjectInitialiserKeys {
-        return new CS.ObjectInitialiserMember(v, v).r(v.raw).p(line, column, offset);
+        return new CS.ObjectInitialiserMember(v, v).r(raw(offset)).p(line, column, offset);
       }
   ObjectInitialiserKeys
-    = i:identifierName { return new CS.Identifier(i).r(i).p(line, column, offset); }
+    = i:identifierName { return new CS.Identifier(i).r(raw(offset)).p(line, column, offset); }
     / string
     / Numbers
 // TODO: complete support for implicit objects
 implicitObjectLiteral
   = members:implicitObjectLiteralMemberList {
-    return new CS.ObjectInitialiser(members.list).r(members.raw).p(line, column, offset);
+    return new CS.ObjectInitialiser(members.list).r(raw(offset)).p(line, column, offset);
   }
   implicitObjectLiteralMemberList
     = e:implicitObjectLiteralMember es:(implicitObjectLiteralMemberSeparator _ implicitObjectLiteralMember)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2].raw; }).join('');
-        return {list: [e].concat(es.map(function(e){ return e[2]; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[2]; }))};
       }
   implicitObjectLiteralMemberSeparator
     = TERMINATOR ","? _
     / "," TERMINATOR?
   implicitObjectLiteralMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:implicitObjectLiteralMemberValue {
-        return new CS.ObjectInitialiserMember(key, val.value).r(key.raw + ws0 + ':' + ws1 + val.raw).p(line, column, offset);
+        return new CS.ObjectInitialiserMember(key, val.value).r(raw(offset)).p(line, column, offset);
       }
   implicitObjectLiteralMemberValue
-    = e:expression { return {value: e, raw: e.raw}; }
-    / i:TERMINDENT o:implicitObjectLiteral d:DEDENT { return {value: o, raw: i + o.raw + d}; }
+    = e:expression { return {value: e}; }
+    / i:TERMINDENT o:implicitObjectLiteral d:DEDENT { return {value: o}; }
 
 // TODO: __FILENAME__
 macro
-  = r:"__LINE__" { return new CS.Int(line).r(r).p(line, column, offset); }
-  / r:"__DATE__" { return new CS.String(new Date().toDateString().slice(4)).r(r).p(line, column, offset); }
-  / r:"__TIME__" { return new CS.String(new Date().toTimeString().slice(0, 8)).r(r).p(line, column, offset); }
-  / r:"__DATETIMEMS__" { return new CS.Int(+new Date).r(r).p(line, column, offset); }
+  = r:"__LINE__" { return new CS.Int(line).r(raw(offset)).p(line, column, offset); }
+  / r:"__DATE__" { return new CS.String(new Date().toDateString().slice(4)).r(raw(offset)).p(line, column, offset); }
+  / r:"__TIME__" { return new CS.String(new Date().toTimeString().slice(0, 8)).r(raw(offset)).p(line, column, offset); }
+  / r:"__DATETIMEMS__" { return new CS.Int(+new Date).r(raw(offset)).p(line, column, offset); }
 
 bool
-  = match:(TRUE / YES / ON) { return new CS.Bool(true).r(match).p(line, column, offset); }
-  / match:(FALSE / NO / OFF) { return new CS.Bool(false).r(match).p(line, column, offset); }
+  = match:(TRUE / YES / ON) { return new CS.Bool(true).r(raw(offset)).p(line, column, offset); }
+  / match:(FALSE / NO / OFF) { return new CS.Bool(false).r(raw(offset)).p(line, column, offset); }
 
 Numbers
-  = "0b" bs:bit+ { return new CS.Int(parseInt(bs.join(''), 2)).r("0b" + bs).p(line, column, offset); }
-  / "0o" os:octalDigit+ { return new CS.Int(parseInt(os.join(''), 8)).r("0o" + os).p(line, column, offset); }
-  / "0x" hs:hexDigit+ { return new CS.Int(parseInt(hs.join(''), 16)).r("0x" + hs).p(line, column, offset); }
+  = "0b" bs:bit+ { return new CS.Int(parseInt(bs.join(''), 2)).r(raw(offset)).p(line, column, offset); }
+  / "0o" os:octalDigit+ { return new CS.Int(parseInt(os.join(''), 8)).r(raw(offset)).p(line, column, offset); }
+  / "0x" hs:hexDigit+ { return new CS.Int(parseInt(hs.join(''), 16)).r(raw(offset)).p(line, column, offset); }
   / base:decimal e:[eE] sign:[+-]? exponent:decimal {
-      var raw = base.raw + e + sign + exponent.raw;
-      return new CS.Float(parseFloat('' + base.data + e + sign + exponent.data, 10)).r(raw).p(line, column, offset);
+      return new CS.Float(parseFloat('' + base.data + e + sign + exponent.data, 10)).r(raw(offset)).p(line, column, offset);
     }
   / decimal
 
@@ -849,8 +774,8 @@ decimal
   = integral:integer fractional:("." decimalDigit+)? {
       if(fractional) fractional = "." + fractional[1].join('');
       return fractional
-        ? new CS.Float(parseFloat(integral + fractional, 10)).r(integral + fractional).p(line, column, offset)
-        : new CS.Int(+integral).r(integral).p(line, column, offset);
+        ? new CS.Float(parseFloat(integral + fractional, 10)).r(raw(offset)).p(line, column, offset)
+        : new CS.Int(+integral).r(raw(offset)).p(line, column, offset);
     }
 
 integer
@@ -862,19 +787,17 @@ hexDigit = [0-9a-fA-F]
 octalDigit = [0-7]
 bit = [01]
 
-
-// TODO: raw
 string
   = "\"\"\"" d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ "\"\"\"" {
       var data = stripLeadingWhitespace(d.join(''));
-      return new CS.String(data).p(line, column, offset);
+      return new CS.String(data).r(raw(offset)).p(line, column, offset);
     }
   / "'''" d:(stringData / "\"" / "#" / s:("'" "'"? !"'") { return s.join(''); })+ "'''" {
       var data = stripLeadingWhitespace(d.join(''));
-      return new CS.String(data).p(line, column, offset);
+      return new CS.String(data).r(raw(offset)).p(line, column, offset);
     }
-  / "\"" d:(stringData / "'")* "\"" { return new CS.String(d ? d.join('') : '').p(line, column, offset); }
-  / "'" d:(stringData / "\"" / "#")* "'" { return new CS.String(d ? d.join('') : '').p(line, column, offset); }
+  / "\"" d:(stringData / "'")* "\"" { return new CS.String(d ? d.join('') : '').r(raw(offset)).p(line, column, offset); }
+  / "'" d:(stringData / "\"" / "#")* "'" { return new CS.String(d ? d.join('') : '').r(raw(offset)).p(line, column, offset); }
   stringData
     = [^"'\\#]
     / UnicodeEscapeSequence
@@ -890,40 +813,38 @@ string
     / "\\" c:. { return c; }
     / c:"#" !"{" { return c; }
 
-// TODO: raw
 interpolation
   = "\"\"\"" es:
-    ( d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ { return new CS.String(d.join('')).p(line, column, offset); }
+    ( d:(stringData / "'" / s:("\"" "\""? !"\"") { return s.join(''); })+ { return new CS.String(d.join('')).r(raw(offset)).p(line, column, offset); }
     / "#{" _ e:expression _ "}" { return e; }
     )+ "\"\"\"" {
       return createInterpolation(es).p(line, column, offset);
     }
   / "\"" es:
-    ( d:(stringData / "'")+ { return new CS.String(d.join('')).p(line, column, offset); }
+    ( d:(stringData / "'")+ { return new CS.String(d.join('')).r(raw(offset)).p(line, column, offset); }
     / "#{" _ e:expression _ "}" { return e; }
     )+ "\"" {
       return createInterpolation(es).p(line, column, offset);
     }
 
 
-// TODO: raw
 regexp
   = "///" es:
     ( [ \r\n]+ { return [new CS.String('').g().p(line, column, offset)]; }
-    / s:[^\\/#[ \r\n]+ { return [new CS.String(s.join('')).g().p(line, column, offset)]; }
+    / s:[^\\/#[ \r\n]+ { return [new CS.String(s.join('')).g().r(raw(offset)).p(line, column, offset)]; }
     / hereregexpData
     )+ "///" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
       if(!flags) flags = [];
       var interp = createInterpolation(foldl(function(memo, e){ return memo.concat(e); }, [], es));
-      if(interp instanceof CS.String) return new CS.RegExp(interp.data, flags).p(line, column, offset);
-      return new CS.HeregExp(interp, flags).p(line, column, offset);
+      if(interp instanceof CS.String) return new CS.RegExp(interp.data, flags).r(raw(offset)).p(line, column, offset);
+      return new CS.HeregExp(interp, flags).r(raw(offset)).p(line, column, offset);
     }
   / "/" d:(regexpData / d:[^/\\[\n]+ { return d.join(''); })* "/" flags:[gimy]* {
       if(!isValidRegExpFlags(flags))
         throw new SyntaxError(['regular expression flags'], 'regular expression flags', offset, line, column);
-      return new CS.RegExp(d ? d.join('') : '', flags || []).p(line, column, offset);;
+      return new CS.RegExp(d ? d.join('') : '', flags || []).r(raw(offset)).p(line, column, offset);;
     }
   regexpData
     = "[" d:([^\\\]\n] / regexpData)* "]" { return "[" + d.join('') + "]"; }
@@ -931,32 +852,32 @@ regexp
   hereregexpData
     = "[" d:
       ( h:hereregexpData { return h[0]; }
-      / s:[^\\/\]] { return new CS.String(s).p(line, column, offset); }
+      / s:[^\\/\]] { return new CS.String(s).r(raw(offset)).p(line, column, offset); }
       )* "]" {
-        return [new CS.String("[").p(line, column, offset)].concat(d || []).concat([new CS.String("]").p(line, column, offset)]);
+        return [new CS.String("[").p(line, column, offset)].concat(d || []).concat([new CS.String("]").r(raw(offset)).p(line, column, offset)]);
       }
-    / "\\" c:. { return [new CS.String('\\' + c).p(line, column, offset)]; }
-    / s:("/" "/"? !"/") { return [new CS.String(s.join('')).p(line, column, offset)]; }
-    / c:"#" !"{" { return [new CS.String(c).p(line, column, offset)]; }
+    / "\\" c:. { return [new CS.String('\\' + c).r(raw(offset)).p(line, column, offset)]; }
+    / s:("/" "/"? !"/") { return [new CS.String(s.join('')).r(raw(offset)).p(line, column, offset)]; }
+    / c:"#" !"{" { return [new CS.String(c).r(raw(offset)).p(line, column, offset)]; }
     / "#{" _ e:expression _ "}" { return [e]; }
 
 
 throw
   = THROW ws:_ e:secondaryExpression {
-      return new CS.Throw(e).r('throw' + ws + e.raw).p(line, column, offset);
+      return new CS.Throw(e).r(raw(offset)).p(line, column, offset);
     }
 return
   = RETURN maybeExpression:(__ secondaryExpression)? {
       var ws = maybeExpression ? maybeExpression[0] : '',
           e = maybeExpression ? maybeExpression[1] : null;
-      return new CS.Return(e).r('return' + ws + (e ? e.raw : '')).p(line, column, offset);
+      return new CS.Return(e).r(raw(offset)).p(line, column, offset);
     }
-continue = CONTINUE { return (new CS.Continue).r('continue').p(line, column, offset); }
-break = BREAK { return (new CS.Break).r('break').p(line, column, offset); }
-debugger = DEBUGGER { return (new CS.Debugger).r('debugger').p(line, column, offset); }
+continue = CONTINUE { return (new CS.Continue).r(raw(offset)).p(line, column, offset); }
+break = BREAK { return (new CS.Break).r(raw(offset)).p(line, column, offset); }
+debugger = DEBUGGER { return (new CS.Debugger).r(raw(offset)).p(line, column, offset); }
 
-undefined = UNDEFINED { return (new CS.Undefined).r('undefined').p(line, column, offset); }
-null = NULL { return (new CS.Null).r('null').p(line, column, offset); }
+undefined = UNDEFINED { return (new CS.Undefined).r(raw(offset)).p(line, column, offset); }
+null = NULL { return (new CS.Null).r(raw(offset)).p(line, column, offset); }
 
 
 unassignable = ("arguments" / "eval") !identifierPart
@@ -974,49 +895,44 @@ Assignable
 
 positionalDestructuring
   = "[" members:positionalDestructuringBody  t:TERMINATOR? ws:_ "]" {
-      var raw = '{' + members.raw + t + ws + '}'
-      return new CS.ArrayInitialiser(members.list).r(raw).p(line, column, offset);
+      return new CS.ArrayInitialiser(members.list).r(raw(offset)).p(line, column, offset);
     }
   positionalDestructuringBody
-    = t:TERMINDENT members:positionalDestructuringMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
-    / ws:_ members:positionalDestructuringMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
+    = t:TERMINDENT members:positionalDestructuringMemberList d:DEDENT { return {list: members.list}; }
+    / ws:_ members:positionalDestructuringMemberList? { return {list: members ? members.list : []}; }
   positionalDestructuringMemberList
     = e:positionalDestructuringMember es:(_ "," _ positionalDestructuringMember)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3].raw; }).join('');
-        return {list: [e].concat(es.map(function(e){ return e[3]; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[3]; }))};
       }
   positionalDestructuringMember = rest / Assignable
 
 namedDestructuring
   = "{" members:namedDestructuringBody  t:TERMINATOR? ws:_ "}" {
-    var raw = '{' + members.raw + t + ws + '}'
-    return new CS.ObjectInitialiser(members.list).r(raw).p(line, column, offset);
+    return new CS.ObjectInitialiser(members.list).r(raw(offset)).p(line, column, offset);
   }
   namedDestructuringBody
-    = t:TERMINDENT members:namedDestructuringMemberList d:DEDENT { return {list: members.list, raw: t + members.raw + d}; }
-    / ws:_ members:namedDestructuringMemberList? { return {list: members ? members.list : [], raw: ws + members ? members.raw : ''}; }
+    = t:TERMINDENT members:namedDestructuringMemberList d:DEDENT { return {list: members.list}; }
+    / ws:_ members:namedDestructuringMemberList? { return {list: members ? members.list : []}; }
   namedDestructuringMemberList
     = e:namedDestructuringMember es:(TERMINATOR? _ ("," / TERMINATOR) TERMINATOR? _ namedDestructuringMember)* {
-        var raw = e.raw + es.map(function(e){ return e[0] + e[1] + e[2] + e[3] + e[4] + e[5].raw; }).join('');
-        return {list: [e].concat(es.map(function(e){ return e[5]; })), raw: raw};
+        return {list: [e].concat(es.map(function(e){ return e[5]; }))};
       }
   namedDestructuringMember
     = key:ObjectInitialiserKeys ws0:_ ":" ws1:_ val:Assignable {
-        var raw = key.raw + ws0 + ':' + ws1 + val.raw;
-        return new CS.ObjectInitialiserMember(key, val).r(raw).p(line, column, offset);
+        return new CS.ObjectInitialiserMember(key, val).r(raw(offset)).p(line, column, offset);
       }
     / v:contextVar {
-        var key = new CS.String(v.memberName).r(v.memberName).p(line, column + 1)
-        return new CS.ObjectInitialiserMember(key, v).r(v.raw).p(line, column, offset);
+        var key = new CS.String(v.memberName).r(raw(offset)).p(line, column + 1)
+        return new CS.ObjectInitialiserMember(key, v).r(raw(offset)).p(line, column, offset);
       }
     / !unassignable i:identifier {
-        return new CS.ObjectInitialiserMember(i, i).r(i.raw).p(line, column, offset);
+        return new CS.ObjectInitialiserMember(i, i).r(raw(offset)).p(line, column, offset);
       }
 
 
 // identifiers
 
-identifier = !reserved i:identifierName { return new CS.Identifier(i).r(i).p(line, column, offset); }
+identifier = !reserved i:identifierName { return new CS.Identifier(i).r(raw(offset)).p(line, column, offset); }
 identifierName = c:identifierStart cs:identifierPart* { return c + cs.join(''); }
 identifierStart
   = UnicodeLetter

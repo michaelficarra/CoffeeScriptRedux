@@ -24,6 +24,18 @@ escodegenFormatDefaults =
   quotes: 'auto'
   parentheses: no
 
+escodegenCompactDefaults =
+  indent:
+    style: ''
+    base: 0
+  renumber: yes
+  hexadecimal: yes
+  quotes: 'auto'
+  escapeless: yes
+  compact: yes
+  parentheses: no
+  semicolons: no
+
 
 module.exports =
 
@@ -57,15 +69,15 @@ module.exports =
     # TODO: opt: minify (default: no)
     throw new Error 'escodegen not found: run `npm install escodegen`' unless escodegen?
     escodegen.generate jsAst,
-      comment: yes
-      format: options.format ? escodegenFormatDefaults
+      comment: not options.compact
+      format: if options.compact then escodegenCompactDefaults else options.format ? escodegenFormatDefaults
 
   sourceMap: (jsAst, name = 'unknown', options = {}) ->
     throw new Error 'escodegen not found: run `npm install escodegen`' unless escodegen?
     escodegen.generate jsAst.toJSON(),
-      comment: yes
+      comment: not options.compact
       sourceMap: name
-      format: options.format ? escodegenFormatDefaults
+      format: if options.compact then escodegenCompactDefaults else options.format ? escodegenFormatDefaults
 
 CoffeeScript = module.exports.CoffeeScript = module.exports
 

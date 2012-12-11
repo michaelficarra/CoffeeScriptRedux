@@ -7,7 +7,7 @@ path = require 'path'
 CoffeeScript = require './module'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
-uglifyjs = try require 'uglify-js'
+esmangle = try require 'esmangle'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
@@ -49,7 +49,7 @@ if escodegen?
     [['eval',    'e'], off, 'evaluate compiled JavaScript']
     [['repl'        ], off, 'run an interactive CoffeeScript REPL']
   ]
-  if uglifyjs?
+  if esmangle?
     optionArguments.push [['minify',  'm'], off, 'run compiled javascript output through a JS minifier']
   parameterArguments.push [['require', 'I'], 'FILE' , 'require a library before a script is executed']
 
@@ -136,7 +136,7 @@ if options.require? and not options.eval
   console.error 'Error: --require (-I) depends on --eval (-e)'
   process.exit 1
 
-# - m (minify) depends on escodegen and uglifyjs and (c (compile) or e (eval))
+# - m (minify) depends on escodegen and esmangle and (c (compile) or e (eval))
 if options.minify and not (options.js or options.eval)
   console.error 'Error: --minify does not make sense without --js or --eval'
   process.exit 1
@@ -296,10 +296,17 @@ else
       console.error "### COMPILED JS-AST ###"
       console.error inspect jsAST.toJSON()
 
+    # minification
+    if options.minify
+      try
+        jsAST = esmangle.mangle (esmangle.optimize jsAST.toJSON()), destructive: yes
+      catch e
+        console.error (e.stack or e.message)
+        process.exit 1
 
     if options['source-map']
       # source map generation
-      try sourceMap = CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin')
+      try sourceMap = CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin'), compact: options.minify
       catch e
         console.error (e.stack or e.message)
         process.exit 1
@@ -308,20 +315,12 @@ else
         process.stdout.write "#{sourceMap}\n"
         process.exit 0
       else process.exit 1
-    else
-      # js code gen
-      try js = CoffeeScript.js jsAST, minify: no
-      catch e
-        console.error (e.stack or e.message)
-        process.exit 1
 
-    # minification
-    if options.minify and js?
-      # TODO: uglifyjs options: --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window
-      try js = uglifyjs.uglify.gen_code uglifyjs.uglify.ast_squeeze uglifyjs.uglify.ast_mangle uglifyjs.parser.parse js
-      catch e
-        console.error (e.stack or e.message)
-        process.exit 1
+    # js code gen
+    try js = CoffeeScript.js jsAST, compact: options.minify
+    catch e
+      console.error (e.stack or e.message)
+      process.exit 1
 
     # --js
     if options.js

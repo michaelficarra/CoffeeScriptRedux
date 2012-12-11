@@ -12,7 +12,6 @@ escodegen = try require 'escodegen'
 uglifyjs = try require 'uglify-js'
 
 
-CoffeeScript = null
 pkg = require './../../package.json'
 
 escodegenFormatDefaults =
@@ -78,6 +77,7 @@ module.exports =
       comment: not options.compact
       sourceMap: name
       format: if options.compact then escodegenCompactDefaults else options.format ? escodegenFormatDefaults
+
 
 CoffeeScript = module.exports.CoffeeScript = module.exports
 

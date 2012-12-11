@@ -4,7 +4,6 @@ SRC = $(shell find src -name "*.coffee" -type f | sort)
 LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js) lib/coffee-script/parser.js
 BOOTSTRAPS = $(SRC:src/%.coffee=lib/coffee-script/bootstrap/%.js) lib/coffee-script/bootstrap/parser.js
 LIBMIN = $(LIB:lib/coffee-script/%.js=lib/coffee-script/%.min.js)
-TESTS = $(shell find test -name "*.coffee" -type f | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare
@@ -16,7 +15,7 @@ MINIFIER = node_modules/.bin/esmangle
 all: $(LIB)
 build: all
 parser: lib/coffee-script/parser.js
-browserify: CoffeeScriptRedux.js
+browser: CoffeeScriptRedux.js
 min: minify
 minify: $(LIBMIN)
 # TODO: test-browser
@@ -55,10 +54,10 @@ lib/coffee-script/%.min.js: lib/coffee-script/%.js lib/coffee-script
 
 .PHONY: test coverage install loc clean
 
-test: $(LIB) $(TESTS)
+test:
 	$(MOCHA) -R dot
 
-coverage: $(LIB)
+coverage:
 	@which jscoverage || (echo "install node-jscoverage"; exit 1)
 	rm -rf instrumented
 	jscoverage -v lib instrumented
@@ -66,7 +65,7 @@ coverage: $(LIB)
 	$(MOCHA) -r instrumented/coffee-script/compiler -R html-cov > coverage.html
 	@xdg-open coverage.html &> /dev/null
 
-install: $(LIB)
+install:
 	npm install -g .
 
 loc:

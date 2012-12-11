@@ -756,9 +756,9 @@ implicitObjectLiteral
     / TERMINDENT o:implicitObjectLiteral DEDENT { return o; }
 
 
-// TODO: __FILENAME__
 macro
   = "__LINE__" { return rp(new CS.Int(line())); }
+  / "__FILENAME__" { return rp(new CS.String(options.inputSource || "")); }
   / "__DATE__" { return rp(new CS.String((new Date).toDateString().slice(4))); }
   / "__TIME__" { return rp(new CS.String((new Date).toTimeString().slice(0, 8))); }
   / "__DATETIMEMS__" { return rp(new CS.Int(+new Date)); }

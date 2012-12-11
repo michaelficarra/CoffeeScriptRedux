@@ -11,12 +11,13 @@ COFFEE = bin/coffee --js --bare
 PEGJS = node_modules/.bin/pegjs --cache --export-var 'module.exports'
 MOCHA = node_modules/.bin/mocha --compilers coffee:. -u tdd
 BROWSERIFY = node_modules/.bin/browserify
-MINIFIER = node_modules/.bin/uglifyjs --no-copyright --mangle-toplevel --reserved-names require,module,exports,global,window,CoffeeScript
+MINIFIER = node_modules/.bin/esmangle
 
 all: $(LIB)
 build: all
 parser: lib/coffee-script/parser.js
 browserify: CoffeeScriptRedux.js
+min: minify
 minify: $(LIBMIN)
 # TODO: test-browser
 # TODO: doc

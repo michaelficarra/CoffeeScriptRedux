@@ -256,7 +256,7 @@ Nodes::g = ->
 
 ## Nodes that contain primitive properties
 
-handlePrimitives = (ctor, primitives) ->
+handlePrimitives = (ctor, primitives...) ->
   ctor::childNodes = difference ctor::childNodes, primitives
   ctor::toJSON = ->
     json = Nodes::toJSON.call this
@@ -264,31 +264,31 @@ handlePrimitives = (ctor, primitives) ->
       json[primitive] = @[primitive]
     json
 
-handlePrimitives Class, ['boundMembers']
-handlePrimitives CompoundAssignOp, ['op']
-handlePrimitives ForOf, ['isOwn']
-handlePrimitives HeregExp, ['flags']
-handlePrimitives Identifiers, ['data']
-handlePrimitives Primitives, ['data']
-handlePrimitives Range, ['isInclusive']
-handlePrimitives RegExp, ['data', 'flags']
-handlePrimitives Slice, ['isInclusive']
-handlePrimitives StaticMemberAccessOps, ['memberName']
+handlePrimitives Class, 'boundMembers'
+handlePrimitives CompoundAssignOp, 'op'
+handlePrimitives ForOf, 'isOwn'
+handlePrimitives HeregExp, 'flags'
+handlePrimitives Identifiers, 'data'
+handlePrimitives Primitives, 'data'
+handlePrimitives Range, 'isInclusive'
+handlePrimitives RegExp, 'data', 'flags'
+handlePrimitives Slice, 'isInclusive'
+handlePrimitives StaticMemberAccessOps, 'memberName'
 
 
 ## Nodes that contain list properties
 
-handleLists = (ctor, listProps) -> ctor::listMembers = listProps
+handleLists = (ctor, listProps...) -> ctor::listMembers = listProps
 
-handleLists ArrayInitialiser, ['members']
-handleLists Block, ['statements']
-handleLists Functions, ['parameters']
-handleLists FunctionApplications, ['arguments']
-handleLists NewOp, ['arguments']
-handleLists ObjectInitialiser, ['members']
-handleLists Super, ['arguments']
-handleLists Switch, ['cases']
-handleLists SwitchCase, ['conditions']
+handleLists ArrayInitialiser, 'members'
+handleLists Block, 'statements'
+handleLists Functions, 'parameters'
+handleLists FunctionApplications, 'arguments'
+handleLists NewOp, 'arguments'
+handleLists ObjectInitialiser, 'members'
+handleLists Super, 'arguments'
+handleLists Switch, 'cases'
+handleLists SwitchCase, 'conditions'
 
 
 ## Nodes with special behaviours

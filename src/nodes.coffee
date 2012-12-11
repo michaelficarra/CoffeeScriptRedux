@@ -211,15 +211,16 @@ createNodes
 Nodes.fromJSON = (json) -> exports[json.type].fromJSON json
 Nodes::listMembers = []
 Nodes::toJSON = ->
-  json = {
-    type: @className
-    @line, @column
-    range: [
-      @offset
-      if @raw? then @offset + @raw.length else undefined
-    ]
-    @raw
-  }
+  json = { type: @className }
+  if @line? then json.line = @line
+  if @column? then json.column = @column
+  if @raw?
+    json.raw = @raw
+    if @offset?
+      json.range = [
+        @offset
+        @offset + @raw.length
+      ]
   for child in @childNodes
     if child in @listMembers
       json[child] = (p.toJSON() for p in @[child])

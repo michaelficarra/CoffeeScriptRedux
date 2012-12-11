@@ -1,135 +1,138 @@
 {
-  var CS = require("./nodes"),
+var CS = require("./nodes"),
 
-    constructorLookup =
-      { ';': CS.SeqOp
-      , '=': CS.AssignOp
-      , '&&': CS.LogicalAndOp
-      , and: CS.LogicalAndOp
-      , '||': CS.LogicalOrOp
-      , or: CS.LogicalOrOp
-      , '|': CS.BitOrOp
-      , '^': CS.BitXorOp
-      , '&': CS.BitAndOp
-      , '?': CS.ExistsOp
-      , '==': CS.EQOp
-      , is: CS.EQOp
-      , '!=': CS.NEQOp
-      , isnt: CS.NEQOp
-      , '<=': CS.LTEOp
-      , '>=': CS.GTEOp
-      , '<': CS.LTOp
-      , '>': CS.GTOp
-      , extends: CS.ExtendsOp
-      , instanceof: CS.InstanceofOp
-      , in: CS.InOp
-      , of: CS.OfOp
-      , '<<': CS.LeftShiftOp
-      , '>>': CS.SignedRightShiftOp
-      , '>>>': CS.UnsignedRightShiftOp
-      , '+': CS.PlusOp
-      , '-': CS.SubtractOp
-      , '*': CS.MultiplyOp
-      , '/': CS.DivideOp
-      , '%': CS.RemOp
-      , '**': CS.ExpOp
-      },
-
-    foldl = function(fn, memo, list){
-      for(var i = 0, l = list.length; i < l; ++i)
-        memo = fn(memo, list[i]);
-      return memo;
-    },
-    foldr = function(fn, memo, list){
-      for(var i = list.length; i--;)
-        memo = fn(memo, list[i]);
-      return memo;
+  constructorLookup =
+    { ';': CS.SeqOp
+    , '=': CS.AssignOp
+    , '&&': CS.LogicalAndOp
+    , and: CS.LogicalAndOp
+    , '||': CS.LogicalOrOp
+    , or: CS.LogicalOrOp
+    , '|': CS.BitOrOp
+    , '^': CS.BitXorOp
+    , '&': CS.BitAndOp
+    , '?': CS.ExistsOp
+    , '==': CS.EQOp
+    , is: CS.EQOp
+    , '!=': CS.NEQOp
+    , isnt: CS.NEQOp
+    , '<=': CS.LTEOp
+    , '>=': CS.GTEOp
+    , '<': CS.LTOp
+    , '>': CS.GTOp
+    , extends: CS.ExtendsOp
+    , instanceof: CS.InstanceofOp
+    , in: CS.InOp
+    , of: CS.OfOp
+    , '<<': CS.LeftShiftOp
+    , '>>': CS.SignedRightShiftOp
+    , '>>>': CS.UnsignedRightShiftOp
+    , '+': CS.PlusOp
+    , '-': CS.SubtractOp
+    , '*': CS.MultiplyOp
+    , '/': CS.DivideOp
+    , '%': CS.RemOp
+    , '**': CS.ExpOp
     },
 
-    createInterpolation = function(es){
-      var init = new CS.String('').g();
-      return foldl(function(memo, s){
-        if(s instanceof CS.String) {
-          var left = memo;
-          while(left)
-            if(left instanceof CS.String) {
-              if(left === init) {
-                c(left, s);
-                delete left.generated;
-              }
-              left.data = left.data + s.data;
-              return memo;
-            } else if(left instanceof CS.ConcatOp) {
-              left = left.right
-            } else {
-              break;
+  foldl = function(fn, memo, list){
+    for(var i = 0, l = list.length; i < l; ++i)
+      memo = fn(memo, list[i]);
+    return memo;
+  },
+  foldr = function(fn, memo, list){
+    for(var i = list.length; i--;)
+      memo = fn(memo, list[i]);
+    return memo;
+  },
+
+  createInterpolation = function(es){
+    var init = new CS.String('').g();
+    return foldl(function(memo, s){
+      if(s instanceof CS.String) {
+        var left = memo;
+        while(left)
+          if(left instanceof CS.String) {
+            if(left === init) {
+              c(left, s);
+              delete left.generated;
             }
-        }
-        return new CS.ConcatOp(memo, s);
-      }, init, es);
-    },
-
-    createMemberExpression = function(e, accesses){
-      return foldl(function(left, access){
-        var F = function(){};
-        F.prototype = access.op.prototype;
-        var o = new F;
-        // rather safely assumes access.op is returning non-Object
-        access.op.apply(o, [left].concat(access.operands));
-        return c(o.r(left.raw + access.raw), access);
-      }, e, accesses);
-    },
-
-    isValidRegExpFlags = function(flags) {
-      if(!flags) return true;
-      if(flags.length > 4) return false;
-      flags.sort();
-      var flag = null;
-      for(var i = 0, l = flags.length; i < l; ++i)
-        if(flag == flags[i]) return false;
-        else flag = flags[i];
-      return true;
-    },
-
-    stripLeadingWhitespace = function(str){
-      str = str.replace(/\s+$/, '');
-      var attempt, match, matchStr = str, indent = null;
-      while(match = /\n+([^\n\S]*)/.exec(matchStr)) {
-        attempt = match[1];
-        matchStr = matchStr.slice(match.index + match[0].length);
-        if (indent == null || 0 < attempt.length && attempt.length < indent.length)
-          indent = attempt;
+            left.data = left.data + s.data;
+            return memo;
+          } else if(left instanceof CS.ConcatOp) {
+            left = left.right
+          } else {
+            break;
+          }
       }
-      if(indent) str = str.replace(new RegExp('\\n' + indent, 'g'), '\n');
-      str = str.replace(/^\n/, '');
-      return str;
-    },
+      return new CS.ConcatOp(memo, s);
+    }, init, es);
+  },
 
-    // store raw parse information
-    r = function(node){
+  createMemberExpression = function(e, accesses){
+    return foldl(function(left, access){
+      var F = function(){};
+      F.prototype = access.op.prototype;
+      var o = new F;
+      // rather safely assumes access.op is returning non-Object
+      access.op.apply(o, [left].concat(access.operands));
+      return c(o.r(left.raw + access.raw), access);
+    }, e, accesses);
+  },
+
+  isValidRegExpFlags = function(flags) {
+    if(!flags) return true;
+    if(flags.length > 4) return false;
+    flags.sort();
+    var flag = null;
+    for(var i = 0, l = flags.length; i < l; ++i)
+      if(flag == flags[i]) return false;
+      else flag = flags[i];
+    return true;
+  },
+
+  stripLeadingWhitespace = function(str){
+    str = str.replace(/\s+$/, '');
+    var attempt, match, matchStr = str, indent = null;
+    while(match = /\n+([^\n\S]*)/.exec(matchStr)) {
+      attempt = match[1];
+      matchStr = matchStr.slice(match.index + match[0].length);
+      if (indent == null || 0 < attempt.length && attempt.length < indent.length)
+        indent = attempt;
+    }
+    if(indent) str = str.replace(new RegExp('\\n' + indent, 'g'), '\n');
+    str = str.replace(/^\n/, '');
+    return str;
+  },
+
+  // store raw parse information
+  r = function(node){
+    if(options.raw)
       node.raw = text();
-      return node;
-    },
-    // store position information
-    p = function(node){
+    return node;
+  },
+  // store position information
+  p = function(node){
+    if(options.raw) {
       node.line = line();
       node.column = column();
       node.offset = offset();
-      return node;
-    },
-    // composition of r and p
-    rp = function(node){ return r(p(node)); },
-    // copy position information
-    c = function(to, from){
+    }
+    return node;
+  },
+  // composition of r and p
+  rp = function(node){ return r(p(node)); },
+  // copy position information
+  c = function(to, from){
+    if(options.raw) {
       to.line = from.line;
       to.column = from.column;
       to.offset = from.offset;
-      return to;
-    };
+    }
+    return to;
+  };
 
 }
-
-start = program
 
 
 program

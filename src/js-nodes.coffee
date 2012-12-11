@@ -30,7 +30,7 @@ createNode = (type, props) ->
         @offset
         if @raw? then @offset + @raw.length else undefined
       ]
-    json.raw = @raw if @raw?
+    if @raw? then json.raw = @raw
     json
 
 nodeData = [

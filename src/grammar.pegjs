@@ -105,32 +105,29 @@ var CS = require("./nodes"),
     return str;
   },
 
+  // the identity function
+  id = function(x){ return x; },
   // store raw parse information
-  r = function(node){
-    if(options.raw)
-      node.raw = text();
+  r = options.raw ? function(node){
+    node.raw = text();
     return node;
-  },
+  } : id,
   // store position information
-  p = function(node){
-    if(options.raw) {
-      node.line = line();
-      node.column = column();
-      node.offset = offset();
-    }
+  p = options.raw ? function(node){
+    node.line = line();
+    node.column = column();
+    node.offset = offset();
     return node;
-  },
+  } : id,
   // composition of r and p
-  rp = function(node){ return r(p(node)); },
+  rp = options.raw ? function(node){ return r(p(node)); } : id,
   // copy position information
-  c = function(to, from){
-    if(options.raw) {
-      to.line = from.line;
-      to.column = from.column;
-      to.offset = from.offset;
-    }
+  c = options.raw ? function(to, from){
+    to.line = from.line;
+    to.column = from.column;
+    to.offset = from.offset;
     return to;
-  };
+  } : id;
 
 }
 

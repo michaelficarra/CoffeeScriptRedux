@@ -339,9 +339,8 @@ suite 'Function Invocation', ->
   test "implicit returns with multiple branches", ->
     nonce = {}
     fn = ->
-      if false
-        for a in b
-          return c if d
+      if not nonce
+        null
       else
         nonce
     eq nonce, fn()

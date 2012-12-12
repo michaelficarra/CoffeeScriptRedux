@@ -178,12 +178,12 @@ assignment = (assignee, expression, valueUsed = no) ->
   switch
     when assignee.rest then # do nothing for right now
     when assignee.instanceof JS.ArrayExpression
-      e = expression
+      e = expr expression
       # TODO: only cache expression when it needs it
       #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
       if valueUsed or assignee.elements.length > 1
         e = genSym 'cache'
-        assignments.push new JS.AssignmentExpression '=', e, expression
+        assignments.push new JS.AssignmentExpression '=', e, expr expression
 
       elements = assignee.elements
 
@@ -804,7 +804,7 @@ class exports.Compiler
         args.push if @isInclusive
           if (right.instanceof JS.Literal) and typeof right.data is 'number'
           then new JS.Literal right.data + 1
-          else new JS.BinaryExpression '+', (new JS.UnaryExpression '+', right), new JS.Literal 1
+          else new JS.BinaryExpression '||', (new JS.BinaryExpression '+', (new JS.UnaryExpression '+', right), new JS.Literal 1), new JS.Literal 9e9
         else right
       new JS.CallExpression (memberAccess expression, 'slice'), args
     ]

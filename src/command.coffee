@@ -248,7 +248,7 @@ else
     try
       result = CoffeeScript.parse input,
         optimise: no
-        raw: options.raw or options['source-map']
+        raw: options.raw or options['source-map'] or options.eval
         inputSource: inputSource
     catch e
       console.error e.message

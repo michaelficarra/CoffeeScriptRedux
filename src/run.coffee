@@ -118,7 +118,8 @@ runModule = (module, jsSource, jsAst, filename) ->
 
 require.extensions['.coffee'] = (module, filename) ->
   input = fs.readFileSync filename, 'utf8'
-  csAst = CoffeeScript.parse input
+  csAst = CoffeeScript.parse input,
+    raw: yes
   jsAst = CoffeeScript.compile csAst
   js = CoffeeScript.js jsAst
 

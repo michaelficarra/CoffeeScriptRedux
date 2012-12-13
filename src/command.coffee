@@ -227,7 +227,9 @@ else
   # normal workflow
 
   input = ''
-  inputSource = options.input ? (options.cli and '(cli)' or '(stdin)')
+  inputSource =
+    if options.input? then fs.realpathSync options.input
+    else options.cli and '(cli)' or '(stdin)'
 
   processInput = (err) ->
 
@@ -332,11 +334,7 @@ else
 
     # --eval
     if options.eval
-      fname = if options.input
-        fs.realpathSync(options.input)
-      else
-        if options.cli then '<cli>' else '<stdin>'
-      runMain input, js, jsAST, fname
+      runMain input, js, jsAST, inputSource
 
   # choose input source
 

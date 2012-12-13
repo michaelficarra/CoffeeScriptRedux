@@ -47,13 +47,13 @@ patchStackTrace = ->
 # Modified to handle sourceMap
 formatSourcePosition = (frame, getSourceMapping) ->
   fileName = undefined
-  fileLocation = ""
+  fileLocation = ''
 
   if frame.isNative()
-    fileLocation = "native"
+    fileLocation = 'native'
   else if frame.isEval()
     fileName = frame.getScriptNameOrSourceURL()
-    fileLocation = frame.getEvalOrigin()  unless fileName
+    fileLocation = frame.getEvalOrigin() unless fileName
   else
     fileName = frame.getFileName()
 
@@ -62,39 +62,40 @@ formatSourcePosition = (frame, getSourceMapping) ->
     column = frame.getColumnNumber()
 
     # Check for a sourceMap position
-    if (source = getSourceMapping(fileName, line, column))
-      fileLocation = "#{fileName}:#{source.line}:#{source.column}, <js>:#{line}:#{column}"
-    else
-      fileLocation = "#{fileName}:#{line}:#{column}"
+    source = getSourceMapping fileName, line, column
+    fileLocation =
+      if source
+        "#{fileName}:#{source.line}:#{source.column}, <js>:#{line}:#{column}"
+      else
+        "#{fileName}:#{line}:#{column}"
 
-  fileLocation = "unknown source"  unless fileLocation
+  fileLocation or= 'unknown source'
 
-  line = ""
   functionName = frame.getFunction().name
   addPrefix = true
   isConstructor = frame.isConstructor()
   isMethodCall = not (frame.isToplevel() or isConstructor)
+  line = ''
   if isMethodCall
     methodName = frame.getMethodName()
-    line += frame.getTypeName() + "."
+    line = "#{frame.getTypeName()}."
     if functionName
-      line += functionName
-      line += " [as " + methodName + "]"  if methodName and (methodName isnt functionName)
+      line = "#{line}#{functionName} [as #{methodName}]" if methodName and methodName isnt functionName
     else
-      line += methodName or "<anonymous>"
+      line = "#{line}#{methodName or '<anonymous>'}"
   else if isConstructor
-    line += "new " + (functionName or "<anonymous>")
+    line = "new #{functionName or '<anonymous>'}"
   else if functionName
-    line += functionName
+    line = functionName
   else
-    line += fileLocation
+    line = fileLocation
     addPrefix = false
-  line += " (" + fileLocation + ")"  if addPrefix
+  line = "#{line} (#{fileLocation})" if addPrefix
   line
 
 # Run JavaScript as a main program - resetting process.argv and module lookup paths
 exports.runMain = (csSource, jsSource, jsAst, filename) ->
-  mainModule = new Module('.')
+  mainModule = new Module '.'
   mainModule.filename = process.argv[1] = filename
 
   # Set it as the main module -- this is used for require.main
@@ -109,8 +110,8 @@ exports.runMain = (csSource, jsSource, jsAst, filename) ->
   runModule mainModule, jsSource, jsAst, filename
 
 runModule = (module, jsSource, jsAst, filename) ->
-  patchStackTrace()
-  
+  do patchStackTrace
+
   Module._sourceMaps[filename] = ->
     CoffeeScript.sourceMap jsAst, filename
 
@@ -118,8 +119,7 @@ runModule = (module, jsSource, jsAst, filename) ->
 
 require.extensions['.coffee'] = (module, filename) ->
   input = fs.readFileSync filename, 'utf8'
-  csAst = CoffeeScript.parse input,
-    raw: yes
+  csAst = CoffeeScript.parse input, raw: yes
   jsAst = CoffeeScript.compile csAst
   js = CoffeeScript.js jsAst
 

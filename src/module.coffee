@@ -9,7 +9,6 @@ Parser = require './parser'
 {Compiler} = require './compiler'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
-uglifyjs = try require 'uglify-js'
 
 
 pkg = require './../../package.json'
@@ -81,4 +80,4 @@ module.exports =
 
 CoffeeScript = module.exports.CoffeeScript = module.exports
 
-run = require './run'
+require './run'

@@ -43,21 +43,23 @@ patchStackTrace = ->
 
     "#{err.name}: #{err.message ? ''}\n#{frames.join '\n'}\n"
 
-# Based on http://v8.googlecode.com/svn/tags/3.9.9/src/messages.js
+# Based on http://v8.googlecode.com/svn/branches/bleeding_edge/src/messages.js
 # Modified to handle sourceMap
 formatSourcePosition = (frame, getSourceMapping) ->
   fileName = undefined
   fileLocation = ''
 
   if frame.isNative()
-    fileLocation = 'native'
-  else if frame.isEval()
-    fileName = frame.getScriptNameOrSourceURL()
-    fileLocation = frame.getEvalOrigin() unless fileName
+    fileLocation = "native"
   else
-    fileName = frame.getFileName()
+    if frame.isEval()
+      fileName = frame.getScriptNameOrSourceURL()
+      fileLocation = "#{frame.getEvalOrigin()}, " unless fileName
+    else
+      fileName = frame.getFileName()
 
-  if fileName
+    fileName or= "<anonymous>"
+
     line = frame.getLineNumber()
     column = frame.getColumnNumber()
 
@@ -69,29 +71,30 @@ formatSourcePosition = (frame, getSourceMapping) ->
       else
         "#{fileName}:#{line}:#{column}"
 
-  fileLocation or= 'unknown source'
-
-  functionName = frame.getFunction().name
-  addPrefix = true
+  functionName = frame.getFunctionName()
   isConstructor = frame.isConstructor()
   isMethodCall = not (frame.isToplevel() or isConstructor)
-  line = ''
+
   if isMethodCall
     methodName = frame.getMethodName()
-    line = "#{frame.getTypeName()}."
+    typeName = frame.getTypeName()
+
     if functionName
-      line = "#{line}#{functionName} [as #{methodName}]" if methodName and methodName isnt functionName
+      tp = as = ''
+      if typeName and functionName.indexOf typeName
+        tp = "#{typeName}."
+      if methodName and functionName.indexOf(".#{methodName}") isnt functionName.length - methodName.length - 1
+        as = " [as #{methodName}]"
+
+      "#{tp}#{functionName}#{as} (#{fileLocation})"
     else
-      line = "#{line}#{methodName or '<anonymous>'}"
+      "#{typeName}.#{methodName or '<anonymous>'} (#{fileLocation})"
   else if isConstructor
-    line = "new #{functionName or '<anonymous>'}"
+    "new #{functionName or '<anonymous>'} (#{fileLocation})"
   else if functionName
-    line = functionName
+    "#{functionName} (#{fileLocation})"
   else
-    line = fileLocation
-    addPrefix = false
-  line = "#{line} (#{fileLocation})" if addPrefix
-  line
+    fileLocation
 
 # Run JavaScript as a main program - resetting process.argv and module lookup paths
 exports.runMain = (csSource, jsSource, jsAst, filename) ->

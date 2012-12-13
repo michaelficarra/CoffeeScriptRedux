@@ -9,7 +9,6 @@ suite 'Command line execution', ->
       # Other module is not requires.main
       eq stdout, "1 is main true\n0 is main false\n"
 
-      console.log stderr
       ok stderr.indexOf("cli-eval-errors-files/0.coffee:4:10, <js>:4:9)") > 0
       ok stderr.indexOf("cli-eval-errors-files/1.coffee:4:6, <js>:6:9)") > 0
 

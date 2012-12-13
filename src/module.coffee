@@ -81,4 +81,10 @@ module.exports =
 
 CoffeeScript = module.exports.CoffeeScript = module.exports
 
-run = require './run'
+require.extensions['.coffee'] = (module, filename) ->
+  input = fs.readFileSync filename, 'utf8'
+  csAst = CoffeeScript.parse input,
+    raw: yes
+  jsAst = CoffeeScript.compile csAst
+  js = CoffeeScript.js jsAst
+  require('./run').runModule module, js, jsAst, filename

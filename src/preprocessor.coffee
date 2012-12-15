@@ -15,47 +15,59 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
   INDENT = '\uEFEF'
   DEDENT = '\uEFFE'
   TERM   = '\uEFFF'
-
+  SAFEBLOCK = /[^\n'"\\\/#`[({\[\]})]+/
   constructor: ->
-    # `base` is either `null` or a regexp that matches the base indentation
-    # `indent` is either `null` or the characters that make up one indentation
-    @base = @indent = null
+    # `indents` is an array of successive indentation characters.
+    @indents = []
     @context = []
-    @context.peek = -> if @length then this[@length - 1] else null
-    @context.err = (c) ->
-      throw new Error "Unexpected " + inspect c
-    @context.observe = (c) ->
-      top = @peek()
-      switch c
-        # opening token is closing token
-        when '"""', '\'\'\'', '"', '\'', '###', '`', '///', '/'
-          if top is c then do @pop
-          else @push c
-        # strictly opening tokens
-        when INDENT, '#', '#{', '[', '(', '{', '\\', 'regexp-[', 'regexp-(', 'regexp-{', 'heregexp-#', 'heregexp-[', 'heregexp-(', 'heregexp-{'
-          @push c
-        # strictly closing tokens
-        when DEDENT
-          (@err c) unless top is INDENT
-          do @pop
-        when '\n'
-          (@err c) unless top in ['#', 'heregexp-#']
-          do @pop
-        when ']'
-          (@err c) unless top in ['[', 'regexp-[', 'heregexp-[']
-          do @pop
-        when ')'
-          (@err c) unless top in ['(', 'regexp-(', 'heregexp-(']
-          do @pop
-        when '}'
-          (@err c) unless top in ['#{', '{', 'regexp-{', 'heregexp-{']
-          do @pop
-        when 'end-\\'
-          (@err c) unless top is '\\'
-          do @pop
-        else throw new Error "undefined token observed: " + c
-      this
     @ss = new StringScanner ''
+
+  err: (c) ->
+    token =
+      switch c
+        when INDENT
+          'INDENT'
+        when DEDENT
+          'DEDENT'
+        when TERM
+          'TERM'
+        else
+          inspect c
+    throw new Error "Unexpected " + token
+
+  peek: -> if @context.length then @context[@context.length - 1] else null
+
+  observe: (c) ->
+    top = @peek()
+    switch c
+      # opening token is closing token
+      when '"""', '\'\'\'', '"', '\'', '###', '`', '///', '/'
+        if top is c then do @context.pop
+        else @context.push c
+      # strictly opening tokens
+      when INDENT, '#', '#{', '[', '(', '{', '\\', 'regexp-[', 'regexp-(', 'regexp-{', 'heregexp-#', 'heregexp-[', 'heregexp-(', 'heregexp-{'
+        @context.push c
+      # strictly closing tokens
+      when DEDENT
+        (@err c) unless top is INDENT
+        do @context.pop
+      when '\n'
+        (@err c) unless top in ['#', 'heregexp-#']
+        do @context.pop
+      when ']'
+        (@err c) unless top in ['[', 'regexp-[', 'heregexp-[']
+        do @context.pop
+      when ')'
+        (@err c) unless top in ['(', 'regexp-(', 'heregexp-(']
+        do @context.pop
+      when '}'
+        (@err c) unless top in ['#{', '{', 'regexp-{', 'heregexp-{']
+        do @context.pop
+      when 'end-\\'
+        (@err c) unless top is '\\'
+        do @context.pop
+      else throw new Error "undefined token observed: " + c
+    @context
 
   p: (s) ->
     if s? then @emit 'data', s
@@ -67,7 +79,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
     @ss.concat data unless isEnd
 
     until @ss.eos()
-      switch @context.peek()
+      switch @peek()
         when null, INDENT, '#{', '[', '(', '{'
           if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
 
@@ -76,64 +88,47 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
             # we might require more input to determine indentation
             return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
 
-            if @base?
-              unless (@scan @base)?
-                throw new Error "inconsistent base indentation"
-            else
-              @base = /// #{@scan /// [#{ws}]* ///} ///
-
-            if @indent?
-              level = (0 for c in @context when c is INDENT).length
-              # a single indent
-              if @ss.check /// (?:#{@indent}){#{level + 1}} [^#{ws}#] ///
-                @scan /// (?:#{@indent}){#{level + 1}} ///
-                @context.observe INDENT
-                @p INDENT
-              # one or more dedents
-              else if level > 0 and @ss.check /// (?:#{@indent}){0,#{level - 1}} [^#{ws}] ///
-                newLevel = 0
-                ++newLevel while @scan /// #{@indent} ///
-                delta = level - newLevel
-                while delta--
-                  @context.observe DEDENT
-                  @p "#{DEDENT}#{TERM}"
-              # unchanged indentation level
-              else if @ss.check /// (?:#{@indent}){#{level}} [^#{ws}] ///
-                @scan /// (?:#{@indent}){#{level}} ///
+            i = 0
+            lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
+            while i < @indents.length
+              indent = @indents[i]
+              if @ss.check /// #{indent} ///
+                # an existing indent
+                @scan /// #{indent} ///
+              else if @ss.check /// [^#{ws}] ///
+                # we lost an indent
+                @indents.splice i--, 1
+                @observe DEDENT
+                @p "#{DEDENT}#{TERM}"
               else
+                # Some ambiguous dedent
                 lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
-                message = "Syntax error on line #{lines.length}: invalid indentation"
-                context = pointToErrorLocation @ss.str, lines.length, 1 + (level + 1) * @indent.length
+                message = "Syntax error on line #{lines.length}: indention is ambiguous"
+                lineLen = @indents.reduce ((l, r) -> l + r.length), 0
+                context = pointToErrorLocation @ss.str, lines.length, lineLen
                 throw new Error "#{message}\n#{context}"
-            else if @ss.check /// [#{ws}]+ [^#{ws}#] ///
-              # first indentation
-              @indent = @scan /// [#{ws}]+ ///
-              @context.observe INDENT
+              i++
+            if @ss.check /// [#{ws}]+ [^#{ws}#] ///
+              # an indent
+              @indents.push @scan /// [#{ws}]+ ///
+              @observe INDENT
               @p INDENT
 
-          tok = switch @context.peek()
-            when '['
-              # safe things, but not closing bracket
-              @scan /[^\n'"\\\/#`[({\]]+/
-              @scan /\]/
-            when '('
-              # safe things, but not closing paren
-              @scan /[^\n'"\\\/#`[({)]+/
-              @scan /\)/
-            when '#{', '{'
-              # safe things, but not closing brace
-              @scan /[^\n'"\\\/#`[({}]+/
-              @scan /\}/
-            else
-              # scan safe characters (anything that doesn't *introduce* context)
-              @scan /[^\n'"\\\/#`[({]+/
-              null
+          @scan SAFEBLOCK
+
+          tok = @ss.scan /[\])}]/
           if tok
-            @context.observe tok
+            ctx = @peek()
+            if ctx == INDENT
+              @indents.splice @indents.length - 1, 1
+              @observe DEDENT
+              @p "#{DEDENT}#{TERM}"
+            @p tok
+            @observe tok
             continue
 
           if tok = @scan /"""|'''|\/\/\/|###|["'`#[({\\]/
-            @context.observe tok
+            @observe tok
           else if tok = @scan /\//
             # unfortunately, we must look behind us to determine if this is a regexp or division
             pos = @ss.position()
@@ -142,83 +137,82 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
               spaceBefore = ///[#{ws}]///.test lastChar
               nonIdentifierBefore = /[\W_$]/.test lastChar # TODO: this should perform a real test
             if pos is 1 or (if spaceBefore then not @ss.check /// [#{ws}=] /// else nonIdentifierBefore)
-              @context.observe '/'
-
+              @observe '/'
         when '\\'
-          if (@scan /[\s\S]/) then @context.observe 'end-\\'
+          if (@scan /[\s\S]/) then @observe 'end-\\'
           # TODO: somehow prevent indent tokens from being inserted after these newlines
         when '"""'
           @scan /(?:[^"#\\]+|""?(?!")|#(?!{)|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /#{|"""/ then @context.observe tok
-          else if tok = @scan /#{|"""/ then @context.observe tok
+          if tok = @scan /#{|"""/ then @observe tok
+          else if tok = @scan /#{|"""/ then @observe tok
         when '"'
           @scan /(?:[^"#\\]+|#(?!{)|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /#{|"/ then @context.observe tok
+          if tok = @scan /#{|"/ then @observe tok
         when '\'\'\''
           @scan /(?:[^'\\]+|''?(?!')|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /'''/ then @context.observe tok
+          if tok = @scan /'''/ then @observe tok
         when '\''
           @scan /(?:[^'\\]+|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /'/ then @context.observe tok
+          if tok = @scan /'/ then @observe tok
         when '###'
           @scan /(?:[^#]+|##?(?!#))+/
-          if tok = @scan /###/ then @context.observe tok
+          if tok = @scan /###/ then @observe tok
         when '#'
           @scan /[^\n]+/
-          if tok = @scan /\n/ then @context.observe tok
+          if tok = @scan /\n/ then @observe tok
         when '`'
           @scan /[^`]+/
-          if tok = @scan /`/ then @context.observe tok
+          if tok = @scan /`/ then @observe tok
         when '///'
           @scan /(?:[^[/#\\]+|\/\/?(?!\/)|\\.)+/
-          if tok = @scan /#{|\/\/\/|\\/ then @context.observe tok
-          else if @ss.scan /#/ then @context.observe 'heregexp-#'
-          else if tok = @scan /[\[]/ then @context.observe "heregexp-#{tok}"
+          if tok = @scan /#{|\/\/\/|\\/ then @observe tok
+          else if @ss.scan /#/ then @observe 'heregexp-#'
+          else if tok = @scan /[\[]/ then @observe "heregexp-#{tok}"
         when 'heregexp-['
           @scan /(?:[^\]\/\\]+|\/\/?(?!\/))+/
-          if tok = @scan /[\]\\]|#{|\/\/\// then @context.observe tok
+          if tok = @scan /[\]\\]|#{|\/\/\// then @observe tok
         when 'heregexp-#'
           @ss.scan /(?:[^\n/]+|\/\/?(?!\/))+/
-          if tok = @scan /\n|\/\/\// then @context.observe tok
+          if tok = @scan /\n|\/\/\// then @observe tok
         #when 'heregexp-('
         #  @scan /(?:[^)/[({#\\]+|\/\/?(?!\/))+/
-        #  if tok = @ss.scan /#(?!{)/ then @context.observe 'heregexp-#'
-        #  else if tok = @scan /[)\\]|#{|\/\/\// then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "heregexp-#{tok}"
+        #  if tok = @ss.scan /#(?!{)/ then @observe 'heregexp-#'
+        #  else if tok = @scan /[)\\]|#{|\/\/\// then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "heregexp-#{tok}"
         #when 'heregexp-{'
         #  @scan /(?:[^}/[({#\\]+|\/\/?(?!\/))+/
-        #  if tok = @ss.scan /#(?!{)/ then @context.observe 'heregexp-#'
-        #  else if tok = @scan /[}/\\]|#{|\/\/\// then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "heregexp-#{tok}"
+        #  if tok = @ss.scan /#(?!{)/ then @observe 'heregexp-#'
+        #  else if tok = @scan /[}/\\]|#{|\/\/\// then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "heregexp-#{tok}"
         when '/'
           @scan /[^[/\\]+/
-          if tok = @scan /[\/\\]/ then @context.observe tok
-          else if tok = @scan /\[/ then @context.observe "regexp-#{tok}"
+          if tok = @scan /[\/\\]/ then @observe tok
+          else if tok = @scan /\[/ then @observe "regexp-#{tok}"
         when 'regexp-['
           @scan /[^\]\\]+/
-          if tok = @scan /[\]\\]/ then @context.observe tok
+          if tok = @scan /[\]\\]/ then @observe tok
         #when 'regexp-('
         #  @scan /[^)/[({\\]+/
-        #  if tok = @scan /[)/\\]/ then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "regexp-#{tok}"
+        #  if tok = @scan /[)/\\]/ then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "regexp-#{tok}"
         #when 'regexp-{'
         #  @scan /[^}/[({\\]+/
-        #  if tok = @scan /[}/\\]/ then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "regexp-#{tok}"
+        #  if tok = @scan /[}/\\]/ then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "regexp-#{tok}"
 
     # reached the end of the file
     if isEnd
       @scan /// [#{ws}\n]* $ ///
-      while @context.length and INDENT is @context.peek()
-        @context.observe DEDENT
+      while @context.length and INDENT is @peek()
+        @observe DEDENT
         @p "#{DEDENT}#{TERM}"
       if @context.length
         # TODO: store offsets of tokens when inserted and report position of unclosed starting token
-        throw new Error 'Unclosed ' + (inspect @context.peek()) + ' at EOF'
+        throw new Error 'Unclosed ' + (inspect @peek()) + ' at EOF'
       @emit 'end'
       return
 

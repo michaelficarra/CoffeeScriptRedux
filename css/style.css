@@ -1,0 +1,190 @@
+/* line 17, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, embed, figure, figcaption, footer, header, hgroup, menu, nav, output, ruby, section, summary, time, mark, audio, video { margin: 0; padding: 0; border: 0; font-size: 100%; font: inherit; vertical-align: baseline; }
+
+/* line 20, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+body { line-height: 1; }
+
+/* line 22, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+ol, ul { list-style: none; }
+
+/* line 24, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+table { border-collapse: collapse; border-spacing: 0; }
+
+/* line 26, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+caption, th, td { text-align: left; font-weight: normal; vertical-align: middle; }
+
+/* line 28, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+q, blockquote { quotes: none; }
+/* line 101, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+q:before, q:after, blockquote:before, blockquote:after { content: ""; content: none; }
+
+/* line 30, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+a img { border: none; }
+
+/* line 114, /app/.bundle/gems/ruby/1.9.1/gems/compass-0.11.5/frameworks/compass/stylesheets/compass/reset/_utilities.scss */
+article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav, section, summary { display: block; }
+
+/* line 13, /app/site/css/_reset.scss */
+div, dl, dt, dd, ul, ol, li, form, fieldset, input, blockquote, th, td, legend { margin: 0; padding: 0; }
+
+/* line 14, /app/site/css/_reset.scss */
+pre, p, blockquote, h1, h2, h3, h4, h5, h6 { margin: 1em 0 1em 0; }
+
+/* line 16, /app/site/css/_reset.scss */
+h1 { font-size: 1.4em; }
+
+/* line 17, /app/site/css/_reset.scss */
+h2 { font-size: 1.3em; }
+
+/* line 18, /app/site/css/_reset.scss */
+h3 { font-size: 1.2em; }
+
+/* line 19, /app/site/css/_reset.scss */
+h4 { font-size: 1.1em; }
+
+/* line 20, /app/site/css/_reset.scss */
+h5 { font-size: 0.9em; }
+
+/* line 21, /app/site/css/_reset.scss */
+h6 { font-size: 0.9em; }
+
+/* line 22, /app/site/css/_reset.scss */
+ol, ul { margin-left: 2em; }
+
+/* line 24, /app/site/css/_reset.scss */
+blockquote { border-left: solid 2px #ccc; padding: 0 1em; margin-left: 0.2em; color: #888; }
+
+/* line 27, /app/site/css/_reset.scss */
+html, body { margin: 0; padding: 0; }
+
+/* line 29, /app/site/css/_reset.scss */
+button, body, td, input, textarea { font-family: arial, helvetica, sans-serif; font-size: 1em; }
+
+/* line 30, /app/site/css/_reset.scss */
+body { font-size: 0.75em; line-height: 1.5; background: white; color: #333333; }
+
+/* line 31, /app/site/css/_reset.scss */
+#all { margin: 0 auto; width: auto; position: relative; }
+
+/* line 33, /app/site/css/_reset.scss */
+h1, h2, h3, h4, h5, h6 { font-family: arial, helvetica, sans-serif; }
+
+/* line 34, /app/site/css/_reset.scss */
+input, textarea { line-height: 1.4; }
+
+/* line 35, /app/site/css/_reset.scss */
+textarea { resize: vertical; }
+
+/* line 38, /app/site/css/_reset.scss */
+a { color: #337799; text-decoration: none; }
+
+/* line 39, /app/site/css/_reset.scss */
+a:visited { color: #3882a8; }
+
+/* line 40, /app/site/css/_reset.scss */
+a:hover { color: #2d6b89; text-decoration: underline; }
+
+/* line 41, /app/site/css/_reset.scss */
+a img { border: 0; }
+
+/* line 43, /app/site/css/_reset.scss */
+button { cursor: pointer; }
+
+/* line 46, /app/site/css/_reset.scss */
+article, aside, canvas, details, figcaption, figure, footer, header, hgroup, menu, nav, section, summary { display: block; }
+
+/* line 2, /app/site/css/_scroll.scss */
+.ace_scroller::-webkit-scrollbar, .ace_sb::-webkit-scrollbar { height: 15px; width: 15px; }
+/* line 6, /app/site/css/_scroll.scss */
+.ace_scroller::-webkit-scrollbar-thumb, .ace_sb::-webkit-scrollbar-thumb { border-width: 7px 7px 7px 7px; -webkit-border-image: url(../images/scroll-dark.png) 7 7 7 7 round round; }
+
+/* line 21, /app/site/css/style.sass */
+html, body { min-height: 100%; }
+
+/* line 24, /app/site/css/style.sass */
+a:hover { text-decoration: none; }
+
+/* line 27, /app/site/css/style.sass */
+.hide { display: none; }
+
+/* line 30, /app/site/css/style.sass */
+body { background: #4d362d url(../images/bg-brown.jpg); font-size: 11pt; line-height: 1.6; }
+
+/* line 36, /app/site/css/style.sass */
+body, h1, h2, h3, h4, h5, h6, td { font-family: palatino, serif; }
+
+/* line 41, /app/site/css/style.sass */
+#tabs { overflow: hidden; margin-top: 20px; margin-left: 40px; }
+/* line 46, /app/site/css/style.sass */
+#tabs ul { zoom: 1; }
+/* line 38, /app/site/css/_utilities.scss */
+#tabs ul, #tabs ul li { margin: 0; padding: 0; list-style-type: none; display: block; }
+/* line 39, /app/site/css/_utilities.scss */
+#tabs ul li { background-image: none; }
+/* line 24, /app/site/css/_utilities.scss */
+#tabs ul:after { content: ''; clear: both; display: block; line-height: 0; height: 0; visibility: hidden; zoom: 1; }
+/* line 44, /app/site/css/_utilities.scss */
+#tabs ul li { float: left; }
+/* line 49, /app/site/css/style.sass */
+#tabs a { margin: 0 2px; display: inline-block; background: rgba(230, 228, 224, 0.5); -moz-border-radius-topleft: 4px; -webkit-border-top-left-radius: 4px; -o-border-top-left-radius: 4px; -ms-border-top-left-radius: 4px; -khtml-border-top-left-radius: 4px; border-top-left-radius: 4px; -moz-border-radius-topright: 4px; -webkit-border-top-right-radius: 4px; -o-border-top-right-radius: 4px; -ms-border-top-right-radius: 4px; -khtml-border-top-right-radius: 4px; border-top-right-radius: 4px; padding: 5px 25px; color: rgba(238, 238, 238, 0.7); text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3); font-family: lato; font-weight: 800; font-size: 8pt; }
+/* line 62, /app/site/css/style.sass */
+#tabs a:hover { background: rgba(230, 228, 224, 0.7); color: rgba(238, 238, 238, 0.9); }
+/* line 66, /app/site/css/style.sass */
+#tabs a.active { opacity: 1; color: #333333; text-shadow: 0 0 1px rgba(255, 255, 255, 0.6); }
+/* line 71, /app/site/css/style.sass */
+#tabs a.active.js2coffee { background: #e6e4e0; }
+/* line 73, /app/site/css/style.sass */
+/* #tabs a.active.coffee2js { background: #d3e9ed; } */
+#tabs a.active.coffee2js { background: #e6e4e0; }
+
+/* line 78, /app/site/css/style.sass */
+#editors { overflow: hidden; height: 640px; }
+/* line 84, /app/site/css/style.sass */
+#editors form { position: relative; height: 640px; margin: 0 30px 10px 30px; -moz-box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.2); -webkit-box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.2); -o-box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.2); box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.2); -moz-border-radius: 2px; -webkit-border-radius: 2px; -o-border-radius: 2px; -ms-border-radius: 2px; -khtml-border-radius: 2px; border-radius: 2px; }
+/* line 91, /app/site/css/style.sass */
+#editors form#js2coffee { background: #e6e4e0; background-color: #e6e4e0; background-image: -moz-linear-gradient(top, #e6e4e0, #faf9f8); background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #e6e4e0), color-stop(1, #faf9f8)); filter: progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#faf9f8'); -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#faf9f8')"; background-color: #e6e4e0; background-image: -moz-linear-gradient(top, #e6e4e0, #e9e7e3); background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #e6e4e0), color-stop(1, #e9e7e3)); filter: progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#e9e7e3'); -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#e9e7e3')"; border-bottom: solid 2px #cfcdc9; }
+/* line 97, /app/site/css/style.sass */
+/* #editors form#coffee2js { background: #d3e9ed; background-color: #d3e9ed; background-image: -moz-linear-gradient(top, #d3e9ed, #f6fafb); background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #d3e9ed), color-stop(1, #f6fafb)); filter: progid:DXImageTransform.Microsoft.gradient(startColorStr='#d3e9ed', EndColorStr='#f6fafb'); -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorStr='#d3e9ed', EndColorStr='#f6fafb')"; background-color: #d3e9ed; background-image: -moz-linear-gradient(top, #d3e9ed, #e9e7e3); background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #d3e9ed), color-stop(1, #e9e7e3)); filter: progid:DXImageTransform.Microsoft.gradient(startColorStr='#d3e9ed', EndColorStr='#e9e7e3'); -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorStr='#d3e9ed', EndColorStr='#e9e7e3')"; border-bottom: solid 2px #bdd1d5; } */
+#editors form#coffee2js { background: #e6e4e0; background-color: #e6e4e0; background-image: -moz-linear-gradient(top, #e6e4e0, #faf9f8); background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #e6e4e0), color-stop(1, #faf9f8)); filter: progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#faf9f8'); -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#faf9f8')"; background-color: #e6e4e0; background-image: -moz-linear-gradient(top, #e6e4e0, #e9e7e3); background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #e6e4e0), color-stop(1, #e9e7e3)); filter: progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#e9e7e3'); -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorStr='#e6e4e0', EndColorStr='#e9e7e3')"; border-bottom: solid 2px #cfcdc9; }
+/* line 103, /app/site/css/style.sass */
+#editors .editor, #editors .output { opacity: 0.9; position: absolute; left: 10px; top: 0; right: 50%; bottom: 0; border: solid 15px white; border-right-width: 5px; background-color: white; }
+/* line 114, /app/site/css/style.sass */
+#editors .editor { -moz-box-shadow: 3px 0 2px rgba(0, 0, 0, 0.2), 1px 0 0 rgba(0, 0, 0, 0.2); -webkit-box-shadow: 3px 0 2px rgba(0, 0, 0, 0.2), 1px 0 0 rgba(0, 0, 0, 0.2); -o-box-shadow: 3px 0 2px rgba(0, 0, 0, 0.2), 1px 0 0 rgba(0, 0, 0, 0.2); box-shadow: 3px 0 2px rgba(0, 0, 0, 0.2), 1px 0 0 rgba(0, 0, 0, 0.2); }
+/* line 117, /app/site/css/style.sass */
+#editors .output { -moz-box-shadow: 0 0 2px rgba(0, 0, 0, 0.2); -webkit-box-shadow: 0 0 2px rgba(0, 0, 0, 0.2); -o-box-shadow: 0 0 2px rgba(0, 0, 0, 0.2); box-shadow: 0 0 2px rgba(0, 0, 0, 0.2); opacity: 0.8; right: 10px; left: 50%; }
+/* line 123, /app/site/css/style.sass */
+#editors .error { -moz-box-sizing: border-box; -webkit-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; position: absolute; top: 20px; left: 50%; max-width: 40%; padding: 5px 10px; background: rgba(153, 51, 51, 0.9); color: #eeeeee; text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3); z-index: 100; }
+
+/* line 137, /app/site/css/style.sass */
+p.more-info { margin: 0 0 20px 0; padding: 0; text-align: center; }
+/* line 142, /app/site/css/style.sass */
+p.more-info a { display: inline-block; background: rgba(0, 0, 0, 0.5); -moz-border-radius-bottomleft: 4px; -webkit-border-bottom-left-radius: 4px; -o-border-bottom-left-radius: 4px; -ms-border-bottom-left-radius: 4px; -khtml-border-bottom-left-radius: 4px; border-bottom-left-radius: 4px; -moz-border-radius-bottomright: 4px; -webkit-border-bottom-right-radius: 4px; -o-border-bottom-right-radius: 4px; -ms-border-bottom-right-radius: 4px; -khtml-border-bottom-right-radius: 4px; border-bottom-right-radius: 4px; font-family: lato, sans-serif; text-transform: uppercase; letter-spacing: 3px; font-size: 7pt; font-weight: normal; color: #aaaaaa; text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3); padding: 5px 30px; }
+/* line 158, /app/site/css/style.sass */
+p.more-info a:hover { background: rgba(215, 125, 45, 0.7); color: white; }
+
+/* line 164, /app/site/css/style.sass */
+#info { background: #4d362d url(../images/bg-brown.jpg); margin: 0 0 0 0; overflow: hidden; position: relative; color: #eeeeee; text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.15); }
+/* line 172, /app/site/css/style.sass */
+#info a, #info a:visited { color: #f7e5d5; border-bottom: dotted 1px rgba(247, 229, 213, 0.4); }
+/* line 176, /app/site/css/style.sass */
+#info a:hover, #info a:visited:hover { background: rgba(0, 0, 0, 0.2); -moz-border-radius: 2px; -webkit-border-radius: 2px; -o-border-radius: 2px; -ms-border-radius: 2px; -khtml-border-radius: 2px; border-radius: 2px; }
+/* line 181, /app/site/css/style.sass */
+#info h2 { font-weight: bold; font-size: 40pt; text-align: center; margin: 20px auto; padding: 0; }
+/* line 189, /app/site/css/style.sass */
+#info .logo { margin: 30px 0 0; height: 70px; background: #eceae6; border-top: solid 2px #253a3a; border-bottom: solid 2px #253a3a; text-align: center; }
+/* line 197, /app/site/css/style.sass */
+#info .logo img { position: relative; top: -63px; }
+/* line 201, /app/site/css/style.sass */
+#info article { background: url(../images/bg-blue.jpg); padding: 20px; padding-top: 80px; }
+/* line 206, /app/site/css/style.sass */
+#info article > .c { width: 400px; padding-left: 200px; margin: 0 auto; }
+/* line 211, /app/site/css/style.sass */
+#info h3 { margin: 0; padding: 0; margin-left: -200px; margin-top: 28px; width: 170px; float: left; color: #d77d2d; text-transform: uppercase; font-family: lato; text-align: right; letter-spacing: 1px; font-size: 9pt; }
+/* line 225, /app/site/css/style.sass */
+#info h3:first-child { margin-top: 0; }
+/* line 228, /app/site/css/style.sass */
+#info h3 + p { margin-top: 40px; }
+/* line 231, /app/site/css/style.sass */
+#info h4 { color: #999999; border-top: solid 1px #dddddd; padding-top: 20px; margin-top: 20px; font-size: 1em; }
+/* line 238, /app/site/css/style.sass */
+#info code { background: rgba(250, 250, 250, 0.2); border: solid 1px rgba(221, 221, 221, 0.2); ptopadding: 1px 4px; }

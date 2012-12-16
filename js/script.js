@@ -55,7 +55,8 @@
         $("#coffee2js .error").hide();
         return output.getSession().setValue(out);
       } catch (e) {
-        $("#coffee2js .error").text("" + e);
+        e = e.message.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        $("#coffee2js .error").html("" + e.replace(/\n/g, '<br/>'));
         return $("#coffee2js .error").show();
       }
     };

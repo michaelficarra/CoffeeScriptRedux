@@ -589,7 +589,7 @@ class
       / TERMINATOR? _ e:expression { return e; }
       ) {
         if(e.instanceof(CS.BoundFunction))
-          e = c(new CS.Function(e.parameters, e.block).r(e.raw), e);
+          e = c(new CS.Function(e.parameters, e.body).r(e.raw), e);
         return rp(new CS.Constructor(e));
       }
   staticAssignment

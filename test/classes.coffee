@@ -651,3 +651,12 @@ suite 'Classes', ->
         @static = => 'value'
 
       eq B.static(), 'value'
+
+    test 'bound function literals as constructors should be treated as unbound', ->
+      nonce = {}
+      class A
+        constructor: =>
+          @nonce = nonce
+      a = new A
+      ok a instanceof A
+      eq nonce, a.nonce

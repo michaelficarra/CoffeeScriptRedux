@@ -35,34 +35,45 @@
     return editor;
   };
   activate_coffee2js = function() {
-    var editor, onchange, output;
-    editor = activate("coffee2js_editor", {
-      type: "coffeescript",
-      tabSize: 2
-    });
-    output = activate("coffee2js_output", {
-      type: "javascript",
-      noActiveLine: true
-    });
-    output.setReadOnly(true);
-    onchange = function() {
-      var input, out, csAST, jsAST;
-      input = editor.getSession().getValue();
+    var editor, onchange, output, initialValue, hash, sourceFragment = 'try:';
+
+    function compile(input) {
+      var out, csAST, jsAST;
       try {
         csAST = CoffeeScript.parse(input, {optimise: false, raw: false, inputSource: '(demo)'});
         jsAST = CoffeeScript.compile(csAST, {bare: false});
         out = CoffeeScript.js(jsAST, {compact: false});
-        $("#coffee2js .error").hide();
-        return output.getSession().setValue(out);
       } catch (e) {
         e = e.message.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         $("#coffee2js .error").html("" + e.replace(/\n/g, '<br/>'));
         return $("#coffee2js .error").show();
       }
-    };
-    editor.getSession().on("change", onchange);
-    editor.getSession().setValue(randomFrom(samples.coffee));
-    return onchange();
+      $("#coffee2js .error").hide();
+      return output.getSession().setValue(out);
+    }
+
+    editor = activate("coffee2js_editor", {
+      type: "coffeescript",
+      tabSize: 2
+    });
+
+    output = activate("coffee2js_output", {
+      type: "javascript",
+      noActiveLine: true
+    });
+    output.setReadOnly(true);
+
+    hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+    editor.getSession().setValue(
+      initialValue = hash.indexOf(sourceFragment) == 0 ? hash.substr(sourceFragment.length) : randomFrom(samples.coffee)
+    );
+    compile(initialValue);
+
+    editor.getSession().on("change", function(){
+      var input = editor.getSession().getValue();
+      compile(input);
+      location.hash = sourceFragment + encodeURIComponent(input);
+    });
   };
   $("#tabs a").live("click", function() {
     var $form, target;

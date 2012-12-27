@@ -49,3 +49,11 @@
   mod = if c < 0 then c + b else c
   div = Math.floor a / b
   [div, mod]
+
+# The partition function takes a list and predicate fn and returns the pair of lists
+# of elements which do and do not satisfy the predicate, respectively.
+@partition = (list, fn) ->
+  result = [[], []]
+  result[Number !fn item].push item for item in list
+  result
+

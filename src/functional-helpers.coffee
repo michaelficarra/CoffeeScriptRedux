@@ -54,6 +54,6 @@
 # of elements which do and do not satisfy the predicate, respectively.
 @partition = (list, fn) ->
   result = [[], []]
-  result[Number !fn item].push item for item in list
+  result[+!fn item].push item for item in list
   result
 

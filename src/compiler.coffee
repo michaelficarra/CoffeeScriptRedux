@@ -387,7 +387,7 @@ class exports.Compiler
       # Push function declaration helpers, unshift all other types (VariableDeclarations, etc.)
       [fnDeclHelpers, otherHelpers] = partition enabledHelpers, (helper) -> helper.instanceof JS.FunctionDeclaration
       [].push.apply block, fnDeclHelpers
-      [].push.apply block, otherHelpers
+      [].unshift.apply block, otherHelpers
 
       decls = nub concatMap block, declarationsNeededRecursive
       if decls.length > 0

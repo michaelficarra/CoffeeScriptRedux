@@ -12,11 +12,15 @@ suite 'Object Literals', ->
       eq nonce, { a : nonce }.a
       eq nonce, {a: nonce,}.a
       eq nonce, {0: nonce}[0]
+      eq nonce, {0x0: nonce}[0]
+      eq nonce, {'0x0': nonce}['0x0']
       eq nonce, {1e3: nonce}[1e3]
       eq nonce, {a:0,b:nonce,c:0}.b
       eq nonce, {a: 0, b: nonce, c: 0}.b
       eq nonce, {a: 0, b: nonce, c: 0, }.b
       eq nonce, { a : 0 , b : nonce, c : 0 }.b
+      eq nonce, {'a': nonce}.a
+      eq nonce, {'s p a c e s': nonce}['s p a c e s']
 
     test 'reserved words as keys', ->
       nonce = {}

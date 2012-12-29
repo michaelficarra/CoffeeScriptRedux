@@ -19,9 +19,15 @@ suite 'Object Literals', ->
       eq nonce, { a : 0 , b : nonce, c : 0 }.b
 
     test 'reserved words as keys', ->
-      obj = {is: yes, not: no}
-      ok obj.is
-      ok not obj.not
+      nonce = {}
+
+      # CS reserved words
+      obj = {not: nonce}
+      eq nonce, obj.not
+
+      # JS reserved words
+      obj = {default: nonce}
+      eq nonce, obj.default
 
     test 'listed functions', ->
       nonce = {}

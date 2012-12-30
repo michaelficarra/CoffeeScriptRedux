@@ -571,6 +571,11 @@ class exports.Compiler
       ({parameters, body, ancestry}) ->
         unless ancestry[0]?.instanceof CS.Constructor
           body = makeReturn body
+        name = if (ancestry[0]?.instanceof CS.AssignOps) and ancestry[0].expression is this
+          if ancestry[0].assignee.instanceof CS.StaticMemberAccessOps
+            genSym ancestry[0].assignee.memberName
+          else if ancestry[0].assignee.instanceof CS.Identifier
+            genSym ancestry[0].assignee.data
         block = forceBlock body
         last = block.body[-1..][0]
         if (last?.instanceof JS.ReturnStatement) and not last.argument?
@@ -621,7 +626,7 @@ class exports.Compiler
             else rewriteThis this
           rewriteThis block
 
-        fn = new JS.FunctionExpression null, parameters, block
+        fn = new JS.FunctionExpression name, parameters, block
         if performedRewrite
           new JS.SequenceExpression [
             new JS.AssignmentExpression '=', newThis, new JS.ThisExpression
@@ -987,6 +992,7 @@ class exports.Compiler
       generatedSymbols = {}
       format = (pre, counter) ->
         if pre
+          pre = (pre.replace /[^a-z0-9_$]/ig, '_').replace /^([0-9])/, '_$1'
           "#{pre}$#{counter or ''}"
         else
           if counter < 26

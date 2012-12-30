@@ -1,4 +1,4 @@
-{any, concat, concatMap, difference, divMod, foldl1, map, nub, owns, span, union} = require './functional-helpers'
+{any, concat, concatMap, difference, divMod, foldl1, map, nub, owns, partition, span, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -387,8 +387,12 @@ class exports.Compiler
       block =
         if block.instanceof JS.BlockStatement then block.body
         else [block]
-      # helpers
-      [].push.apply block, enabledHelpers
+
+      # Push function declaration helpers, unshift all other types (VariableDeclarations, etc.)
+      [fnDeclHelpers, otherHelpers] = partition enabledHelpers, (helper) -> helper.instanceof JS.FunctionDeclaration
+      [].push.apply block, fnDeclHelpers
+      [].unshift.apply block, otherHelpers
+
       decls = nub concatMap block, declarationsNeededRecursive
       if decls.length > 0
         if options.bare

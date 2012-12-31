@@ -36,12 +36,12 @@ lib/coffee-script/parser.js: src/grammar.pegjs bootstraps lib/coffee-script
 lib/coffee-script/bootstrap/parser.js: src/grammar.pegjs lib/coffee-script/bootstrap
 	$(PEGJS) <"$<" >"$@"
 lib/coffee-script/bootstrap/%.js: src/%.coffee lib/coffee-script/bootstrap
-	$(COFFEE) <"$<" >"$@"
+	$(COFFEE) -i "$<" >"$@"
 bootstraps: $(BOOTSTRAPS) lib/coffee-script/bootstrap
 	mv lib/coffee-script/bootstrap/* lib/coffee-script
 	rmdir lib/coffee-script/bootstrap
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script/bootstrap/%.js bootstraps lib/coffee-script
-	$(COFFEE) <"$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
+	$(COFFEE) -i "$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
 
 
 CoffeeScriptRedux.js: $(LIB)

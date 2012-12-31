@@ -320,20 +320,29 @@ else
       else process.exit 1
 
     # js code gen
-    try js = CoffeeScript.js jsAST, compact: options.minify
+    try
+      js = CoffeeScript.js jsAST, compact: options.minify
+      if options.input?
+        js = "#{js}\n//@ sourceURL=#{options.input}"
     catch e
       console.error (e.stack or e.message)
       process.exit 1
 
     # --js
     if options.js
-      if js?
-        console.log js
+      process.exit 1 unless js?
+      console.log js
+      process.exit 0
+
+    # --output
+    else if options.output
+      process.exit 1 unless js?
+      fs.writeFile options.output, js, (err) ->
+        throw err if err?
         process.exit 0
-      else process.exit 1
 
     # --eval
-    if options.eval
+    else if options.eval
       runMain input, js, jsAST, inputSource
 
   # choose input source

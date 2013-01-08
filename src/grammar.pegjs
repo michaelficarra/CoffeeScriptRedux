@@ -167,6 +167,7 @@ secondaryStatement
   / debugger
 // secondaryExpression forbids anything lower precedence than assignmentExpression
 secondaryExpression = expressionworthy / assignmentExpression
+secondaryExpressionNoImplicitObjectCall = expressionworthy / assignmentExpressionNoImplicitObjectCall
 
 // TODO: rename?
 expressionworthy
@@ -262,9 +263,42 @@ assignmentExpression
       ) {
         return rp(new CS.ExistsAssignOp(left, right));
       }
+assignmentExpressionNoImplicitObjectCall
+  = assignmentOpNoImplicitObjectCall
+  / compoundAssignmentOpNoImplicitObjectCall
+  / existsAssignmentOpNoImplicitObjectCall
+  / logicalOrExpressionNoImplicitObjectCall
+  assignmentOpNoImplicitObjectCall
+    = left:Assignable _ "=" !"=" right:
+      ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { return e; }
+      / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { return e; }
+      ) {
+        return rp(new CS.AssignOp(left, right));
+      }
+  compoundAssignmentOpNoImplicitObjectCall
+    = left:CompoundAssignable _ op:CompoundAssignmentOperators "=" right:
+      ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { return e; }
+      / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { return e; }
+      ) {
+        return rp(new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right));
+      }
+  existsAssignmentOpNoImplicitObjectCall
+    = left:ExistsAssignable _ "?=" _ right:
+      ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { return e; }
+      / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { return e; }
+      ) {
+        return rp(new CS.ExistsAssignOp(left, right));
+      }
 
 logicalOrExpression
   = left:logicalAndExpression rights:(_ ("||" / OR) !"=" TERMINATOR? _ (expressionworthy / logicalAndExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new CS.LogicalOrOp(expr, right[5]));
+      }, left, rights);
+    }
+logicalOrExpressionNoImplicitObjectCall
+  = left:logicalAndExpressionNoImplicitObjectCall rights:(_ ("||" / OR) !"=" TERMINATOR? _ (expressionworthy / logicalAndExpressionNoImplicitObjectCall))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         return rp(new CS.LogicalOrOp(expr, right[5]));
@@ -278,9 +312,23 @@ logicalAndExpression
         return rp(new CS.LogicalAndOp(expr, right[5]));
       }, left, rights);
     }
+logicalAndExpressionNoImplicitObjectCall
+  = left:bitwiseOrExpressionNoImplicitObjectCall rights:(_ ("&&" / AND) !"=" TERMINATOR? _ (expressionworthy / bitwiseOrExpressionNoImplicitObjectCall))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new CS.LogicalAndOp(expr, right[5]));
+      }, left, rights);
+    }
 
 bitwiseOrExpression
   = left:bitwiseXorExpression rights:(_ "|" !"=" TERMINATOR? _ (expressionworthy / bitwiseXorExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new CS.BitOrOp(expr, right[5]));
+      }, left, rights);
+    }
+bitwiseOrExpressionNoImplicitObjectCall
+  = left:bitwiseXorExpressionNoImplicitObjectCall rights:(_ "|" !"=" TERMINATOR? _ (expressionworthy / bitwiseXorExpressionNoImplicitObjectCall))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         return rp(new CS.BitOrOp(expr, right[5]));
@@ -294,9 +342,23 @@ bitwiseXorExpression
         return rp(new CS.BitXorOp(expr, right[5]));
       }, left, rights);
     }
+bitwiseXorExpressionNoImplicitObjectCall
+  = left:bitwiseAndExpressionNoImplicitObjectCall rights:(_ "^" !"=" TERMINATOR? _ (expressionworthy / bitwiseAndExpressionNoImplicitObjectCall))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new CS.BitXorOp(expr, right[5]));
+      }, left, rights);
+    }
 
 bitwiseAndExpression
   = left:existentialExpression rights:(_ "&" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new CS.BitAndOp(expr, right[5]));
+      }, left, rights);
+    }
+bitwiseAndExpressionNoImplicitObjectCall
+  = left:existentialExpressionNoImplicitObjectCall rights:(_ "&" !"=" TERMINATOR? _ (expressionworthy / existentialExpressionNoImplicitObjectCall))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         return rp(new CS.BitAndOp(expr, right[5]));
@@ -308,9 +370,22 @@ existentialExpression
       if(!right) return left;
       return rp(new CS.ExistsOp(left, right[5]));
     }
+existentialExpressionNoImplicitObjectCall
+  = left:comparisonExpressionNoImplicitObjectCall right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpressionNoImplicitObjectCall))? {
+      if(!right) return left;
+      return rp(new CS.ExistsOp(left, right[5]));
+    }
 
 comparisonExpression
   = left:relationalExpression rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / relationalExpression))* {
+      if(!rights) return left;
+      var tree = foldl(function(expr, right){
+        return rp(new constructorLookup[right[1]](expr, right[3]));
+      }, left, rights);
+      return rights.length < 2 ? tree : rp(new CS.ChainedComparisonOp(tree));
+    }
+comparisonExpressionNoImplicitObjectCall
+  = left:relationalExpressionNoImplicitObjectCall rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / relationalExpressionNoImplicitObjectCall))* {
       if(!rights) return left;
       var tree = foldl(function(expr, right){
         return rp(new constructorLookup[right[1]](expr, right[3]));
@@ -336,9 +411,23 @@ relationalExpression
           return new CS.LogicalNotOp(new constructorLookup[op](left, right)).g();
         };
       }
+relationalExpressionNoImplicitObjectCall
+  = left:bitwiseShiftExpressionNoImplicitObjectCall rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpressionNoImplicitObjectCall))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(right[1](expr, right[4]));
+      }, left, rights);
+    }
 
 bitwiseShiftExpression
   = left:additiveExpression rights:(_ ("<<" / ">>>" / ">>") !"=" TERMINATOR? _ (expressionworthy / additiveExpression))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new constructorLookup[right[1]](expr, right[5]));
+      }, left, rights);
+    }
+bitwiseShiftExpressionNoImplicitObjectCall
+  = left:additiveExpressionNoImplicitObjectCall rights:(_ ("<<" / ">>>" / ">>") !"=" TERMINATOR? _ (expressionworthy / additiveExpressionNoImplicitObjectCall))* {
       if(!rights) return left;
       return foldl(function(expr, right){
         return rp(new constructorLookup[right[1]](expr, right[5]));
@@ -352,6 +441,13 @@ additiveExpression
         return rp(new constructorLookup[right[1][0]](expr, right[4]));
       }, left, rights);
     }
+additiveExpressionNoImplicitObjectCall
+  = left:multiplicativeExpressionNoImplicitObjectCall rights:(_ ("+" ![+=] / "-" ![-=]) TERMINATOR? _ (expressionworthy / multiplicativeExpressionNoImplicitObjectCall))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new constructorLookup[right[1][0]](expr, right[4]));
+      }, left, rights);
+    }
 
 multiplicativeExpression
   = left:exponentiationExpression rights:(_ [*/%] !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))* {
@@ -360,9 +456,21 @@ multiplicativeExpression
         return rp(new constructorLookup[right[1]](expr, right[5]));
       }, left, rights);
     }
+multiplicativeExpressionNoImplicitObjectCall
+  = left:exponentiationExpressionNoImplicitObjectCall rights:(_ [*/%] !"=" TERMINATOR? _ (expressionworthy / exponentiationExpressionNoImplicitObjectCall))* {
+      if(!rights) return left;
+      return foldl(function(expr, right){
+        return rp(new constructorLookup[right[1]](expr, right[5]));
+      }, left, rights);
+    }
 
 exponentiationExpression
   = left:prefixExpression right:(_ "**" !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))? {
+      if(!right) return left;
+      return rp(new CS.ExpOp(left, right[5]));
+    }
+exponentiationExpressionNoImplicitObjectCall
+  = left:prefixExpressionNoImplicitObjectCall right:(_ "**" !"=" TERMINATOR? _ (expressionworthy / exponentiationExpressionNoImplicitObjectCall))? {
       if(!right) return left;
       return rp(new CS.ExpOp(left, right[5]));
     }
@@ -379,9 +487,32 @@ prefixExpression
   / DO _ e:(expressionworthy / prefixExpression) { return rp(new CS.DoOp(e)); }
   / TYPEOF _ e:(expressionworthy / prefixExpression) { return rp(new CS.TypeofOp(e)); }
   / DELETE _ e:(expressionworthy / prefixExpression) { return rp(new CS.DeleteOp(e)); }
+prefixExpressionNoImplicitObjectCall
+  = postfixExpressionNoImplicitObjectCall
+  / "++" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.PreIncrementOp(e)); }
+  / "--" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.PreDecrementOp(e)); }
+  / "+" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.UnaryPlusOp(e)); }
+  / "-" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.UnaryNegateOp(e)); }
+  / o:("!" / NOT) _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.LogicalNotOp(e)); }
+  / "~" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.BitNotOp(e)); }
+  / DO _ !unassignable a:identifier _ "=" _ f:functionLiteral { return rp(new CS.DoOp(new CS.AssignOp(a, f))); }
+  / DO _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DoOp(e)); }
+  / TYPEOF _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.TypeofOp(e)); }
+  / DELETE _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DeleteOp(e)); }
 
 postfixExpression
   = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
+      return foldl(function(expr, op){
+        switch(op){
+          case '?': return rp(new CS.UnaryExistsOp(expr));
+          case '[..]': return rp(new CS.ShallowCopyArray(expr));
+          case '++': return rp(new CS.PostIncrementOp(expr));
+          case '--': return rp(new CS.PostDecrementOp(expr));
+        }
+      }, expr, ops);
+    }
+postfixExpressionNoImplicitObjectCall
+  = expr:leftHandSideExpressionNoImplicitObjectCall ops:("?" / "[..]" / "++" / "--")* {
       return foldl(function(expr, op){
         switch(op){
           case '?': return rp(new CS.UnaryExistsOp(expr));
@@ -419,9 +550,29 @@ leftHandSideExpression = callExpression / newExpression
   secondaryArgument
     = spread
     / secondaryExpression
+leftHandSideExpressionNoImplicitObjectCall = callExpressionNoImplicitObjectCall / newExpressionNoImplicitObjectCall
+  secondaryArgumentListNoImplicitObjectCall
+    = __ !([+-/] __) e:secondaryArgumentNoImplicitObjectCall es:(_ "," _ TERMINATOR? _ secondaryArgumentNoImplicitObjectCall)* {
+        es = [e].concat(es.map(function(e){ return e[5]; }));
+        return es;
+      }
+  secondaryArgumentNoImplicitObjectCall
+    = spreadNoImplicitObjectCall
+    / secondaryExpressionNoImplicitObjectCall
 
 callExpression
   = fn:memberExpression accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentList)? {
+      if(accesses) fn = createMemberExpression(fn, accesses);
+      var soaked, secondaryCtor;
+      if(secondaryArgs) {
+        soaked = secondaryArgs[0];
+        secondaryCtor = soaked ? CS.SoakedFunctionApplication : CS.FunctionApplication;
+        fn = rp(new secondaryCtor(fn, secondaryArgs[1]));
+      }
+      return fn;
+    }
+callExpressionNoImplicitObjectCall
+  = fn:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
       if(accesses) fn = createMemberExpression(fn, accesses);
       var soaked, secondaryCtor;
       if(secondaryArgs) {
@@ -435,6 +586,11 @@ callExpression
 newExpression
   = memberExpression
   / NEW __ e:(expressionworthy / newExpression / prefixExpression) {
+      return rp(new CS.NewOp(e, []));
+    }
+newExpressionNoImplicitObjectCall
+  = memberExpressionNoImplicitObjectCall
+  / NEW __ e:(expressionworthy / newExpressionNoImplicitObjectCall / prefixExpressionNoImplicitObjectCall) {
       return rp(new CS.NewOp(e, []));
     }
 
@@ -469,6 +625,16 @@ memberExpression
     / "[" _ left:assignmentExpression? _ ".." exclusive:"."? _ right:assignmentExpression? _ "]" {
         return rp({op: CS.Slice, operands: [!exclusive, left || null, right || null]});
       }
+memberExpressionNoImplicitObjectCall
+  = e:
+    ( primaryExpression
+    / NEW __ e:memberExpressionNoImplicitObjectCall args:argumentList { return rp(new CS.NewOp(e, args.operands[0])); }
+    ) accesses:MemberAccessOps* {
+      return createMemberExpression(e, accesses || []);
+    }
+  / NEW __ e:memberExpressionNoImplicitObjectCall args:secondaryArgumentListNoImplicitObjectCall {
+      return rp(new CS.NewOp(e, args));
+    }
 
 primaryExpression
   = macro
@@ -497,10 +663,12 @@ primaryExpression
 
 spread
   = e:postfixExpression "..." { return rp(new CS.Spread(e)); }
+spreadNoImplicitObjectCall
+  = e:postfixExpressionNoImplicitObjectCall "..." { return rp(new CS.Spread(e)); }
 
 
 conditional
-  = kw:(IF / UNLESS) _ cond:assignmentExpression body:conditionalBody elseClause:elseClause? {
+  = kw:(IF / UNLESS) _ cond:assignmentExpressionNoImplicitObjectCall body:conditionalBody elseClause:elseClause? {
       var constructor = 'unless' === kw ? CS.NegatedConditional : CS.Conditional;
       if('unless' === kw) cond = new CS.LogicalNotOp(cond).g();
       return rp(new constructor(cond, body.block, elseClause || null));
@@ -514,7 +682,7 @@ conditional
 
 
 while
-  = kw:(WHILE / UNTIL) _ cond:assignmentExpression body:whileBody {
+  = kw:(WHILE / UNTIL) _ cond:assignmentExpressionNoImplicitObjectCall body:whileBody {
       var constructor = 'until' === kw ? CS.NegatedWhile : CS.While;
       if('until' === kw) cond = new CS.LogicalNotOp(cond).g();
       return rp(new constructor(cond, body.block));
@@ -560,15 +728,7 @@ class
       }
       return rp(new CS.Class(name, parent, ctor, body, boundMembers));
     }
-  extendee
-    = expressionworthy
-    // don't match a CallExpression
-    / !(memberExpression (MemberAccessOps / argumentList)* TERMINDENT implicitObjectLiteralMember) a:assignmentExpression { return a; }
-    // or match a CallExpression that forbids implicit object literals
-    / fn:memberExpression accesses:(argumentList (MemberAccessOps / argumentList)*)? {
-        if(!accesses) return fn;
-        return createMemberExpression(fn, [accesses[0]].concat(accesses[1] || []));
-      }
+  extendee = secondaryExpressionNoImplicitObjectCall
   classBody
     = _ TERMINDENT b:classBlock DEDENT { return b; }
     / _ THEN _ s:classStatement { return s; }
@@ -608,13 +768,13 @@ class
 
 forBody = conditionalBody
 forOf
-  = FOR _ own:(OWN _)? key:Assignable _ maybeVal:("," _ Assignable _)? OF _ obj:assignmentExpression _ maybeFilter:(WHEN _ assignmentExpression _)? body:forBody {
+  = FOR _ own:(OWN _)? key:Assignable _ maybeVal:("," _ Assignable _)? OF _ obj:assignmentExpressionNoImplicitObjectCall _ maybeFilter:(WHEN _ assignmentExpressionNoImplicitObjectCall _)? body:forBody {
       var val = maybeVal ? maybeVal[2] : null;
       var filter = maybeFilter ? maybeFilter[2] : null;
       return rp(new CS.ForOf(!!own, key, val, obj, filter, body.block));
     }
 forIn
-  = FOR _ val:Assignable _ maybeKey:("," _ Assignable _)? IN _ list:assignmentExpression _ maybeStep:(BY _ assignmentExpression _)? maybeFilter:(WHEN _ assignmentExpression _)? body:forBody {
+  = FOR _ val:Assignable _ maybeKey:("," _ Assignable _)? IN _ list:assignmentExpressionNoImplicitObjectCall _ maybeStep:(BY _ assignmentExpressionNoImplicitObjectCall _)? maybeFilter:(WHEN _ assignmentExpressionNoImplicitObjectCall _)? body:forBody {
       var key = maybeKey ? maybeKey[2] : null;
       var step = maybeStep ? maybeStep[2] : new CS.Int(1).r('1').g();
       var filter = maybeFilter ? maybeFilter[2] : null;
@@ -639,7 +799,7 @@ switch
     = WHEN _ conditions:caseConditions body:caseBody {
         return rp(new CS.SwitchCase(conditions, body.block));
       }
-  caseCondition = assignmentExpression
+  caseCondition = assignmentExpressionNoImplicitObjectCall
   caseConditions
     = c:caseCondition cs:(_ "," _ caseCondition)* {
         return [c].concat(cs.map(function(c){ return c[3]; }));

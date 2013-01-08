@@ -211,3 +211,61 @@ suite 'Object Literals', ->
     #    key: for i in [1, 2, 3] then i
     #
     #  eq func().key.join(' '), '1 2 3'
+
+    test '#122 implicit object literal in conditional body', ->
+      a = yes
+
+      b = switch a
+        when yes
+          result: yes
+        when no, 10
+          result: no
+
+      ok b.result
+
+      c = if a
+        result: yes
+
+      ok c.result
+
+      d = 42
+      e = if 2 + 40 is d
+        result: yes
+
+      ok e.result
+
+      f = unless a
+        result: no
+      else
+        result: yes
+
+      ok f.result
+
+      g = 0
+      h = 1
+      while g < h
+        result: yes
+        g += 1
+
+      eq g, 1
+
+      i = 0
+      j = 1
+      unless i > j
+        result: yes
+        i += 1
+
+      eq i, 1
+
+      k = [0..3]
+      for l in k
+        result: yes
+
+      eq l, 3
+
+      m = [0..3]
+      for n of m
+        result: yes
+
+      eq n, '3'
+

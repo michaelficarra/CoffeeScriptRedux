@@ -15,7 +15,7 @@ MINIFIER = node_modules/.bin/esmangle
 all: $(LIB)
 build: all
 parser: lib/coffee-script/parser.js
-browser: CoffeeScriptRedux.js
+browser: build dist/coffee-script-redux.min.js
 min: minify
 minify: $(LIBMIN)
 # TODO: test-browser
@@ -44,8 +44,15 @@ lib/coffee-script/%.js: src/%.coffee lib/coffee-script/bootstrap/%.js bootstraps
 	$(COFFEE) -i "$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
 
 
-CoffeeScriptRedux.js: $(LIB)
-	$(BROWSERIFY) lib/coffee-script/module.js | $(MINIFIER) > CoffeeScriptRedux.js
+dist:
+	mkdir dist/
+
+dist/coffee-script-redux.js: dist
+	$(BROWSERIFY) lib/coffee-script/browser.js > dist/coffee-script-redux.js
+
+dist/coffee-script-redux.min.js: dist/coffee-script-redux.js
+	$(MINIFIER) < dist/coffee-script-redux.js > dist/coffee-script-redux.min.js
+
 
 
 lib/coffee-script/%.min.js: lib/coffee-script/%.js lib/coffee-script
@@ -75,3 +82,4 @@ clean:
 	rm -rf instrumented
 	rm -f coverage.html
 	rm -rf lib
+	rm -rf dist

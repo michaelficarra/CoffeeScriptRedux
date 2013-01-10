@@ -80,4 +80,6 @@ module.exports =
 
 CoffeeScript = module.exports.CoffeeScript = module.exports
 
-require './run'
+if (process.title == 'node')
+  noBrowserifyRequire = require
+  noBrowserifyRequire './run'

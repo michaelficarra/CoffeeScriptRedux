@@ -4,6 +4,7 @@ SRC = $(shell find src -name "*.coffee" -type f | sort)
 LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js) lib/coffee-script/parser.js
 BOOTSTRAPS = $(SRC:src/%.coffee=lib/coffee-script/bootstrap/%.js) lib/coffee-script/bootstrap/parser.js
 LIBMIN = $(LIB:lib/coffee-script/%.js=lib/coffee-script/%.min.js)
+TEST = $(shell echo test/*.coffee | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare

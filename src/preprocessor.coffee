@@ -17,9 +17,8 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
   TERM   = '\uEFFF'
 
   constructor: ->
-    # `base` is either `null` or a regexp that matches the base indentation
-    # `indent` is either `null` or the characters that make up one indentation
-    @base = @indent = null
+    # `indents` is an array of successive indentation characters.
+    @indents = []
     @context = []
     @context.peek = -> if @length then this[@length - 1] else null
     @context.err = (c) ->
@@ -76,38 +75,29 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
             # we might require more input to determine indentation
             return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
 
-            if @base?
-              unless (@scan @base)?
-                throw new Error "inconsistent base indentation"
-            else
-              @base = /// #{@scan /// [#{ws}]* ///} ///
-
-            if @indent?
-              level = (0 for c in @context when c is INDENT).length
-              # a single indent
-              if @ss.check /// (?:#{@indent}){#{level + 1}} [^#{ws}#] ///
-                @scan /// (?:#{@indent}){#{level + 1}} ///
-                @context.observe INDENT
-                @p INDENT
-              # one or more dedents
-              else if level > 0 and @ss.check /// (?:#{@indent}){0,#{level - 1}} [^#{ws}] ///
-                newLevel = 0
-                ++newLevel while @scan /// #{@indent} ///
-                delta = level - newLevel
-                while delta--
-                  @context.observe DEDENT
-                  @p "#{DEDENT}#{TERM}"
-              # unchanged indentation level
-              else if @ss.check /// (?:#{@indent}){#{level}} [^#{ws}] ///
-                @scan /// (?:#{@indent}){#{level}} ///
+            i = 0
+            lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
+            while i < @indents.length
+              indent = @indents[i]
+              if @ss.check /// #{indent} ///
+                # an existing indent
+                @scan /// #{indent} ///
+              else if @ss.check /// [^#{ws}] ///
+                # we lost an indent
+                @indents.splice i--, 1
+                @context.observe DEDENT
+                @p "#{DEDENT}#{TERM}"
               else
+                # Some ambiguous dedent
                 lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
-                message = "Syntax error on line #{lines.length}: invalid indentation"
-                context = pointToErrorLocation @ss.str, lines.length, 1 + (level + 1) * @indent.length
+                message = "Syntax error on line #{lines.length}: indention is ambiguous"
+                lineLen = @indents.reduce ((l, r) -> l + r.length), 0
+                context = pointToErrorLocation @ss.str, lines.length, lineLen
                 throw new Error "#{message}\n#{context}"
-            else if @ss.check /// [#{ws}]+ [^#{ws}#] ///
-              # first indentation
-              @indent = @scan /// [#{ws}]+ ///
+              i++
+            if @ss.check /// [#{ws}]+ [^#{ws}#] ///
+              # an indent
+              @indents.push @scan /// [#{ws}]+ ///
               @context.observe INDENT
               @p INDENT
 

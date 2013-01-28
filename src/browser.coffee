@@ -1,12 +1,5 @@
 window.CoffeeScript = require './module'
 
-# Equivalent to original CS compile
-CoffeeScript.cs2js = (input, options = {}) ->
-  options.optimise ?= on
-  csAST = CoffeeScript.parse input, options
-  jsAST = CoffeeScript.compile csAST, bare: options.bare
-  CoffeeScript.js jsAST, compact: options.minify
-
 # Use standard JavaScript `eval` to eval code.
 CoffeeScript.eval = (code, options = {}) ->
   options.bare ?= on

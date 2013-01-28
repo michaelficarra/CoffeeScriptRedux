@@ -77,6 +77,13 @@ module.exports =
       sourceMap: name
       format: if options.compact then escodegenCompactDefaults else options.format ? escodegenFormatDefaults
 
+  # Equivalent to original CS compile
+  cs2js: (input, options = {}) ->
+    options.optimise ?= on
+    csAST = CoffeeScript.parse input, options
+    jsAST = CoffeeScript.compile csAST, bare: options.bare
+    CoffeeScript.js jsAST, compact: options.compact or options.minify
+
 
 CoffeeScript = module.exports.CoffeeScript = module.exports
 

@@ -26,6 +26,7 @@ libDir = if typeof _$jscoverage is 'undefined' then 'lib' else 'instrumented'
 global.CoffeeScript = require '..'
 global.CS = require "../#{libDir}/coffee-script/nodes"
 global.JS = require "../#{libDir}/coffee-script/js-nodes"
+global.Repl = require "../#{libDir}/coffee-script/repl"
 global.Parser = require "../#{libDir}/coffee-script/parser"
 {Optimiser: global.Optimiser} = require "../#{libDir}/coffee-script/optimiser"
 {Preprocessor} = require "../#{libDir}/coffee-script/preprocessor"

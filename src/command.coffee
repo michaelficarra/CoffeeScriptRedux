@@ -6,6 +6,7 @@ path = require 'path'
 {Optimiser} = require './optimiser'
 {runMain} = require './run'
 CoffeeScript = require './module'
+Repl = require './repl'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
 esmangle = try require 'esmangle'
@@ -219,9 +220,7 @@ else if options.version
   console.log "CoffeeScript version #{pkg.version}"
 
 else if options.repl
-  # TODO: start repl
-  console.error 'TODO: REPL'
-  process.exit 1
+  do Repl.start
 
 else
   # normal workflow

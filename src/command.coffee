@@ -25,8 +25,6 @@ options = {}
 optionMap = {}
 
 optionArguments = [
-  [['parse',   'p'], off, 'output a JSON-serialised AST representation of the input']
-  [['compile', 'c'], off, 'output a JSON-serialised AST representation of the output']
   [['optimise'    ],  on, 'enable optimisations (default: on)']
   [['debug'       ], off, 'output intermediate representations on stderr for debug']
   [['raw'         ], off, 'preserve source position and raw parse information']
@@ -35,6 +33,8 @@ optionArguments = [
 ]
 
 parameterArguments = [
+  [['parse',   'p'], off, 'output a JSON-serialised AST representation of the input']
+  [['compile', 'c'], off, 'output a JSON-serialised AST representation of the output']
   [['cli'         ], 'INPUT', 'pass a string from the command line as input']
   [['input',   'i'], 'FILE' , 'file to be used as input instead of STDIN']
   [['nodejs'      ], 'OPTS' , 'pass options through to the node binary']
@@ -45,13 +45,13 @@ parameterArguments = [
 if escodegen?
   [].push.apply optionArguments, [
     [['bare',    'b'], off, 'omit the top-level function wrapper']
-    [['js',      'j'], off, 'generate JavaScript output']
-    [['source-map'  ], off, 'generate source map']
     [['eval',    'e'], off, 'evaluate compiled JavaScript']
     [['repl'        ], off, 'run an interactive CoffeeScript REPL']
     [['include-source-reference'], on, 'append sourceURL or sourceMappingURL in js output']
   ]
   [].push.apply parameterArguments, [
+    [['js',      'j'], off, 'generate JavaScript output']
+    [['source-map'  ], off, 'generate source map']
     [['normalize-urls'], '', 'normalize URL references to be absolute from provided directory']
   ]
   if esmangle?
@@ -59,7 +59,7 @@ if escodegen?
   parameterArguments.push [['require', 'I'], 'FILE' , 'require a library before a script is executed']
 
 if cscodegen?
-  optionArguments.push [['cscodegen', 'f'], off, 'output cscodegen-generated CoffeeScript code']
+  parameterArguments.push [['cscodegen', 'f'], off, 'output cscodegen-generated CoffeeScript code']
 
 
 shortOptionArguments = []
@@ -103,7 +103,11 @@ while args.length
   else if match = reLongOption.exec arg
     options[optionMap[match[2]]] = if match[1]? then off else on
   else if match = (reShortParameter.exec arg) ? reLongParameter.exec arg
-    options[optionMap[match[1]]] = args.shift()
+    parameterIsPresent= args[0]? and !((reShortOptions.exec args[0]) ? (reLongOption.exec args[0]) ? (reShortParameter.exec args[0]) ? (reLongParameter.exec args[0]) ? (reShortOptionsShortParameter.exec args[0]))
+    if parameterIsPresent
+      options[optionMap[match[1]]] = args.shift()
+    else
+      options[optionMap[match[1]]] = ''
   else if match = /^(-.|--.*)$/.exec arg
     console.error "Unrecognised option '#{match[0].replace /'/g, '\\\''}'"
     process.exit 1
@@ -111,15 +115,23 @@ while args.length
     positionalArgs.push arg
 
 
+outputTypeDirectedToStdOut = no
+for outputType in ['parse','compile', 'js', 'source-map', 'cscodegen']
+  if options[outputType] is ''
+    throw Error "Multiple output types cannot write to STDOUT. Provide either --#{outputTypeDirectedToStdOut} or --#{outputType} with an output file path." if outputTypeDirectedToStdOut
+    options[outputType] = '(stdout)'
+    outputTypeDirectedToStdOut = outputType
+
+if options.eval and outputTypeDirectedToStdOut
+  throw Error "--eval must have full use of STDOUT. Provide --#{outputTypeDirectedToStdOut} with an output file path."
 
 writeOutput = (type, contents)->
   throw Error "Failed to generate output for [#{type}]" if !contents?
-  if options.output?
-    outputFilename = "#{options.output}.#{type}"
-    console.log "Writing #{type} output to #{outputFilename}"
-    fs.writeFile outputFilename, contents, (err) -> throw err if err?
-  else
+  if options[type] is '(stdout)'
     console.log contents
+  else
+    outputFilename = options[type]
+    fs.writeFile outputFilename, contents, (err) -> throw err if err?
 
 [sourceReferenceRoot, sourceReferenceRootReplacement...] = (options['normalize-urls'] ? '').split ':'
 sourceReferenceRootReplacement = if sourceReferenceRootReplacement? then sourceReferenceRootReplacement.join '' else ''
@@ -287,8 +299,8 @@ else
     if options.js
       jsOutput = js
       if options.input? and options['include-source-reference']
-        if options['source-map']
-          jsOutput = "#{jsOutput}\n//@ sourceMappingURL=#{normalizeURLs options.output}.source-map"
+        if options['source-map'] and options['source-map'] isnt '(stdout)'
+          jsOutput = "#{jsOutput}\n//@ sourceMappingURL=#{normalizeURLs options['source-map']}"
         else
           jsOutput = "#{jsOutput}\n//@ sourceURL=#{normalizeURLs options.input}"
       writeOutput 'js', jsOutput

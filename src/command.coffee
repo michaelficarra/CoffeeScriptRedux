@@ -20,7 +20,6 @@ args = process.argv[1 + (process.argv[0] is 'node') ..]
 additionalArgs = []
 if '--' in args then additionalArgs = (args.splice (args.indexOf '--'), 9e9)[1..]
 
-
 # initialise options
 options = {}
 optionMap = {}
@@ -50,6 +49,10 @@ if escodegen?
     [['source-map'  ], off, 'generate source map']
     [['eval',    'e'], off, 'evaluate compiled JavaScript']
     [['repl'        ], off, 'run an interactive CoffeeScript REPL']
+    [['include-source-reference'], on, 'append sourceURL or sourceMappingURL in js output']
+  ]
+  [].push.apply parameterArguments, [
+    [['normalize-urls'], '', 'normalize URL references to be absolute from provided directory']
   ]
   if esmangle?
     optionArguments.push [['minify',  'm'], off, 'run compiled javascript output through a JS minifier']
@@ -108,54 +111,20 @@ while args.length
     positionalArgs.push arg
 
 
-# input validation
 
-positionalArgs = positionalArgs.concat additionalArgs
-unless options.compile or options.js or options['source-map'] or options.parse or options.eval or options.cscodegen
-  if not escodegen?
-    options.compile = on
-  else if positionalArgs.length
-    options.eval = on
-    options.input = positionalArgs.shift()
-    additionalArgs = positionalArgs
+writeOutput = (type, contents)->
+  throw Error "Failed to generate output for [#{type}]" if !contents?
+  if options.output?
+    outputFilename = "#{options.output}.#{type}"
+    console.log "Writing #{type} output to #{outputFilename}"
+    fs.writeFile outputFilename, contents, (err) -> throw err if err?
   else
-    options.repl = on
+    console.log contents
 
-# mutual exclusions
-# - p (parse), c (compile), j (js), source-map, e (eval), cscodegen, repl
-if 1 isnt options.parse + options.compile + (options.js ? 0) + (options['source-map'] ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
-  console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --source-map, --eval (-e), --cscodegen, or --repl may be used."
-  process.exit 1
-
-# - i (input), w (watch), cli
-if 1 < options.input? + options.watch? + options.cli?
-  console.error 'Error: At most one of --input (-i), --watch (-w), or --cli may be used.'
-  process.exit 1
-
-# dependencies
-# - I (require) depends on e (eval)
-if options.require? and not options.eval
-  console.error 'Error: --require (-I) depends on --eval (-e)'
-  process.exit 1
-
-# - m (minify) depends on escodegen and esmangle and (c (compile) or e (eval))
-if options.minify and not (options.js or options.eval)
-  console.error 'Error: --minify does not make sense without --js or --eval'
-  process.exit 1
-
-# - b (bare) depends on escodegen and (c (compile) or e (eval)
-if options.bare and not (options.compile or options.js or options['source-map'] or options.eval)
-  console.error 'Error: --bare does not make sense without --compile, --js, --source-map, or --eval'
-  process.exit 1
-
-# - i (input) depends on o (output) when input is a directory
-if options.input? and (fs.statSync options.input).isDirectory() and (not options.output? or (fs.statSync options.output)?.isFile())
-  console.error 'Error: when --input is a directory, --output must be provided, and --output must not reference a file'
-
-# - cscodegen depends on cscodegen
-if options.cscodegen and not cscodegen?
-  console.error 'Error: cscodegen must be installed to use --cscodegen'
-  process.exit 1
+[sourceReferenceRoot, sourceReferenceRootReplacement...] = (options['normalize-urls'] ? '').split ':'
+sourceReferenceRootReplacement = if sourceReferenceRootReplacement? then sourceReferenceRootReplacement.join '' else ''
+reSourceRoot = /// ( (?:^|") /?) #{sourceReferenceRoot} /? ///g
+normalizeURLs = (content)-> content.replace reSourceRoot, "$1#{sourceReferenceRootReplacement}"
 
 
 # start processing options
@@ -254,6 +223,7 @@ else
     catch e
       console.error e.message
       process.exit 1
+
     if options.debug and options.optimise and result?
       console.error '### PARSED CS-AST ###'
       console.error inspect result.toJSON()
@@ -262,83 +232,66 @@ else
     if options.optimise and result?
       result = Optimiser.optimise result
 
+      if options.debug
+        console.error "### OPTIMISED CS-AST ###"
+        console.error inspect result.toJSON()
+
     # --parse
     if options.parse
-      if result?
-        console.log inspect result.toJSON()
-        process.exit 0
-      else process.exit 1
-
-    if options.debug and result?
-      console.error "### #{if options.optimise then 'OPTIMISED' else 'PARSED'} CS-AST ###"
-      console.error inspect result.toJSON()
+      writeOutput 'parse', inspect result.toJSON()
 
     # cs code gen
     if options.cscodegen
-      try result = cscodegen.generate result
+      try cscodegen_result = cscodegen.generate result
       catch e
         console.error (e.stack or e.message)
         process.exit 1
-      if result?
-        console.log result
-        process.exit 0
-      else process.exit 1
+      writeOutput 'cscodegen', cscodegen_result
 
     # compile
     jsAST = CoffeeScript.compile result, bare: options.bare
 
     # --compile
     if options.compile
-      if jsAST?
-        console.log inspect jsAST.toJSON()
-        process.exit 0
-      else process.exit 1
+      writeOutput 'compile', inspect jsAST.toJSON()
 
-    if options.debug and jsAST?
+    if options.debug
       console.error "### COMPILED JS-AST ###"
       console.error inspect jsAST.toJSON()
 
-    # minification
-    if options.minify
+    # --source-map
+    if options['source-map']
+      try sourceMap = CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin'), compact: options.minify
+      catch e
+        console.error (e.stack or e.message)
+        process.exit 1
+      # normalize paths in the sourceMap
+      writeOutput 'source-map', normalizeURLs sourceMap
+
+    # destructive minification
+    if options['minify-destructive']
       try
         jsAST = esmangle.mangle (esmangle.optimize jsAST.toJSON()), destructive: yes
       catch e
         console.error (e.stack or e.message)
         process.exit 1
 
-    if options['source-map']
-      # source map generation
-      try sourceMap = CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin'), compact: options.minify
-      catch e
-        console.error (e.stack or e.message)
-        process.exit 1
-      # --source-map
-      if sourceMap?
-        process.stdout.write "#{sourceMap}\n"
-        process.exit 0
-      else process.exit 1
-
     # js code gen
     try
       js = CoffeeScript.js jsAST, compact: options.minify
-      if options.input?
-        js = "#{js}\n//@ sourceURL=#{options.input}"
     catch e
       console.error (e.stack or e.message)
       process.exit 1
 
     # --js
     if options.js
-      process.exit 1 unless js?
-      console.log js
-      process.exit 0
-
-    # --output
-    else if options.output
-      process.exit 1 unless js?
-      fs.writeFile options.output, js, (err) ->
-        throw err if err?
-        process.exit 0
+      jsOutput = js
+      if options.input? and options['include-source-reference']
+        if options['source-map']
+          jsOutput = "#{jsOutput}\n//@ sourceMappingURL=#{normalizeURLs options.output}.source-map"
+        else
+          jsOutput = "#{jsOutput}\n//@ sourceURL=#{normalizeURLs options.input}"
+      writeOutput 'js', jsOutput
 
     # --eval
     else if options.eval

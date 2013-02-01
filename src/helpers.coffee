@@ -16,6 +16,9 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 @humanReadable = humanReadable = (str) ->
   ((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE/g, '(DEDENT)').replace /\uEFFF/g, '(TERM)'
 
+
+@inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
+
 @formatParserError = (input, e) ->
   realColumn = (cleanMarkers "#{(input.split '\n')[e.line - 1]}\n"[...e.column]).length
   unless e.found?

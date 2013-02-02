@@ -11,7 +11,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
 @Preprocessor = class Preprocessor extends EventEmitter
 
-  ws = '\\t\\x0B\\f \\xA0\\u1680\\u180E\\u2000-\\u200A\\u202F\\u205F\\u3000\\uFEFF'
+  ws = '\\t\\x0B\\f\\r \\xA0\\u1680\\u180E\\u2000-\\u200A\\u202F\\u205F\\u3000\\uFEFF'
   INDENT = '\uEFEF'
   DEDENT = '\uEFFE'
   TERM   = '\uEFFF'

@@ -49,3 +49,6 @@ suite 'Parser', ->
         else
           'nope'
     '''
+
+  test 'windows line endings', ->
+    @shouldParse 'if test\r\n  fn a\r\n\r\n  fn b'

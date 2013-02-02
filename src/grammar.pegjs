@@ -1112,6 +1112,7 @@ blockComment = $("###" [^#] ([^#] / "#" "#"? !"#")* "###")
 
 whitespace
   = [\u0009\u000B\u000C\u0020\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]
+  / "\r" // ignored to support windows line endings
   / $("\\" "\r"? "\n")
 
 INDENT = ws:__ "\uEFEF" { return ws; }

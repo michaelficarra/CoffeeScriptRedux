@@ -22,13 +22,17 @@ suite 'Parser', ->
     eq inconsistently.indented.object.literal, yes
 
   test 'inconsistently indented if statement', ->
-    f = (b) ->
+    nonceA = {}
+    nonceB = {}
+
+    fn = (b) ->
       if b
-        'if'
+        nonceA
       else
-           'else'
-    eq 'if', f yes
-    eq 'else', f no
+           nonceB
+
+    eq nonceA, fn 1
+    eq nonceB, fn 0
 
   test 'inconsistent object literal dedent', ->
     @shouldNotParse '''

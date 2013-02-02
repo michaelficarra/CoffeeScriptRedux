@@ -77,21 +77,24 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
             # we might require more input to determine indentation
             return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
 
+            # consume base indentation
             if @base?
               unless (@scan @base)?
                 throw new Error "inconsistent base indentation"
             else
               @base = /// #{@scan /// [#{ws}]* ///} ///
 
-            i = 0
-            while i < @indents.length
-              indent = @indents[i]
+            # move through each level of indentation
+            indentIndex = 0
+            while indentIndex < @indents.length
+              indent = @indents[indentIndex]
               if @ss.check /// #{indent} ///
                 # an existing indent
                 @scan /// #{indent} ///
               else if @ss.check /// [^#{ws}] ///
                 # we lost an indent
-                @indents.splice i--, 1
+                @indents.splice indentIndex, 1
+                --indentIndex
                 @context.observe DEDENT
                 @p "#{DEDENT}#{TERM}"
               else
@@ -101,7 +104,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
                 lineLen = @indents.reduce ((l, r) -> l + r.length), 0
                 context = pointToErrorLocation @ss.str, lines.length, lineLen
                 throw new Error "#{message}\n#{context}"
-              i++
+              ++indentIndex
             if @ss.check /// [#{ws}]+ [^#{ws}#] ///
               # an indent
               @indents.push @scan /// [#{ws}]+ ///

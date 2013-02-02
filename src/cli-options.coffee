@@ -39,7 +39,6 @@ parameterArguments = [
   # requires escodegen
   [['js',      'j'], 'FILE', 'generate JavaScript output'                                      , requires 'escodegen']
   [['source-map'  ], 'FILE', 'generate source map'                                             , requires 'escodegen']
-  [['normalize-urls'], '', 'normalize URL references to be absolute from provided directory' , requires 'escodegen']
 
   # requires escodegen and esmangle
   [['require', 'I'], 'FILE' , 'require a library before a script is executed', requires 'escodegen', 'esmangle']

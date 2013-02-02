@@ -1,6 +1,6 @@
 fs = require 'fs'
 path = require 'path'
-{numberLines, humanReadable, writeOutput, normalizeURLs, inspect} = require './helpers'
+{numberLines, humanReadable, inspect} = require './helpers'
 {Preprocessor} = require './preprocessor'
 {Optimiser} = require './optimiser'
 {runMain} = require './run'
@@ -22,12 +22,21 @@ writeOutput = (type, contents)->
     outputFilename = options[type]
     fs.writeFile outputFilename, contents, (err) -> throw err if err?
 
-# helper method to normalize URL paths
-[sourceReferenceRoot, sourceReferenceRootReplacement...] = (options['normalize-urls'] ? '').split ':'
-sourceReferenceRootReplacement = if sourceReferenceRootReplacement? then sourceReferenceRootReplacement.join '' else ''
-reSourceRoot = /// ( (?:^|") /?) #{sourceReferenceRoot} /? ///g
-normalizeURLs = (content)-> content.replace reSourceRoot, "$1#{sourceReferenceRootReplacement}"
-
+# helper method to update URL paths in some content
+# to be relative to another URL
+String.prototype.updateURLs = (path_to_modify)->
+  content = this
+  relativeTo: (base_path)->
+    path_to_modify_parts = path_to_modify.split '/'
+    base_path_parts = base_path.split '/'
+    base_path_parts.pop()
+    while path_to_modify_parts.length
+      break if path_to_modify_parts[0] isnt base_path_parts[0]
+      path_to_modify_parts.shift()
+      base_path_parts.shift()
+    for part in base_path_parts
+      path_to_modify_parts.unshift '..'
+    content.replace new RegExp(path_to_modify, 'g'), path_to_modify_parts.join '/'
 
 if options.repl
   do Repl.start
@@ -107,7 +116,7 @@ else
         console.error (e.stack or e.message)
         process.exit 1
       # normalize paths in the sourceMap
-      writeOutput 'source-map', normalizeURLs sourceMap
+      writeOutput 'source-map', sourceMap.updateURLs(options.input).relativeTo(options['source-map'])
 
     # destructive minification
     if options['minify-destructive']
@@ -128,10 +137,10 @@ else
     if options.js
       jsOutput = js
       if options.input? and options['include-source-reference']
-        if options['source-map'] and options['source-map'] isnt '(stdout)'
-          jsOutput = "#{jsOutput}\n//@ sourceMappingURL=#{normalizeURLs options['source-map']}"
+        if options['source-map'] and options['source-map'] isnt '(stdout)' and options['js'] and options['js'] isnt '(stdout)'
+          jsOutput = "#{jsOutput}\n//@ sourceMappingURL=#{options['source-map'].updateURLs(options['source-map']).relativeTo(options.js)}"
         else
-          jsOutput = "#{jsOutput}\n//@ sourceURL=#{normalizeURLs options.input}"
+          jsOutput = "#{jsOutput}\n//@ sourceURL=#{options.input}"
       writeOutput 'js', jsOutput
 
     # --eval

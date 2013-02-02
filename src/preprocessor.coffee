@@ -84,7 +84,6 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
               @base = /// #{@scan /// [#{ws}]* ///} ///
 
             i = 0
-            lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
             while i < @indents.length
               indent = @indents[i]
               if @ss.check /// #{indent} ///

@@ -17,6 +17,8 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
   TERM   = '\uEFFF'
 
   constructor: ->
+    # `base` is either `null` or a regexp that matches the base indentation
+    @base = null
     # `indents` is an array of successive indentation characters.
     @indents = []
     @context = []
@@ -74,6 +76,12 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
             # we might require more input to determine indentation
             return if not isEnd and (@ss.check /// [#{ws}\n]* $ ///)?
+
+            if @base?
+              unless (@scan @base)?
+                throw new Error "inconsistent base indentation"
+            else
+              @base = /// #{@scan /// [#{ws}]* ///} ///
 
             i = 0
             lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']

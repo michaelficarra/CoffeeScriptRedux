@@ -180,12 +180,14 @@ if options.help
     opts.join ', '
 
   console.log """
-    Usage:
-      #{$0} FILE ARG* [-- ARG*]
-      #{$0} OPT* [--repl] OPT*
-      #{$0} OPT* -{-parse,p,-compile,c,-js,j,-cscodegen} OPT*
-      #{$0} {OPT,ARG}* -{-eval,e} {OPT,ARG}* -- ARG*
+  Usage: (OPT is interpreted by #{$0}, ARG is passed to FILE)
 
+    #{$0} OPT* -{p,c,j,f} OPT*
+      example: #{$0} --js --no-optimise <input.coffee >output.js
+    #{$0} [-e] FILE {OPT,ARG}* [-- ARG*]
+      example: #{$0} myfile.coffee arg0 arg1
+    #{$0} OPT* [--repl] OPT*
+      example: #{$0}
   """
 
   optionRows = for opt in optionArguments
@@ -205,14 +207,13 @@ if options.help
     console.log "  #{row[0]}#{(Array leftColumnWidth - row[0].length + 1).join ' '}  #{wrap leftColumnWidth, row[1]}"
 
   console.log """
-
-    Unless instructed otherwise (--{input,watch,cli}), `#{$0}` will operate on stdin/stdout.
-    When none of -{-parse,p,-compile,c,-js,j,-eval,e,-cscodegen,-repl} are given
-      If positional arguments were given
-        * --eval is implied
-        * the first positional argument is used as an input filename
-        * additional positional arguments are passed as arguments to the script
-      Else --repl is implied
+  Unless given --input or --cli flags, `#{$0}` will operate on stdin/stdout.
+  When none of --{parse,compile,js,eval,cscodegen,repl} are given,
+    If positional arguments were given
+      * --eval is implied
+      * the first positional argument is used as an input filename
+      * additional positional arguments are passed as arguments to the script
+    Else --repl is implied
   """
 
 else if options.version

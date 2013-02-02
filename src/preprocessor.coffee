@@ -22,41 +22,54 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
     # `indents` is an array of successive indentation characters.
     @indents = []
     @context = []
-    @context.peek = -> if @length then this[@length - 1] else null
-    @context.err = (c) ->
-      throw new Error "Unexpected " + inspect c
-    @context.observe = (c) ->
-      top = @peek()
-      switch c
-        # opening token is closing token
-        when '"""', '\'\'\'', '"', '\'', '###', '`', '///', '/'
-          if top is c then do @pop
-          else @push c
-        # strictly opening tokens
-        when INDENT, '#', '#{', '[', '(', '{', '\\', 'regexp-[', 'regexp-(', 'regexp-{', 'heregexp-#', 'heregexp-[', 'heregexp-(', 'heregexp-{'
-          @push c
-        # strictly closing tokens
-        when DEDENT
-          (@err c) unless top is INDENT
-          do @pop
-        when '\n'
-          (@err c) unless top in ['#', 'heregexp-#']
-          do @pop
-        when ']'
-          (@err c) unless top in ['[', 'regexp-[', 'heregexp-[']
-          do @pop
-        when ')'
-          (@err c) unless top in ['(', 'regexp-(', 'heregexp-(']
-          do @pop
-        when '}'
-          (@err c) unless top in ['#{', '{', 'regexp-{', 'heregexp-{']
-          do @pop
-        when 'end-\\'
-          (@err c) unless top is '\\'
-          do @pop
-        else throw new Error "undefined token observed: " + c
-      this
     @ss = new StringScanner ''
+
+  err: (c) ->
+    token =
+      switch c
+        when INDENT
+          'INDENT'
+        when DEDENT
+          'DEDENT'
+        when TERM
+          'TERM'
+        else
+          inspect c
+    throw new Error "Unexpected " + token
+
+  peek: -> if @context.length then @context[@context.length - 1] else null
+
+  observe: (c) ->
+    top = @peek()
+    switch c
+      # opening token is closing token
+      when '"""', '\'\'\'', '"', '\'', '###', '`', '///', '/'
+        if top is c then do @context.pop
+        else @context.push c
+      # strictly opening tokens
+      when INDENT, '#', '#{', '[', '(', '{', '\\', 'regexp-[', 'regexp-(', 'regexp-{', 'heregexp-#', 'heregexp-[', 'heregexp-(', 'heregexp-{'
+        @context.push c
+      # strictly closing tokens
+      when DEDENT
+        (@err c) unless top is INDENT
+        do @context.pop
+      when '\n'
+        (@err c) unless top in ['#', 'heregexp-#']
+        do @context.pop
+      when ']'
+        (@err c) unless top in ['[', 'regexp-[', 'heregexp-[']
+        do @context.pop
+      when ')'
+        (@err c) unless top in ['(', 'regexp-(', 'heregexp-(']
+        do @context.pop
+      when '}'
+        (@err c) unless top in ['#{', '{', 'regexp-{', 'heregexp-{']
+        do @context.pop
+      when 'end-\\'
+        (@err c) unless top is '\\'
+        do @context.pop
+      else throw new Error "undefined token observed: " + c
+    @context
 
   p: (s) ->
     if s? then @emit 'data', s
@@ -68,7 +81,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
     @ss.concat data unless isEnd
 
     until @ss.eos()
-      switch @context.peek()
+      switch @peek()
         when null, INDENT, '#{', '[', '(', '{'
           if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
 
@@ -95,7 +108,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
                 # we lost an indent
                 @indents.splice indentIndex, 1
                 --indentIndex
-                @context.observe DEDENT
+                @observe DEDENT
                 @p "#{DEDENT}#{TERM}"
               else
                 # Some ambiguous dedent
@@ -108,10 +121,10 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
             if @ss.check /// [#{ws}]+ [^#{ws}#] ///
               # an indent
               @indents.push @scan /// [#{ws}]+ ///
-              @context.observe INDENT
+              @observe INDENT
               @p INDENT
 
-          tok = switch @context.peek()
+          tok = switch @peek()
             when '['
               # safe things, but not closing bracket
               @scan /[^\n'"\\\/#`[({\]]+/
@@ -129,11 +142,11 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
               @scan /[^\n'"\\\/#`[({]+/
               null
           if tok
-            @context.observe tok
+            @observe tok
             continue
 
           if tok = @scan /"""|'''|\/\/\/|###|["'`#[({\\]/
-            @context.observe tok
+            @observe tok
           else if tok = @scan /\//
             # unfortunately, we must look behind us to determine if this is a regexp or division
             pos = @ss.position()
@@ -142,83 +155,82 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
               spaceBefore = ///[#{ws}]///.test lastChar
               nonIdentifierBefore = /[\W_$]/.test lastChar # TODO: this should perform a real test
             if pos is 1 or (if spaceBefore then not @ss.check /// [#{ws}=] /// else nonIdentifierBefore)
-              @context.observe '/'
-
+              @observe '/'
         when '\\'
-          if (@scan /[\s\S]/) then @context.observe 'end-\\'
+          if (@scan /[\s\S]/) then @observe 'end-\\'
           # TODO: somehow prevent indent tokens from being inserted after these newlines
         when '"""'
           @scan /(?:[^"#\\]+|""?(?!")|#(?!{)|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /#{|"""/ then @context.observe tok
-          else if tok = @scan /#{|"""/ then @context.observe tok
+          if tok = @scan /#{|"""/ then @observe tok
+          else if tok = @scan /#{|"""/ then @observe tok
         when '"'
           @scan /(?:[^"#\\]+|#(?!{)|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /#{|"/ then @context.observe tok
+          if tok = @scan /#{|"/ then @observe tok
         when '\'\'\''
           @scan /(?:[^'\\]+|''?(?!')|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /'''/ then @context.observe tok
+          if tok = @scan /'''/ then @observe tok
         when '\''
           @scan /(?:[^'\\]+|\\.)+/
           @ss.scan /\\\n/
-          if tok = @scan /'/ then @context.observe tok
+          if tok = @scan /'/ then @observe tok
         when '###'
           @scan /(?:[^#]+|##?(?!#))+/
-          if tok = @scan /###/ then @context.observe tok
+          if tok = @scan /###/ then @observe tok
         when '#'
           @scan /[^\n]+/
-          if tok = @scan /\n/ then @context.observe tok
+          if tok = @scan /\n/ then @observe tok
         when '`'
           @scan /[^`]+/
-          if tok = @scan /`/ then @context.observe tok
+          if tok = @scan /`/ then @observe tok
         when '///'
           @scan /(?:[^[/#\\]+|\/\/?(?!\/)|\\.)+/
-          if tok = @scan /#{|\/\/\/|\\/ then @context.observe tok
-          else if @ss.scan /#/ then @context.observe 'heregexp-#'
-          else if tok = @scan /[\[]/ then @context.observe "heregexp-#{tok}"
+          if tok = @scan /#{|\/\/\/|\\/ then @observe tok
+          else if @ss.scan /#/ then @observe 'heregexp-#'
+          else if tok = @scan /[\[]/ then @observe "heregexp-#{tok}"
         when 'heregexp-['
           @scan /(?:[^\]\/\\]+|\/\/?(?!\/))+/
-          if tok = @scan /[\]\\]|#{|\/\/\// then @context.observe tok
+          if tok = @scan /[\]\\]|#{|\/\/\// then @observe tok
         when 'heregexp-#'
           @ss.scan /(?:[^\n/]+|\/\/?(?!\/))+/
-          if tok = @scan /\n|\/\/\// then @context.observe tok
+          if tok = @scan /\n|\/\/\// then @observe tok
         #when 'heregexp-('
         #  @scan /(?:[^)/[({#\\]+|\/\/?(?!\/))+/
-        #  if tok = @ss.scan /#(?!{)/ then @context.observe 'heregexp-#'
-        #  else if tok = @scan /[)\\]|#{|\/\/\// then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "heregexp-#{tok}"
+        #  if tok = @ss.scan /#(?!{)/ then @observe 'heregexp-#'
+        #  else if tok = @scan /[)\\]|#{|\/\/\// then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "heregexp-#{tok}"
         #when 'heregexp-{'
         #  @scan /(?:[^}/[({#\\]+|\/\/?(?!\/))+/
-        #  if tok = @ss.scan /#(?!{)/ then @context.observe 'heregexp-#'
-        #  else if tok = @scan /[}/\\]|#{|\/\/\// then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "heregexp-#{tok}"
+        #  if tok = @ss.scan /#(?!{)/ then @observe 'heregexp-#'
+        #  else if tok = @scan /[}/\\]|#{|\/\/\// then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "heregexp-#{tok}"
         when '/'
           @scan /[^[/\\]+/
-          if tok = @scan /[\/\\]/ then @context.observe tok
-          else if tok = @scan /\[/ then @context.observe "regexp-#{tok}"
+          if tok = @scan /[\/\\]/ then @observe tok
+          else if tok = @scan /\[/ then @observe "regexp-#{tok}"
         when 'regexp-['
           @scan /[^\]\\]+/
-          if tok = @scan /[\]\\]/ then @context.observe tok
+          if tok = @scan /[\]\\]/ then @observe tok
         #when 'regexp-('
         #  @scan /[^)/[({\\]+/
-        #  if tok = @scan /[)/\\]/ then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "regexp-#{tok}"
+        #  if tok = @scan /[)/\\]/ then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "regexp-#{tok}"
         #when 'regexp-{'
         #  @scan /[^}/[({\\]+/
-        #  if tok = @scan /[}/\\]/ then @context.observe tok
-        #  else if tok = @scan /[[({]/ then @context.observe "regexp-#{tok}"
+        #  if tok = @scan /[}/\\]/ then @observe tok
+        #  else if tok = @scan /[[({]/ then @observe "regexp-#{tok}"
 
     # reached the end of the file
     if isEnd
       @scan /// [#{ws}\n]* $ ///
-      while @context.length and INDENT is @context.peek()
-        @context.observe DEDENT
+      while @context.length and INDENT is @peek()
+        @observe DEDENT
         @p "#{DEDENT}#{TERM}"
       if @context.length
         # TODO: store offsets of tokens when inserted and report position of unclosed starting token
-        throw new Error 'Unclosed ' + (inspect @context.peek()) + ' at EOF'
+        throw new Error 'Unclosed ' + (inspect @peek()) + ' at EOF'
       @emit 'end'
       return
 

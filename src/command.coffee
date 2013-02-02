@@ -158,6 +158,15 @@ if options.cscodegen and not cscodegen?
   process.exit 1
 
 
+output = (out) ->
+  # --output
+  if options.output
+    fs.writeFile options.output, "#{out}\n", (err) ->
+      throw err if err?
+  else
+    process.stdout.write "#{out}\n"
+
+
 # start processing options
 if options.help
   $0 = if process.argv[0] is 'node' then process.argv[1] else process.argv[0]
@@ -266,9 +275,10 @@ else
     # --parse
     if options.parse
       if result?
-        console.log inspect result.toJSON()
-        process.exit 0
-      else process.exit 1
+        output inspect result.toJSON()
+        return
+      else
+        process.exit 1
 
     if options.debug and result?
       console.error "### #{if options.optimise then 'OPTIMISED' else 'PARSED'} CS-AST ###"
@@ -281,9 +291,10 @@ else
         console.error (e.stack or e.message)
         process.exit 1
       if result?
-        console.log result
-        process.exit 0
-      else process.exit 1
+        output result
+        return
+      else
+        process.exit 1
 
     # compile
     jsAST = CoffeeScript.compile result, bare: options.bare
@@ -291,9 +302,10 @@ else
     # --compile
     if options.compile
       if jsAST?
-        console.log inspect jsAST.toJSON()
-        process.exit 0
-      else process.exit 1
+        output inspect jsAST.toJSON()
+        return
+      else
+        process.exit 1
 
     if options.debug and jsAST?
       console.error "### COMPILED JS-AST ###"
@@ -315,9 +327,10 @@ else
         process.exit 1
       # --source-map
       if sourceMap?
-        process.stdout.write "#{sourceMap}\n"
-        process.exit 0
-      else process.exit 1
+        output "#{sourceMap}"
+        return
+      else
+        process.exit 1
 
     # js code gen
     try
@@ -330,20 +343,13 @@ else
 
     # --js
     if options.js
-      process.exit 1 unless js?
-      console.log js
-      process.exit 0
-
-    # --output
-    else if options.output
-      process.exit 1 unless js?
-      fs.writeFile options.output, js, (err) ->
-        throw err if err?
-        process.exit 0
+      output js
+      return
 
     # --eval
-    else if options.eval
+    if options.eval
       runMain input, js, jsAST, inputSource
+      return
 
   # choose input source
 

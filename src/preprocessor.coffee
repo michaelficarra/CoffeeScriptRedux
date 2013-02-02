@@ -35,7 +35,11 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
           'TERM'
         else
           inspect c
-    throw new Error "Unexpected " + token
+    # This isn't perfect for error location tracking, but since we normally call this after a scan, it tends to work well.
+    lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
+    columns = if lines[lines.length-1]? then lines[lines.length-1].length else 0
+    context = pointToErrorLocation @ss.str, lines.length, columns
+    throw new Error "Unexpected #{token}\n#{context}"
 
   peek: -> if @context.length then @context[@context.length - 1] else null
 

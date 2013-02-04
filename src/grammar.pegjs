@@ -91,6 +91,7 @@ var CS = require("./nodes"),
     return true;
   },
 
+  // TODO: refactor this
   stripLeadingWhitespace = function(str){
     str = str.replace(/\s+$/, '');
     var attempt, match, matchStr = str, indent = null;
@@ -103,6 +104,31 @@ var CS = require("./nodes"),
     if(indent) str = str.replace(new RegExp('\\n' + indent, 'g'), '\n');
     str = str.replace(/^\n/, '');
     return str;
+  },
+
+  // TODO: remove mutation?
+  stripLeadingWhitespaceInterpolation = function(pieces){
+    var indent = '', piece, match, i, l;
+    for(i = 0, l = pieces.length; i < l; ++i) {
+      piece = pieces[i];
+      if(piece instanceof CS.String) {
+        match = piece.data.match(i < l - 1 ? /\n(\s*)/ : /\n(\s*)[^$\s]/);
+        if(!indent || match && match[1].length < indent.length) {
+          indent = match[1];
+        }
+      }
+    }
+    if(indent) {
+      for(i = 0, l = pieces.length; i < l; ++i) {
+        piece = pieces[i];
+        if(piece instanceof CS.String) {
+          piece.data = piece.data.replace(new RegExp('\\n' + indent, 'g'), '\n');
+          if(i === l - 1) piece.data = piece.data.replace(/(\n\s*)+$/, '');
+          if(i === 0) piece.data = piece.data.replace(/^\n/, '');
+        }
+      }
+    }
+    return pieces;
   },
 
   // the identity function
@@ -982,7 +1008,7 @@ interpolation
     ( d:(stringData / "'" / s:("\"" "\""? !"\""))+ { return rp(new CS.String(d.join(''))); }
     / "#{" _ e:expression _ "}" { return e; }
     )+ "\"\"\"" {
-      return rp(createInterpolation(es));
+      return rp(createInterpolation(stripLeadingWhitespaceInterpolation(es)));
     }
   / "\"" es:
     ( d:(stringData / "'")+ { return rp(new CS.String(d.join(''))); }

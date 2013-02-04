@@ -188,7 +188,7 @@ if options.help
     opts.sort (a, b) -> a.length - b.length
     opts.join ', '
 
-  console.log """
+  console.log "
   Usage: (OPT is interpreted by #{$0}, ARG is passed to FILE)
 
     #{$0} OPT* -{p,c,j,f} OPT*
@@ -197,7 +197,7 @@ if options.help
       example: #{$0} myfile.coffee arg0 arg1
     #{$0} OPT* [--repl] OPT*
       example: #{$0}
-  """
+  "
 
   optionRows = for opt in optionArguments
     [(formatOptions opt[0]), opt[2]]
@@ -215,7 +215,7 @@ if options.help
   for row in rows
     console.log "  #{row[0]}#{(Array leftColumnWidth - row[0].length + 1).join ' '}  #{wrap leftColumnWidth, row[1]}"
 
-  console.log """
+  console.log "
   Unless given --input or --cli flags, `#{$0}` will operate on stdin/stdout.
   When none of --{parse,compile,js,eval,cscodegen,repl} are given,
     If positional arguments were given
@@ -223,7 +223,7 @@ if options.help
       * the first positional argument is used as an input filename
       * additional positional arguments are passed as arguments to the script
     Else --repl is implied
-  """
+  "
 
 else if options.version
   pkg = require './../../package.json'

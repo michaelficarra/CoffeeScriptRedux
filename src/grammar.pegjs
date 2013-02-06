@@ -553,30 +553,34 @@ exponentiationExpressionNoImplicitObjectCall
 prefixExpression
   = postfixExpression
   / DO _ e:(nfe / expressionworthy / prefixExpression) { return rp(new CS.DoOp(e)); }
-  / ops:(("++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE) _)+ e:(expressionworthy / prefixExpression) {
+  / ops:(PrefixOperators _)+ e:(expressionworthy / prefixExpression) {
       return rp(foldr(function(e, op){
         return new prefixConstructorLookup[op[0]](e);
       }, e, ops));
     }
+  PrefixOperators
+    = "++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE
   nfe
     = !unassignable a:identifier _ "=" _ f:functionLiteral { return rp(new CS.AssignOp(a, f)); }
 prefixExpressionNoImplicitObjectCall
   = postfixExpressionNoImplicitObjectCall
   / DO _ e:(nfe / expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DoOp(e)); }
-  / ops:(("++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE) _)+ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) {
+  / ops:(PrefixOperators _)+ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) {
       return rp(foldr(function(e, op){
         return new prefixConstructorLookup[op[0]](e);
       }, e, ops));
     }
 
 postfixExpression
-  = e:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
+  = e:leftHandSideExpression ops:PostfixOperators* {
       return rp(foldl(function(e, op){
         return new postfixConstructorLookup[op](e);
       }, e, ops));
     }
+  PostfixOperators
+    = "?" / "[..]" / "++" / "--"
 postfixExpressionNoImplicitObjectCall
-  = e:leftHandSideExpressionNoImplicitObjectCall ops:("?" / "[..]" / "++" / "--")* {
+  = e:leftHandSideExpressionNoImplicitObjectCall ops:PostfixOperators* {
       return rp(foldl(function(e, op){
         return new postfixConstructorLookup[op](e);
       }, e, ops));

@@ -4,10 +4,10 @@ var CS = require("./nodes"),
   constructorLookup =
     { ';': CS.SeqOp
     , '=': CS.AssignOp
-    , '&&': CS.LogicalAndOp
-    , and: CS.LogicalAndOp
     , '||': CS.LogicalOrOp
     , or: CS.LogicalOrOp
+    , '&&': CS.LogicalAndOp
+    , and: CS.LogicalAndOp
     , '|': CS.BitOrOp
     , '^': CS.BitXorOp
     , '&': CS.BitAndOp
@@ -54,6 +54,35 @@ var CS = require("./nodes"),
     , '++': CS.PostIncrementOp
     , '--': CS.PostDecrementOp
     },
+
+  precedenceHierarchy =
+    [ [CS.SeqOp] // ;
+    , [CS.AssignOp] // =
+    , [CS.LogicalOrOp] // or, ||
+    , [CS.LogicalAndOp] // and, &&
+    , [CS.BitOrOp] // |
+    , [CS.BitXorOp] // ^
+    , [CS.BitAndOp] // &
+    , [CS.ExistsOp] // ?
+    , [CS.EQOp, CS.NEQOp] // is, ==, isnt, !=
+    , [CS.InstanceofOp, CS.InOp, CS.OfOp, CS.LTEOp, CS.GTEOp, CS.LTOp, CS.GTOp] // instanceof, in, of, <=, >=, <, >
+    , [CS.LeftShiftOp, CS.SignedRightShiftOp, CS.UnsignedRightShiftOp] // <<, >>, >>>
+    , [CS.PlusOp, CS.SubtractOp] // +, -
+    , [CS.MultiplyOp, CS.DivideOp, CS.RemOp] // *, /, %
+    , [CS.ExpOp] // **
+    ],
+
+  precedenceTable = (function(){
+    var table = {}, ctors, ctor;
+    for(var level = 0, l = precedenceHierarchy.length; level < l; ++level) {
+      ctors = precedenceHierarchy[level];
+      for(var c = 0, k = ctors.length; c < k; ++c) {
+        ctor = ctors[c];
+        table[ctor.prototype.className] = level;
+      }
+    }
+    return table;
+  }()),
 
   foldl = function(fn, memo, list){
     for(var i = 0, l = list.length; i < l; ++i)

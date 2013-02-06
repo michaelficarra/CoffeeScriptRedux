@@ -20,10 +20,10 @@ var CS = require("./nodes"),
     , '>=': CS.GTEOp
     , '<': CS.LTOp
     , '>': CS.GTOp
-    , extends: CS.ExtendsOp
-    , instanceof: CS.InstanceofOp
-    , in: CS.InOp
-    , of: CS.OfOp
+    , 'extends': CS.ExtendsOp
+    , 'instanceof': CS.InstanceofOp
+    , 'in': CS.InOp
+    , 'of': CS.OfOp
     , '<<': CS.LeftShiftOp
     , '>>': CS.SignedRightShiftOp
     , '>>>': CS.UnsignedRightShiftOp
@@ -33,6 +33,19 @@ var CS = require("./nodes"),
     , '/': CS.DivideOp
     , '%': CS.RemOp
     , '**': CS.ExpOp
+    },
+
+  unaryConstructorLookup =
+    { '++': CS.PreIncrementOp
+    , '--': CS.PreDecrementOp
+    , '+': CS.UnaryPlusOp
+    , '-': CS.UnaryNegateOp
+    , '!': CS.LogicalNotOp
+    , 'not': CS.LogicalNotOp
+    , '~': CS.BitNotOp
+    , 'do': CS.DoOp
+    , 'typeof': CS.TypeofOp
+    , 'delete': CS.DeleteOp
     },
 
   foldl = function(fn, memo, list){
@@ -503,28 +516,22 @@ exponentiationExpressionNoImplicitObjectCall
 
 prefixExpression
   = postfixExpression
-  / "++" _ e:(expressionworthy / prefixExpression) { return rp(new CS.PreIncrementOp(e)); }
-  / "--" _ e:(expressionworthy / prefixExpression) { return rp(new CS.PreDecrementOp(e)); }
-  / "+" _ e:(expressionworthy / prefixExpression) { return rp(new CS.UnaryPlusOp(e)); }
-  / "-" _ e:(expressionworthy / prefixExpression) { return rp(new CS.UnaryNegateOp(e)); }
-  / o:("!" / NOT) _ e:(expressionworthy / prefixExpression) { return rp(new CS.LogicalNotOp(e)); }
-  / "~" _ e:(expressionworthy / prefixExpression) { return rp(new CS.BitNotOp(e)); }
-  / DO _ !unassignable a:identifier _ "=" _ f:functionLiteral { return rp(new CS.DoOp(new CS.AssignOp(a, f))); }
-  / DO _ e:(expressionworthy / prefixExpression) { return rp(new CS.DoOp(e)); }
-  / TYPEOF _ e:(expressionworthy / prefixExpression) { return rp(new CS.TypeofOp(e)); }
-  / DELETE _ e:(expressionworthy / prefixExpression) { return rp(new CS.DeleteOp(e)); }
+  / DO _ e:(nfe / expressionworthy / prefixExpression) { return rp(new CS.DoOp(e)); }
+  / ops:(("++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE) _)+ e:(expressionworthy / prefixExpression) {
+      return rp(foldr(function(expr, op){
+        return new unaryConstructorLookup[op[0]](expr);
+      }, e, ops));
+    }
+  nfe
+    = !unassignable a:identifier _ "=" _ f:functionLiteral { return rp(new CS.AssignOp(a, f)); }
 prefixExpressionNoImplicitObjectCall
   = postfixExpressionNoImplicitObjectCall
-  / "++" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.PreIncrementOp(e)); }
-  / "--" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.PreDecrementOp(e)); }
-  / "+" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.UnaryPlusOp(e)); }
-  / "-" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.UnaryNegateOp(e)); }
-  / o:("!" / NOT) _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.LogicalNotOp(e)); }
-  / "~" _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.BitNotOp(e)); }
-  / DO _ !unassignable a:identifier _ "=" _ f:functionLiteral { return rp(new CS.DoOp(new CS.AssignOp(a, f))); }
-  / DO _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DoOp(e)); }
-  / TYPEOF _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.TypeofOp(e)); }
-  / DELETE _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DeleteOp(e)); }
+  / DO _ e:(nfe / expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DoOp(e)); }
+  / ops:(("++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE) _)+ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) {
+      return rp(foldr(function(expr, op){
+        return new unaryConstructorLookup[op[0]](expr);
+      }, e, ops));
+    }
 
 postfixExpression
   = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {

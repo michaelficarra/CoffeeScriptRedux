@@ -35,7 +35,7 @@ var CS = require("./nodes"),
     , '**': CS.ExpOp
     },
 
-  unaryConstructorLookup =
+  prefixConstructorLookup =
     { '++': CS.PreIncrementOp
     , '--': CS.PreDecrementOp
     , '+': CS.UnaryPlusOp
@@ -46,6 +46,13 @@ var CS = require("./nodes"),
     , 'do': CS.DoOp
     , 'typeof': CS.TypeofOp
     , 'delete': CS.DeleteOp
+    },
+
+  postfixConstructorLookup =
+    { '?': CS.UnaryExistsOp
+    , '[..]': CS.ShallowCopyArray
+    , '++': CS.PostIncrementOp
+    , '--': CS.PostDecrementOp
     },
 
   foldl = function(fn, memo, list){
@@ -518,8 +525,8 @@ prefixExpression
   = postfixExpression
   / DO _ e:(nfe / expressionworthy / prefixExpression) { return rp(new CS.DoOp(e)); }
   / ops:(("++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE) _)+ e:(expressionworthy / prefixExpression) {
-      return rp(foldr(function(expr, op){
-        return new unaryConstructorLookup[op[0]](expr);
+      return rp(foldr(function(e, op){
+        return new prefixConstructorLookup[op[0]](e);
       }, e, ops));
     }
   nfe
@@ -528,32 +535,22 @@ prefixExpressionNoImplicitObjectCall
   = postfixExpressionNoImplicitObjectCall
   / DO _ e:(nfe / expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DoOp(e)); }
   / ops:(("++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE) _)+ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) {
-      return rp(foldr(function(expr, op){
-        return new unaryConstructorLookup[op[0]](expr);
+      return rp(foldr(function(e, op){
+        return new prefixConstructorLookup[op[0]](e);
       }, e, ops));
     }
 
 postfixExpression
-  = expr:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
-      return foldl(function(expr, op){
-        switch(op){
-          case '?': return rp(new CS.UnaryExistsOp(expr));
-          case '[..]': return rp(new CS.ShallowCopyArray(expr));
-          case '++': return rp(new CS.PostIncrementOp(expr));
-          case '--': return rp(new CS.PostDecrementOp(expr));
-        }
-      }, expr, ops);
+  = e:leftHandSideExpression ops:("?" / "[..]" / "++" / "--")* {
+      return rp(foldl(function(e, op){
+        return new postfixConstructorLookup[op](e);
+      }, e, ops));
     }
 postfixExpressionNoImplicitObjectCall
-  = expr:leftHandSideExpressionNoImplicitObjectCall ops:("?" / "[..]" / "++" / "--")* {
-      return foldl(function(expr, op){
-        switch(op){
-          case '?': return rp(new CS.UnaryExistsOp(expr));
-          case '[..]': return rp(new CS.ShallowCopyArray(expr));
-          case '++': return rp(new CS.PostIncrementOp(expr));
-          case '--': return rp(new CS.PostDecrementOp(expr));
-        }
-      }, expr, ops);
+  = e:leftHandSideExpressionNoImplicitObjectCall ops:("?" / "[..]" / "++" / "--")* {
+      return rp(foldl(function(e, op){
+        return new postfixConstructorLookup[op](e);
+      }, e, ops));
     }
 
 leftHandSideExpression = callExpression / newExpression

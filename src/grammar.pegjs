@@ -24,6 +24,9 @@ var CS = require("./nodes"),
     , 'instanceof': CS.InstanceofOp
     , 'in': CS.InOp
     , 'of': CS.OfOp
+    , 'not instanceof': function(a, b){ return new CS.LogicalNotOp(new CS.InstanceofOp(a, b)); }
+    , 'not in': function(a, b){ return new CS.LogicalNotOp(new CS.InOp(a, b)); }
+    , 'not of': function(a, b){ return new CS.LogicalNotOp(new CS.OfOp(a, b)); }
     , '<<': CS.LeftShiftOp
     , '>>': CS.SignedRightShiftOp
     , '>>>': CS.UnsignedRightShiftOp
@@ -72,6 +75,13 @@ var CS = require("./nodes"),
     , [CS.ExpOp] // **
     ],
 
+  rightAssocOps = [
+    CS.SeqOp,
+    CS.AssignOp,
+    CS.ExistsOp,
+    CS.ExpOp
+  ],
+
   precedenceTable = (function(){
     var table = {}, ctors, ctor;
     for(var level = 0, l = precedenceHierarchy.length; level < l; ++level) {
@@ -84,6 +94,20 @@ var CS = require("./nodes"),
     return table;
   }()),
 
+  RIGHT_ASSOCIATIVE = {},
+  LEFT_ASSOCIATIVE = {},
+  associativities = (function(){
+    var result = {};
+    for(var type in precedenceTable) {
+      if(!{}.hasOwnProperty.call(precedenceTable, type)) continue;
+      result[type] = LEFT_ASSOCIATIVE;
+    }
+    for(var i = 0, l = rightAssocOps.length; i < l; ++i) {
+      result[rightAssocOps[i].prototype.className] = RIGHT_ASSOCIATIVE;
+    }
+    return result;
+  }()),
+
   foldl = function(fn, memo, list){
     for(var i = 0, l = list.length; i < l; ++i)
       memo = fn(memo, list[i]);
@@ -93,6 +117,41 @@ var CS = require("./nodes"),
     for(var i = list.length; i--;)
       memo = fn(memo, list[i]);
     return memo;
+  },
+
+  foldBinaryExpr = function(parts) {
+    var stack, nextPrec, className, ctor, prec, rightOperand, leftOperand, operator, i, expr;
+    if(parts.length < 3) return parts[0]; // should never happen
+    stack = [].slice.call(parts, 0, 3);
+    parts = [].slice.call(parts, 3);
+
+    while(parts.length) {
+      nextPrec = precedenceTable[constructorLookup[parts[0]].prototype.className];
+
+      while(
+        stack.length > 2 &&
+		(
+          ctor = constructorLookup[stack[stack.length - 2]],
+          className = ctor.prototype.className,
+          prec = precedenceTable[className],
+          nextPrec < prec || nextPrec == prec && associativities[className] === LEFT_ASSOCIATIVE
+        )
+      ) {
+        rightOperand = stack.pop();
+        operator = stack.pop();
+        leftOperand = stack.pop();
+        stack.push(new ctor(leftOperand, rightOperand));
+      }
+
+      stack.push(parts.shift());
+      stack.push(parts.shift());
+    }
+
+    expr = stack.pop();
+    while(stack.length > 0)
+      expr = new constructorLookup[stack.pop()](stack.pop(), expr);
+
+    return expr;
   },
 
   createInterpolation = function(es){
@@ -314,7 +373,7 @@ assignmentExpression
   = assignmentOp
   / compoundAssignmentOp
   / existsAssignmentOp
-  / logicalOrExpression
+  / lowBinaryExpression
   assignmentOp
     = left:Assignable _ "=" !"=" right:
       ( TERMINDENT e:secondaryExpression DEDENT { return e; }
@@ -342,7 +401,7 @@ assignmentExpressionNoImplicitObjectCall
   = assignmentOpNoImplicitObjectCall
   / compoundAssignmentOpNoImplicitObjectCall
   / existsAssignmentOpNoImplicitObjectCall
-  / logicalOrExpressionNoImplicitObjectCall
+  / lowBinaryExpressionNoImplicitObjectCall
   assignmentOpNoImplicitObjectCall
     = left:Assignable _ "=" !"=" right:
       ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { return e; }
@@ -365,94 +424,32 @@ assignmentExpressionNoImplicitObjectCall
         return rp(new CS.ExistsAssignOp(left, right));
       }
 
-logicalOrExpression
-  = left:logicalAndExpression rights:(_ ("||" / OR) !"=" TERMINATOR? _ (expressionworthy / logicalAndExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.LogicalOrOp(expr, right[5]));
-      }, left, rights);
-    }
-logicalOrExpressionNoImplicitObjectCall
-  = left:logicalAndExpressionNoImplicitObjectCall rights:(_ ("||" / OR) !"=" TERMINATOR? _ (expressionworthy / logicalAndExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.LogicalOrOp(expr, right[5]));
-      }, left, rights);
-    }
+// Binary expressions are split between two sets, low and high, which have
+// lower and higher precedence, respectively, than comparison operators.
+// This is necessary for now to support chained comparisons.
+// TODO: enhance foldBinaryExpr to special case comparison operators
 
-logicalAndExpression
-  = left:bitwiseOrExpression rights:(_ ("&&" / AND) !"=" TERMINATOR? _ (expressionworthy / bitwiseOrExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.LogicalAndOp(expr, right[5]));
-      }, left, rights);
+lowBinaryExpression
+  = left:comparisonExpression rights:(_ o:lowBinaryOperator TERMINATOR? _ e:(expressionworthy / comparisonExpression) { return [o, e]; })* {
+      switch(rights.length) {
+        case 0: return left;
+        case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));
+        default: return rp(foldBinaryExpr([].concat.apply([left], rights)));
+      }
     }
-logicalAndExpressionNoImplicitObjectCall
-  = left:bitwiseOrExpressionNoImplicitObjectCall rights:(_ ("&&" / AND) !"=" TERMINATOR? _ (expressionworthy / bitwiseOrExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.LogicalAndOp(expr, right[5]));
-      }, left, rights);
-    }
-
-bitwiseOrExpression
-  = left:bitwiseXorExpression rights:(_ "|" !"=" TERMINATOR? _ (expressionworthy / bitwiseXorExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.BitOrOp(expr, right[5]));
-      }, left, rights);
-    }
-bitwiseOrExpressionNoImplicitObjectCall
-  = left:bitwiseXorExpressionNoImplicitObjectCall rights:(_ "|" !"=" TERMINATOR? _ (expressionworthy / bitwiseXorExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.BitOrOp(expr, right[5]));
-      }, left, rights);
-    }
-
-bitwiseXorExpression
-  = left:bitwiseAndExpression rights:(_ "^" !"=" TERMINATOR? _ (expressionworthy / bitwiseAndExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.BitXorOp(expr, right[5]));
-      }, left, rights);
-    }
-bitwiseXorExpressionNoImplicitObjectCall
-  = left:bitwiseAndExpressionNoImplicitObjectCall rights:(_ "^" !"=" TERMINATOR? _ (expressionworthy / bitwiseAndExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.BitXorOp(expr, right[5]));
-      }, left, rights);
-    }
-
-bitwiseAndExpression
-  = left:existentialExpression rights:(_ "&" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.BitAndOp(expr, right[5]));
-      }, left, rights);
-    }
-bitwiseAndExpressionNoImplicitObjectCall
-  = left:existentialExpressionNoImplicitObjectCall rights:(_ "&" !"=" TERMINATOR? _ (expressionworthy / existentialExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new CS.BitAndOp(expr, right[5]));
-      }, left, rights);
-    }
-
-existentialExpression
-  = left:comparisonExpression right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpression))? {
-      if(!right) return left;
-      return rp(new CS.ExistsOp(left, right[5]));
-    }
-existentialExpressionNoImplicitObjectCall
-  = left:comparisonExpressionNoImplicitObjectCall right:(_ "?" !"=" TERMINATOR? _ (expressionworthy / existentialExpressionNoImplicitObjectCall))? {
-      if(!right) return left;
-      return rp(new CS.ExistsOp(left, right[5]));
+    lowBinaryOperator
+      = $(("&&" / AND / "||" / OR / [?&^|]) !"=")
+lowBinaryExpressionNoImplicitObjectCall
+  = left:comparisonExpressionNoImplicitObjectCall rights:(_ o:lowBinaryOperator TERMINATOR? _ e:(expressionworthy / comparisonExpressionNoImplicitObjectCall) { return [o, e]; })* {
+      switch(rights.length) {
+        case 0: return left;
+        case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));
+        default: return rp(foldBinaryExpr([].concat.apply([left], rights)));
+      }
     }
 
 comparisonExpression
-  = left:relationalExpression rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / relationalExpression))* {
+  = left:highBinaryExpression rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / highBinaryExpression))* {
       if(!rights) return left;
       var tree = foldl(function(expr, right){
         return rp(new constructorLookup[right[1]](expr, right[3]));
@@ -460,7 +457,7 @@ comparisonExpression
       return rights.length < 2 ? tree : rp(new CS.ChainedComparisonOp(tree));
     }
 comparisonExpressionNoImplicitObjectCall
-  = left:relationalExpressionNoImplicitObjectCall rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / relationalExpressionNoImplicitObjectCall))* {
+  = left:highBinaryExpressionNoImplicitObjectCall rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / highBinaryExpressionNoImplicitObjectCall))* {
       if(!rights) return left;
       var tree = foldl(function(expr, right){
         return rp(new constructorLookup[right[1]](expr, right[3]));
@@ -468,86 +465,26 @@ comparisonExpressionNoImplicitObjectCall
       return rights.length < 2 ? tree : rp(new CS.ChainedComparisonOp(tree));
     }
 
-relationalExpression
-  = left:bitwiseShiftExpression rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(right[1](expr, right[4]));
-      }, left, rights);
-    }
-  relationalExpressionOperator
-    = op:(EXTENDS / INSTANCEOF / IN / OF) {
-        return function(left, right){
-          return new constructorLookup[op](left, right);
-        };
+highBinaryExpression
+  = left:prefixExpression rights:(_ o:highBinaryOperator TERMINATOR? _ e:(expressionworthy / prefixExpression) { return [o, e]; })* {
+      switch(rights.length) {
+        case 0: return left;
+        case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));
+        default: return rp(foldBinaryExpr([].concat.apply([left], rights)));
       }
-    / NOT _ op:(INSTANCEOF / IN / OF) {
-        return function(left, right){
-          return new CS.LogicalNotOp(new constructorLookup[op](left, right)).g();
-        };
+    }
+  highBinaryOperator
+    = $(("+" ![+=] / "-" ![-=]))
+    / $(("**" / [*/%] / "<<" / ">>>" / ">>") !"=")
+    / EXTENDS / INSTANCEOF / IN / OF
+    / NOT _ op:(INSTANCEOF / IN / OF) { return 'not ' + op;  }
+highBinaryExpressionNoImplicitObjectCall
+  = left:prefixExpressionNoImplicitObjectCall rights:(_ o:highBinaryOperator TERMINATOR? _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return [o, e]; })* {
+      switch(rights.length) {
+        case 0: return left;
+        case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));
+        default: return rp(foldBinaryExpr([].concat.apply([left], rights)));
       }
-relationalExpressionNoImplicitObjectCall
-  = left:bitwiseShiftExpressionNoImplicitObjectCall rights:(_ relationalExpressionOperator TERMINATOR? _ (expressionworthy / bitwiseShiftExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(right[1](expr, right[4]));
-      }, left, rights);
-    }
-
-bitwiseShiftExpression
-  = left:additiveExpression rights:(_ ("<<" / ">>>" / ">>") !"=" TERMINATOR? _ (expressionworthy / additiveExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new constructorLookup[right[1]](expr, right[5]));
-      }, left, rights);
-    }
-bitwiseShiftExpressionNoImplicitObjectCall
-  = left:additiveExpressionNoImplicitObjectCall rights:(_ ("<<" / ">>>" / ">>") !"=" TERMINATOR? _ (expressionworthy / additiveExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new constructorLookup[right[1]](expr, right[5]));
-      }, left, rights);
-    }
-
-additiveExpression
-  = left:multiplicativeExpression rights:(_ ("+" ![+=] / "-" ![-=]) TERMINATOR? _ (expressionworthy / multiplicativeExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new constructorLookup[right[1][0]](expr, right[4]));
-      }, left, rights);
-    }
-additiveExpressionNoImplicitObjectCall
-  = left:multiplicativeExpressionNoImplicitObjectCall rights:(_ ("+" ![+=] / "-" ![-=]) TERMINATOR? _ (expressionworthy / multiplicativeExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new constructorLookup[right[1][0]](expr, right[4]));
-      }, left, rights);
-    }
-
-multiplicativeExpression
-  = left:exponentiationExpression rights:(_ [*/%] !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new constructorLookup[right[1]](expr, right[5]));
-      }, left, rights);
-    }
-multiplicativeExpressionNoImplicitObjectCall
-  = left:exponentiationExpressionNoImplicitObjectCall rights:(_ [*/%] !"=" TERMINATOR? _ (expressionworthy / exponentiationExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      return foldl(function(expr, right){
-        return rp(new constructorLookup[right[1]](expr, right[5]));
-      }, left, rights);
-    }
-
-exponentiationExpression
-  = left:prefixExpression right:(_ "**" !"=" TERMINATOR? _ (expressionworthy / exponentiationExpression))? {
-      if(!right) return left;
-      return rp(new CS.ExpOp(left, right[5]));
-    }
-exponentiationExpressionNoImplicitObjectCall
-  = left:prefixExpressionNoImplicitObjectCall right:(_ "**" !"=" TERMINATOR? _ (expressionworthy / exponentiationExpressionNoImplicitObjectCall))? {
-      if(!right) return left;
-      return rp(new CS.ExpOp(left, right[5]));
     }
 
 prefixExpression

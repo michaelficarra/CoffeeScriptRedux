@@ -24,9 +24,6 @@ var CS = require("./nodes"),
     , 'instanceof': CS.InstanceofOp
     , 'in': CS.InOp
     , 'of': CS.OfOp
-    , 'not instanceof': function(a, b){ return new CS.LogicalNotOp(new CS.InstanceofOp(a, b)); }
-    , 'not in': function(a, b){ return new CS.LogicalNotOp(new CS.InOp(a, b)); }
-    , 'not of': function(a, b){ return new CS.LogicalNotOp(new CS.OfOp(a, b)); }
     , '<<': CS.LeftShiftOp
     , '>>': CS.SignedRightShiftOp
     , '>>>': CS.UnsignedRightShiftOp
@@ -38,7 +35,17 @@ var CS = require("./nodes"),
     , '**': CS.ExpOp
     },
 
-  prefixConstructorLookup =
+  negatableOps = ['instanceof', 'in', 'of'];
+
+  for(var i = 0, l = negatableOps.length; i < l; ++i) {
+    (function(op){
+      var fn = function(a, b){ return new CS.LogicalNotOp(new constructorLookup[op](a, b)); };
+      fn.prototype = constructorLookup[op].prototype;
+      constructorLookup['not ' + op] = fn;
+    }(negatableOps[i]));
+  }
+
+  var prefixConstructorLookup =
     { '++': CS.PreIncrementOp
     , '--': CS.PreDecrementOp
     , '+': CS.UnaryPlusOp
@@ -75,13 +82,6 @@ var CS = require("./nodes"),
     , [CS.ExpOp] // **
     ],
 
-  rightAssocOps = [
-    CS.SeqOp,
-    CS.AssignOp,
-    CS.ExistsOp,
-    CS.ExpOp
-  ],
-
   precedenceTable = (function(){
     var table = {}, ctors, ctor;
     for(var level = 0, l = precedenceHierarchy.length; level < l; ++level) {
@@ -93,6 +93,17 @@ var CS = require("./nodes"),
     }
     return table;
   }()),
+
+  chainableComparisonOps = [
+    '<=', '>=', '<', '>', '==', 'is', '!=', 'isnt'
+  ],
+
+  rightAssocOps = [
+    CS.SeqOp,
+    CS.AssignOp,
+    CS.ExistsOp,
+    CS.ExpOp
+  ],
 
   RIGHT_ASSOCIATIVE = {},
   LEFT_ASSOCIATIVE = {},
@@ -119,34 +130,62 @@ var CS = require("./nodes"),
     return memo;
   },
 
-  foldBinaryExpr = function(parts) {
-    var stack, nextPrec, className, ctor, prec, rightOperand, leftOperand, operator, i, expr;
+  // TODO: clean up and use a functional approach; stack === recursion
+  foldBinaryExpr = function(parts, ignoreChains) {
+    var stack, chainStack, nextPrec, nextOp, className, ctor, prec, rightOperand, leftOperand, operator, i, expr;
     if(parts.length < 3) return parts[0]; // should never happen
     stack = [].slice.call(parts, 0, 3);
     parts = [].slice.call(parts, 3);
 
-    while(parts.length) {
-      nextPrec = precedenceTable[constructorLookup[parts[0]].prototype.className];
+    while(parts.length > 0) {
+      nextOp = parts[0];
 
+      if(!ignoreChains && stack.length > 2) {
+        operator = stack[stack.length - 2];
+        // reduce chained comparisons
+        if(chainableComparisonOps.indexOf(operator) >= 0 && chainableComparisonOps.indexOf(nextOp) >= 0) {
+          chainStack = stack.slice(-3);
+          stack = stack.slice(0, stack.length - 3);
+          do {
+            operator = nextOp;
+            chainStack.push(parts.shift(), parts.shift());
+            nextOp = parts[0];
+            if(nextOp) {
+              nextPrec = precedenceTable[constructorLookup[nextOp].prototype.className];
+              prec = precedenceTable[constructorLookup[operator].prototype.className];
+            }
+          } while(nextOp != null && (nextPrec > prec || chainableComparisonOps.indexOf(nextOp) >= 0));
+          // TODO: I would love `a < b is c < d` to instead denote `(a < b) is (c < d)`
+          stack.push(new CS.ChainedComparisonOp(foldBinaryExpr(chainStack, true)));
+          continue;
+        }
+      }
+
+      // reduce
       while(
         stack.length > 2 &&
-		(
-          ctor = constructorLookup[stack[stack.length - 2]],
+        (
+          operator = stack[stack.length - 2],
+          ctor = constructorLookup[operator],
           className = ctor.prototype.className,
           prec = precedenceTable[className],
-          nextPrec < prec || nextPrec == prec && associativities[className] === LEFT_ASSOCIATIVE
+          nextPrec = precedenceTable[constructorLookup[nextOp].prototype.className],
+          nextPrec < prec ||
+          chainableComparisonOps.indexOf(operator) >= 0 && chainableComparisonOps.indexOf(nextOp) >= 0 ||
+          nextPrec == prec && associativities[className] === LEFT_ASSOCIATIVE
         )
       ) {
         rightOperand = stack.pop();
-        operator = stack.pop();
+        stack.pop(); // operator
         leftOperand = stack.pop();
         stack.push(new ctor(leftOperand, rightOperand));
       }
-
-      stack.push(parts.shift());
-      stack.push(parts.shift());
+      // shift
+      stack.push(parts.shift()); // operator
+      stack.push(parts.shift()); // next operand
     }
 
+    // reduce the rest of the stack
     expr = stack.pop();
     while(stack.length > 0)
       expr = new constructorLookup[stack.pop()](stack.pop(), expr);
@@ -373,7 +412,7 @@ assignmentExpression
   = assignmentOp
   / compoundAssignmentOp
   / existsAssignmentOp
-  / lowBinaryExpression
+  / binaryExpression
   assignmentOp
     = left:Assignable _ "=" !"=" right:
       ( TERMINDENT e:secondaryExpression DEDENT { return e; }
@@ -401,7 +440,7 @@ assignmentExpressionNoImplicitObjectCall
   = assignmentOpNoImplicitObjectCall
   / compoundAssignmentOpNoImplicitObjectCall
   / existsAssignmentOpNoImplicitObjectCall
-  / lowBinaryExpressionNoImplicitObjectCall
+  / binaryExpressionNoImplicitObjectCall
   assignmentOpNoImplicitObjectCall
     = left:Assignable _ "=" !"=" right:
       ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { return e; }
@@ -424,62 +463,22 @@ assignmentExpressionNoImplicitObjectCall
         return rp(new CS.ExistsAssignOp(left, right));
       }
 
-// Binary expressions are split between two sets, low and high, which have
-// lower and higher precedence, respectively, than comparison operators.
-// This is necessary for now to support chained comparisons.
-// TODO: enhance foldBinaryExpr to special case comparison operators
-
-lowBinaryExpression
-  = left:comparisonExpression rights:(_ o:lowBinaryOperator TERMINATOR? _ e:(expressionworthy / comparisonExpression) { return [o, e]; })* {
+binaryExpression
+  = left:prefixExpression rights:(_ o:binaryOperator TERMINATOR? _ e:(expressionworthy / prefixExpression) { return [o, e]; })* {
       switch(rights.length) {
         case 0: return left;
         case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));
         default: return rp(foldBinaryExpr([].concat.apply([left], rights)));
       }
     }
-    lowBinaryOperator
-      = $(("&&" / AND / "||" / OR / [?&^|]) !"=")
-lowBinaryExpressionNoImplicitObjectCall
-  = left:comparisonExpressionNoImplicitObjectCall rights:(_ o:lowBinaryOperator TERMINATOR? _ e:(expressionworthy / comparisonExpressionNoImplicitObjectCall) { return [o, e]; })* {
-      switch(rights.length) {
-        case 0: return left;
-        case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));
-        default: return rp(foldBinaryExpr([].concat.apply([left], rights)));
-      }
-    }
-
-comparisonExpression
-  = left:highBinaryExpression rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / highBinaryExpression))* {
-      if(!rights) return left;
-      var tree = foldl(function(expr, right){
-        return rp(new constructorLookup[right[1]](expr, right[3]));
-      }, left, rights);
-      return rights.length < 2 ? tree : rp(new CS.ChainedComparisonOp(tree));
-    }
-comparisonExpressionNoImplicitObjectCall
-  = left:highBinaryExpressionNoImplicitObjectCall rights:(_ ("<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT) _ (expressionworthy / highBinaryExpressionNoImplicitObjectCall))* {
-      if(!rights) return left;
-      var tree = foldl(function(expr, right){
-        return rp(new constructorLookup[right[1]](expr, right[3]));
-      }, left, rights);
-      return rights.length < 2 ? tree : rp(new CS.ChainedComparisonOp(tree));
-    }
-
-highBinaryExpression
-  = left:prefixExpression rights:(_ o:highBinaryOperator TERMINATOR? _ e:(expressionworthy / prefixExpression) { return [o, e]; })* {
-      switch(rights.length) {
-        case 0: return left;
-        case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));
-        default: return rp(foldBinaryExpr([].concat.apply([left], rights)));
-      }
-    }
-  highBinaryOperator
+  binaryOperator
     = $(("+" ![+=] / "-" ![-=]))
-    / $(("**" / [*/%] / "<<" / ">>>" / ">>") !"=")
+    / $(("&&" / AND / "||" / OR / "**" / [?&^|*/%] / "<<" / ">>>" / ">>") !"=")
+    / "<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT
     / EXTENDS / INSTANCEOF / IN / OF
     / NOT _ op:(INSTANCEOF / IN / OF) { return 'not ' + op;  }
-highBinaryExpressionNoImplicitObjectCall
-  = left:prefixExpressionNoImplicitObjectCall rights:(_ o:highBinaryOperator TERMINATOR? _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return [o, e]; })* {
+binaryExpressionNoImplicitObjectCall
+  = left:prefixExpressionNoImplicitObjectCall rights:(_ o:binaryOperator TERMINATOR? _ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) { return [o, e]; })* {
       switch(rights.length) {
         case 0: return left;
         case 1: return rp(new constructorLookup[rights[0][0]](left, rights[0][1]));

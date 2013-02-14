@@ -35,26 +35,11 @@ var CS = require("./nodes"),
     , '**': CS.ExpOp
     },
 
-  prefixConstructorLookup =
-    { '++': CS.PreIncrementOp
-    , '--': CS.PreDecrementOp
-    , '+': CS.UnaryPlusOp
-    , '-': CS.UnaryNegateOp
-    , '!': CS.LogicalNotOp
-    , 'not': CS.LogicalNotOp
-    , '~': CS.BitNotOp
-    , 'do': CS.DoOp
-    , 'typeof': CS.TypeofOp
-    , 'delete': CS.DeleteOp
-    },
+  negatableOps = ['instanceof', 'in', 'of'],
+  chainableComparisonOps = ['<=', '>=', '<', '>', '==', 'is', '!=', 'isnt'],
+  compoundAssignableOps = ['**',  '*',  '/',  '%',  '+',  '-',  '<<',  '>>>',  '>>',  'and',  'or',  '&&', '||',  '&',  '^',  '|'],
 
-  postfixConstructorLookup =
-    { '?': CS.UnaryExistsOp
-    , '[..]': CS.ShallowCopyArray
-    , '++': CS.PostIncrementOp
-    , '--': CS.PostDecrementOp
-    },
-
+  rightAssocOps = [';', '=', '?', '**'],
   precedenceHierarchy =
     [ [';']
     , ['=']
@@ -84,27 +69,9 @@ var CS = require("./nodes"),
     return table;
   }()),
 
-  negatableOps = ['instanceof', 'in', 'of'];
-
-  for(var i = 0, l = negatableOps.length; i < l; ++i) {
-    (function(op){
-      var fn = function(a, b){ return new CS.LogicalNotOp(new constructorLookup[op](a, b)); };
-      fn.prototype = constructorLookup[op].prototype;
-      precedenceTable['not ' + op] = precedenceTable[op];
-      constructorLookup['not ' + op] = fn;
-    }(negatableOps[i]));
-  }
-
-  var chainableComparisonOps = [
-    '<=', '>=', '<', '>', '==', 'is', '!=', 'isnt'
-  ],
-
-  rightAssocOps = [
-    ';', '=', '?', '**'
-  ],
-
   RIGHT_ASSOCIATIVE = {},
   LEFT_ASSOCIATIVE = {},
+
   associativities = (function(){
     var result = {};
     for(var op in precedenceTable) {
@@ -115,7 +82,50 @@ var CS = require("./nodes"),
       result[rightAssocOps[i]] = RIGHT_ASSOCIATIVE;
     }
     return result;
-  }()),
+  }());
+
+  for(var i = 0, l = negatableOps.length; i < l; ++i) {
+    (function(op){
+      var fn = function(a, b){ return new CS.LogicalNotOp(new constructorLookup[op](a, b)); };
+      fn.prototype = constructorLookup[op].prototype;
+      var negatedOp = 'not ' + op;
+      constructorLookup[negatedOp] = fn;
+      precedenceTable[negatedOp] = precedenceTable[op];
+      associativities[negatedOp] = associativities[op];
+    }(negatableOps[i]));
+  }
+
+  for(var i = 0, l = compoundAssignableOps.length; i < l; ++i) {
+    (function(op){
+      var assignmentOp = op + '=';
+      constructorLookup[assignmentOp] = function(left, right){ return new CS.CompoundAssignOp(op, left, right); };
+      constructorLookup[assignmentOp].prototype = CS.CompoundAssignOp.prototype;
+      precedenceTable[assignmentOp] = precedenceTable['='];
+      associativities[assignmentOp] = associativities['='];
+    }(compoundAssignableOps[i]));
+  }
+
+
+  var
+  prefixConstructorLookup =
+    { '++': CS.PreIncrementOp
+    , '--': CS.PreDecrementOp
+    , '+': CS.UnaryPlusOp
+    , '-': CS.UnaryNegateOp
+    , '!': CS.LogicalNotOp
+    , 'not': CS.LogicalNotOp
+    , '~': CS.BitNotOp
+    , 'do': CS.DoOp
+    , 'typeof': CS.TypeofOp
+    , 'delete': CS.DeleteOp
+    },
+
+  postfixConstructorLookup =
+    { '?': CS.UnaryExistsOp
+    , '[..]': CS.ShallowCopyArray
+    , '++': CS.PostIncrementOp
+    , '--': CS.PostDecrementOp
+    },
 
   foldl = function(fn, memo, list){
     for(var i = 0, l = list.length; i < l; ++i)

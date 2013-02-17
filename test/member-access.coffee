@@ -59,3 +59,46 @@ suite 'Member Access', ->
 
   test '#171: dynamic member access on list comprehensions', ->
     eq 4, (x ** 2 for x in [0..4])[2]
+
+  test 'indented member access', ->
+    nonce = {}
+
+    o = a: -> b: c: -> nonce
+    eq nonce, o.a().b.c()
+    eq nonce, o
+    .a()
+    .b
+    .c()
+    eq nonce, o
+      .a()
+      .b
+      .c()
+    eq nonce, o
+      .a()
+        .b
+      .c()
+    eq nonce, o
+      .a()
+        .b
+          .c()
+    eq nonce, o.a().b.c()
+
+    o = a: -> b: c: nonce
+    eq nonce, o.a().b.c
+    eq nonce, o
+    .a()
+    .b
+    .c
+    eq nonce, o
+      .a()
+      .b
+      .c
+    eq nonce, o
+      .a()
+        .b
+      .c
+    eq nonce, o
+      .a()
+        .b
+          .c
+    eq nonce, o.a().b.c

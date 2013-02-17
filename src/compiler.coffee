@@ -704,10 +704,11 @@ class exports.Compiler
     [CS.AssignOp, ({assignee, expression, ancestry}) ->
       assignment assignee, expression, usedAsExpression this, ancestry
     ]
-    [CS.CompoundAssignOp, ({assignee, expression}) ->
+    [CS.CompoundAssignOp, ({assignee, expression, inScope}) ->
       op = switch @op
         when CS.LogicalAndOp::className         then '&&'
         when CS.LogicalOrOp::className          then '||'
+        when CS.ExistsOp::className             then '?'
         when CS.BitOrOp::className              then '|'
         when CS.BitXorOp::className             then '^'
         when CS.BitAndOp::className             then '&'
@@ -721,18 +722,20 @@ class exports.Compiler
         when CS.RemOp::className                then '%'
         when CS.ExpOp::className                then '**'
         else throw new Error 'Unrecognised compound assignment operator'
-      # TODO: if assignee is an identifier, fail unless assignee is in scope
-      if op in ['&&', '||']
-        new JS.BinaryExpression op, assignee, new JS.AssignmentExpression '=', assignee, expr expression
-      else if op is '**'
-        new JS.AssignmentExpression '=', assignee, helpers.exp assignee, expr expression
-      else new JS.AssignmentExpression "#{op}=", assignee, expression
-    ]
-    [CS.ExistsAssignOp, ({assignee, expression, inScope}) ->
-      if (assignee.instanceof JS.Identifier) and assignee.name not in inScope
+
+      # if assignee is an identifier, fail unless assignee is in scope
+      if op in ['&&', '||', '?'] and (assignee.instanceof JS.Identifier) and assignee.name not in inScope
         throw new Error "the variable \"#{assignee.name}\" can't be assigned with ?= because it has not been defined."
-      condition = new JS.BinaryExpression '!=', (new JS.Literal null), assignee
-      new JS.ConditionalExpression condition, assignee, new JS.AssignmentExpression '=', assignee, expr expression
+
+      switch op
+        when '&&', '||'
+          new JS.BinaryExpression op, assignee, new JS.AssignmentExpression '=', assignee, expr expression
+        when '?'
+          condition = new JS.BinaryExpression '!=', (new JS.Literal null), assignee
+          new JS.ConditionalExpression condition, assignee, new JS.AssignmentExpression '=', assignee, expr expression
+        when '**'
+          new JS.AssignmentExpression '=', assignee, helpers.exp assignee, expr expression
+        else new JS.AssignmentExpression "#{op}=", assignee, expr expression
     ]
     [CS.ChainedComparisonOp, ({expression, compile}) ->
       return expression unless @expression.left.instanceof CS.ComparisonOps

@@ -425,7 +425,7 @@ assignmentExpression
       ( TERMINDENT e:secondaryExpression DEDENT { return e; }
       / TERMINATOR? _ e:secondaryExpression { return e; }
       ) {
-        return rp(new CS.ExistsAssignOp(left, right));
+        return rp(new CS.CompoundAssignOp(constructorLookup['?'].prototype.className, left, right));
       }
 assignmentExpressionNoImplicitObjectCall
   = assignmentOpNoImplicitObjectCall
@@ -451,7 +451,7 @@ assignmentExpressionNoImplicitObjectCall
       ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { return e; }
       / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { return e; }
       ) {
-        return rp(new CS.ExistsAssignOp(left, right));
+        return rp(new CS.CompoundAssignOp(constructorLookup['?'].prototype.className, left, right));
       }
 
 binaryExpression

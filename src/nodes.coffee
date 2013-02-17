@@ -48,7 +48,6 @@ createNodes
         AssignOp: null # :: Assignables -> Exprs -> AssignOp
         ClassProtoAssignOp: null # :: ObjectInitialiserKeys -> Exprs -> ClassProtoAssignOp
         CompoundAssignOp: [['op', 'assignee', 'expression']] # :: string -> Assignables -> Exprs -> CompoundAssignOp
-        ExistsAssignOp: null # :: Assignables -> Exprs -> ExistsAssignOp
       ]
       BitOps: [
         null

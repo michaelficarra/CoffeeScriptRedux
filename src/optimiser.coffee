@@ -132,7 +132,7 @@ mayHaveSideEffects =
       (not isFalsey @condition) and mayHaveSideEffects @body, inScope
     ]
     # category: AssignOp
-    [CS.AssignOp, CS.ClassProtoAssignOp, CS.CompoundAssignOp, CS.ExistsAssignOp, (inScope) ->
+    [CS.AssignOp, CS.ClassProtoAssignOp, CS.CompoundAssignOp, (inScope) ->
       #(mayHaveSideEffects @expression, inScope) or (beingDeclared @assignee).length > 0
       yes
     ]

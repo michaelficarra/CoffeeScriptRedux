@@ -554,7 +554,7 @@ leftHandSideExpressionNoImplicitObjectCall = callExpressionNoImplicitObjectCall 
     / secondaryExpressionNoImplicitObjectCall
 
 callExpression
-  = fn:memberExpression accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentList)? {
+  = fn:memberExpression accesses:callExpressionAccesses? secondaryArgs:("?"? secondaryArgumentList)? {
       if(accesses) fn = createMemberExpression(fn, accesses);
       var soaked, secondaryCtor;
       if(secondaryArgs) {
@@ -564,6 +564,9 @@ callExpression
       }
       return fn;
     }
+  callExpressionAccesses
+    = TERMINDENT as:callExpressionAccesses DEDENT { return as; }
+    / as:(argumentList / MemberAccessOps)+ bs:callExpressionAccesses? { return as.concat(bs || []); }
 callExpressionNoImplicitObjectCall
   = fn:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
       if(accesses) fn = createMemberExpression(fn, accesses);
@@ -607,7 +610,8 @@ memberExpression
   MemberNames
     = identifierName
   MemberAccessOps
-    = TERMINATOR? _ "." TERMINATOR? _ e:MemberNames { return rp({op: CS.MemberAccessOp, operands: [e]}); }
+    = TERMINDENT "." _ e:MemberNames MemberAccessOps* DEDENT { return rp({op: CS.MemberAccessOp, operands: [e]}); }
+    / TERMINATOR? _ "." TERMINATOR? _ e:MemberNames { return rp({op: CS.MemberAccessOp, operands: [e]}); }
     / "?." _ e:MemberNames { return rp({op: CS.SoakedMemberAccessOp, operands: [e]}); }
     / "[" _ e:expression _ "]" { return rp({op: CS.DynamicMemberAccessOp, operands: [e]}); }
     / "?[" _ e:expression _ "]" { return rp({op: CS.SoakedDynamicMemberAccessOp, operands: [e]}); }

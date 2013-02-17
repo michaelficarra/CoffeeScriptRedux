@@ -2,9 +2,7 @@
 var CS = require("./nodes"),
 
   constructorLookup =
-    { ';': CS.SeqOp
-    , '=': CS.AssignOp
-    , '||': CS.LogicalOrOp
+    { '||': CS.LogicalOrOp
     , or: CS.LogicalOrOp
     , '&&': CS.LogicalAndOp
     , and: CS.LogicalAndOp
@@ -37,13 +35,10 @@ var CS = require("./nodes"),
 
   negatableOps = ['instanceof', 'in', 'of'],
   chainableComparisonOps = ['<=', '>=', '<', '>', '==', 'is', '!=', 'isnt'],
-  compoundAssignableOps = ['**',  '*',  '/',  '%',  '+',  '-',  '<<',  '>>>',  '>>',  'and',  'or',  '&&', '||',  '&',  '^',  '|'],
 
   rightAssocOps = [';', '=', '?', '**'],
   precedenceHierarchy =
-    [ [';']
-    , ['=']
-    , ['or', '||']
+    [ ['or', '||']
     , ['and', '&&']
     , ['|']
     , ['^']
@@ -93,16 +88,6 @@ var CS = require("./nodes"),
       precedenceTable[negatedOp] = precedenceTable[op];
       associativities[negatedOp] = associativities[op];
     }(negatableOps[i]));
-  }
-
-  for(var i = 0, l = compoundAssignableOps.length; i < l; ++i) {
-    (function(op){
-      var assignmentOp = op + '=';
-      constructorLookup[assignmentOp] = function(left, right){ return new CS.CompoundAssignOp(op, left, right); };
-      constructorLookup[assignmentOp].prototype = CS.CompoundAssignOp.prototype;
-      precedenceTable[assignmentOp] = precedenceTable['='];
-      associativities[assignmentOp] = associativities['='];
-    }(compoundAssignableOps[i]));
   }
 
 
@@ -162,8 +147,8 @@ var CS = require("./nodes"),
               nextPrec = precedenceTable[nextOp];
               prec = precedenceTable[operator];
             }
-          } while(nextOp != null && (nextPrec > prec || chainableComparisonOps.indexOf(nextOp) >= 0));
           // TODO: I would love `a < b is c < d` to instead denote `(a < b) is (c < d)`
+          } while(nextOp != null && (nextPrec > prec || chainableComparisonOps.indexOf(nextOp) >= 0));
           stack.push(new CS.ChainedComparisonOp(foldBinaryExpr(chainStack, true)));
           continue;
         }
@@ -426,15 +411,15 @@ assignmentExpression
       ) {
         return rp(new CS.AssignOp(left, right));
       }
-  CompoundAssignmentOperators
-    = "**" / "*" / "/" / "%" / "+" / "-" / "<<" / ">>>" / ">>" / AND / OR / "&&" / "||" / "&" / "^" / "|"
   compoundAssignmentOp
-    = left:CompoundAssignable _ op:CompoundAssignmentOperators "=" right:
+    = left:CompoundAssignable _ !"?" op:CompoundAssignmentOperators "=" right:
       ( TERMINDENT e:secondaryExpression DEDENT { return e; }
       / TERMINATOR? _ e:secondaryExpression { return e; }
       ) {
         return rp(new CS.CompoundAssignOp(constructorLookup[op].prototype.className, left, right));
       }
+  CompoundAssignmentOperators
+    = $("&&" / AND / "||" / OR / "**" / [?&^|*/%] / "+" !"+" / "-" !"-" / "<<" / ">>>" / ">>")
   existsAssignmentOp
     = left:ExistsAssignable _ "?=" _ right:
       ( TERMINDENT e:secondaryExpression DEDENT { return e; }
@@ -455,7 +440,7 @@ assignmentExpressionNoImplicitObjectCall
         return rp(new CS.AssignOp(left, right));
       }
   compoundAssignmentOpNoImplicitObjectCall
-    = left:CompoundAssignable _ op:CompoundAssignmentOperators "=" right:
+    = left:CompoundAssignable _ !"?" op:CompoundAssignmentOperators "=" right:
       ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { return e; }
       / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { return e; }
       ) {
@@ -478,8 +463,7 @@ binaryExpression
       }
     }
   binaryOperator
-    = $(("+" ![+=] / "-" ![-=]))
-    / $(("&&" / AND / "||" / OR / "**" / [?&^|*/%] / "<<" / ">>>" / ">>") !"=")
+    = $(CompoundAssignmentOperators !"=")
     / "<=" / ">=" / "<" / ">" / "==" / IS / "!=" / ISNT
     / EXTENDS / INSTANCEOF / IN / OF
     / NOT _ op:(INSTANCEOF / IN / OF) { return 'not ' + op;  }

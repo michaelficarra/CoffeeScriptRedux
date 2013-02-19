@@ -51,9 +51,12 @@ if escodegen?
     [['eval',    'e'], off, 'evaluate compiled JavaScript']
     [['repl'        ], off, 'run an interactive CoffeeScript REPL']
   ]
+  [].push.apply parameterArguments, [
+    [['source-map-file'], 'FILE' , 'file used as output for source map when using --js']
+    [['require', 'I'], 'FILE' , 'require a library before a script is executed']
+  ]
   if esmangle?
     optionArguments.push [['minify',  'm'], off, 'run compiled javascript output through a JS minifier']
-  parameterArguments.push [['require', 'I'], 'FILE' , 'require a library before a script is executed']
 
 if cscodegen?
   optionArguments.push [['cscodegen', 'f'], off, 'output cscodegen-generated CoffeeScript code']
@@ -148,9 +151,15 @@ if options.bare and not (options.compile or options.js or options['source-map'] 
   console.error 'Error: --bare does not make sense without --compile, --js, --source-map, or --eval'
   process.exit 1
 
+# - source-map-file depends on j (js)
+if options['source-map-file'] and not options.js
+  console.error 'Error: --source-map-file depends on --js'
+  process.exit 1
+
 # - i (input) depends on o (output) when input is a directory
 if options.input? and (fs.statSync options.input).isDirectory() and (not options.output? or (fs.statSync options.output)?.isFile())
   console.error 'Error: when --input is a directory, --output must be provided, and --output must not reference a file'
+  process.exit 1
 
 # - cscodegen depends on cscodegen
 if options.cscodegen and not cscodegen?
@@ -217,7 +226,7 @@ if options.help
 
   console.log "
   Unless given --input or --cli flags, `#{$0}` will operate on stdin/stdout.
-  When none of --{parse,compile,js,eval,cscodegen,repl} are given,
+  When none of --{parse,compile,js,source-map,eval,cscodegen,repl} are given,
     If positional arguments were given
       * --eval is implied
       * the first positional argument is used as an input filename
@@ -236,6 +245,7 @@ else
   # normal workflow
 
   input = ''
+  inputName = options.input ? (options.cli and 'cli' or 'stdin')
   inputSource =
     if options.input? then fs.realpathSync options.input
     else options.cli and '(cli)' or '(stdin)'
@@ -259,7 +269,7 @@ else
     try
       result = CoffeeScript.parse input,
         optimise: no
-        raw: options.raw or options['source-map'] or options.eval
+        raw: options.raw or options['source-map'] or options['source-map-file'] or options.eval
         inputSource: inputSource
     catch e
       console.error e.message
@@ -321,7 +331,7 @@ else
 
     if options['source-map']
       # source map generation
-      try sourceMap = CoffeeScript.sourceMap jsAST, options.input ? (options.cli and 'cli' or 'stdin'), compact: options.minify
+      try sourceMap = CoffeeScript.sourceMap jsAST, inputName, compact: options.minify
       catch e
         console.error (e.stack or e.message)
         process.exit 1
@@ -334,15 +344,22 @@ else
 
     # js code gen
     try
-      js = CoffeeScript.js jsAST, compact: options.minify
-      if options.input?
-        js = "#{js}\n//@ sourceURL=#{options.input}"
+      {code: js, map: sourceMap} = CoffeeScript.jsWithSourceMap jsAST, inputName, compact: options.minify
     catch e
       console.error (e.stack or e.message)
       process.exit 1
 
     # --js
     if options.js
+      if options['source-map-file']
+        fs.writeFileSync options['source-map-file'], "#{sourceMap}"
+        js = """
+          #{js}
+
+          /*
+          //@ sourceMappingURL=#{options['source-map-file']}
+          */
+        """
       output js
       return
 

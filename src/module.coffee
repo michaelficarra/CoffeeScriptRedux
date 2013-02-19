@@ -63,19 +63,17 @@ module.exports =
   cs: (csAst, options) ->
     # TODO: opt: format (default: nice defaults)
 
-  js: (jsAst, options = {}) ->
+  jsWithSourceMap: (jsAst, name = 'unknown', options = {}) ->
     # TODO: opt: minify (default: no)
-    throw new Error 'escodegen not found: run `npm install escodegen`' unless escodegen?
-    escodegen.generate jsAst,
-      comment: not options.compact
-      format: if options.compact then escodegenCompactDefaults else options.format ? escodegenFormatDefaults
-
-  sourceMap: (jsAst, name = 'unknown', options = {}) ->
     throw new Error 'escodegen not found: run `npm install escodegen`' unless escodegen?
     escodegen.generate jsAst.toJSON(),
       comment: not options.compact
+      sourceMapWithCode: yes
       sourceMap: name
       format: if options.compact then escodegenCompactDefaults else options.format ? escodegenFormatDefaults
+
+  js: (jsAst, options) -> (@jsWithSourceMap jsAst, null, options).code
+  sourceMap: (jsAst, name, options) -> (@jsWithSourceMap jsAst, name, options).map
 
   # Equivalent to original CS compile
   cs2js: (input, options = {}) ->

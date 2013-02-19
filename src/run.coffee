@@ -115,8 +115,7 @@ exports.runMain = (csSource, jsSource, jsAst, filename) ->
 runModule = (module, jsSource, jsAst, filename) ->
   do patchStackTrace
 
-  Module._sourceMaps[filename] = ->
-    CoffeeScript.sourceMap jsAst, filename
+  Module._sourceMaps[filename] = -> "#{CoffeeScript.sourceMap jsAst, filename}"
 
   module._compile jsSource, filename
 

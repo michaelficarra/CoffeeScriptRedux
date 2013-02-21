@@ -269,3 +269,17 @@ suite 'Object Literals', ->
 
       eq n, '3'
 
+    test '#170: implicit object literals within explicit object literals', ->
+      obj = {
+        a: 0
+        b: 1
+        c:
+          a: 2
+          b: 3
+        d: 4
+      }
+      eq 0, obj.a
+      eq 1, obj.b
+      eq 2, obj.c.a
+      eq 3, obj.c.b
+      eq 4, obj.d

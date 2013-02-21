@@ -866,9 +866,7 @@ objectLiteral
       }
   objectLiteralMemberSeparator = arrayLiteralMemberSeparator
   objectLiteralMember
-    = key:ObjectInitialiserKeys _ ":" _ val:expression {
-        return rp(new CS.ObjectInitialiserMember(key, val));
-      }
+    = implicitObjectLiteralMember
     / v:contextVar {
         var key = p(new CS.String(v.memberName).g());
         return rp(new CS.ObjectInitialiserMember(key, v));

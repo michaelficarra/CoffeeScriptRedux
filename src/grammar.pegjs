@@ -251,7 +251,7 @@ var CS = require("./nodes"),
       piece = pieces[i];
       if(piece instanceof CS.String) {
         match = piece.data.match(i < l - 1 ? /\n(\s*)/ : /\n(\s*)[^$\s]/);
-        if(!indent || match && match[1].length < indent.length) {
+        if(!indent && match && match[1].length < indent.length) {
           indent = match[1];
         }
       }
@@ -943,10 +943,10 @@ bit = [01]
 
 
 string
-  = "\"\"\"" d:(stringData / "'" / ("\"" "\""? !"\""))+ "\"\"\"" {
+  = "\"\"\"" d:(stringData / "'" / $("\"" "\""? !"\""))+ "\"\"\"" {
       return rp(new CS.String(stripLeadingWhitespace(d.join(''))));
     }
-  / "'''" d:(stringData / "\"" / "#" / ("'" "'"? !"'"))+ "'''" {
+  / "'''" d:(stringData / "\"" / "#" / $("'" "'"? !"'"))+ "'''" {
       return rp(new CS.String(stripLeadingWhitespace(d.join(''))));
     }
   / "\"" d:(stringData / "'")* "\"" { return rp(new CS.String(d.join(''))); }
@@ -968,7 +968,7 @@ string
 
 interpolation
   = "\"\"\"" es:
-    ( d:(stringData / "'" / s:("\"" "\""? !"\""))+ { return rp(new CS.String(d.join(''))); }
+    ( d:(stringData / "'" / s:$("\"" "\""? !"\""))+ { return rp(new CS.String(d.join(''))); }
     / "#{" _ e:expression _ "}" { return e; }
     )+ "\"\"\"" {
       return rp(createInterpolation(stripLeadingWhitespaceInterpolation(es)));

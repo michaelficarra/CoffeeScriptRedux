@@ -15,23 +15,23 @@ createNode = (type, props) ->
     for ctor in ctors when @type is ctor::type
       return yes
     no
-  toJSON: ->
-    json = {@type}
-    json.leadingComments = @leadingComments if @leadingComments?
+  toBasicObject: ->
+    obj = {@type}
+    obj.leadingComments = @leadingComments if @leadingComments?
     for child in @childNodes
       if child in @listMembers
-        json[child] = (p?.toJSON() for p in @[child])
+        obj[child] = (p?.toBasicObject() for p in @[child])
       else
-        json[child] = @[child]?.toJSON()
+        obj[child] = @[child]?.toBasicObject()
     if @line? and @column?
-      json.loc = start: {@line, @column}
+      obj.loc = start: {@line, @column}
     if @offset?
-      json.range = [
+      obj.range = [
         @offset
         if @raw? then @offset + @raw.length else undefined
       ]
-    if @raw? then json.raw = @raw
-    json
+    if @raw? then obj.raw = @raw
+    obj
 
 nodeData = [
   # constructor name, isStatement, construction parameters
@@ -97,11 +97,11 @@ for [node, isStatement, params] in nodeData
 
 handlePrimitives = (ctor, primitives) ->
   ctor::childNodes = difference ctor::childNodes, primitives
-  ctor::toJSON = ->
-    json = Nodes::toJSON.call this
+  ctor::toBasicObject = ->
+    obj = Nodes::toBasicObject.call this
     for primitive in primitives
-      json[primitive] = @[primitive]
-    json
+      obj[primitive] = @[primitive]
+    obj
 
 handlePrimitives AssignmentExpression, ['operator']
 handlePrimitives BinaryExpression, ['operator']

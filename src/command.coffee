@@ -276,7 +276,7 @@ else
       process.exit 1
     if options.debug and options.optimise and result?
       console.error '### PARSED CS-AST ###'
-      console.error inspect result.toJSON()
+      console.error inspect result.toBasicObject()
 
     # optimise
     if options.optimise and result?
@@ -285,14 +285,14 @@ else
     # --parse
     if options.parse
       if result?
-        output inspect result.toJSON()
+        output inspect result.toBasicObject()
         return
       else
         process.exit 1
 
     if options.debug and result?
       console.error "### #{if options.optimise then 'OPTIMISED' else 'PARSED'} CS-AST ###"
-      console.error inspect result.toJSON()
+      console.error inspect result.toBasicObject()
 
     # cs code gen
     if options.cscodegen
@@ -312,19 +312,22 @@ else
     # --compile
     if options.compile
       if jsAST?
-        output inspect jsAST.toJSON()
+        output inspect jsAST.toBasicObject()
         return
       else
         process.exit 1
 
     if options.debug and jsAST?
       console.error "### COMPILED JS-AST ###"
-      console.error inspect jsAST.toJSON()
+      console.error inspect jsAST.toBasicObject()
+
+    # we no longer need the AST nodes to be proper node instances
+    jsAST = jsAST.toBasicObject()
 
     # minification
     if options.minify
       try
-        jsAST = esmangle.mangle (esmangle.optimize jsAST.toJSON()), destructive: yes
+        jsAST = esmangle.mangle (esmangle.optimize jsAST), destructive: yes
       catch e
         console.error (e.stack or e.message)
         process.exit 1

@@ -66,7 +66,9 @@ module.exports =
   jsWithSourceMap: (jsAst, name = 'unknown', options = {}) ->
     # TODO: opt: minify (default: no)
     throw new Error 'escodegen not found: run `npm install escodegen`' unless escodegen?
-    escodegen.generate jsAst.toJSON(),
+    unless {}.hasOwnProperty.call jsAst, 'type'
+      jsAst = jsAst.toBasicObject()
+    escodegen.generate jsAst,
       comment: not options.compact
       sourceMapWithCode: yes
       sourceMap: name

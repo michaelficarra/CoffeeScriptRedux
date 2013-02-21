@@ -56,3 +56,6 @@ suite 'Member Access', ->
     eq nonceA, obj['a-b']
     obj['c-d'] = nonceB
     eq nonceB, obj['c-d']
+
+  test '#171: dynamic member access on list comprehensions', ->
+    eq 4, (x ** 2 for x in [0..4])[2]

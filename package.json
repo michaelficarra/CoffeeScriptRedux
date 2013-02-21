@@ -29,7 +29,8 @@
     "browserify": "~1.16"
   },
   "dependencies": {
-    "StringScanner": "~0.0.3"
+    "StringScanner": "~0.0.3",
+    "jedediah": "~0.0.1"
   },
   "optionalDependencies": {
     "esmangle": "~0.0.8",

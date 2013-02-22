@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "StringScanner": "~0.0.3",
-    "jedediah": "~0.0.1"
+    "jedediah": "~0.1.0"
   },
   "optionalDependencies": {
     "esmangle": "~0.0.8",

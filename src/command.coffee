@@ -14,45 +14,37 @@ esmangle = try require 'esmangle'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
+optionParser = new Jedediah
 
-optionArguments = [
-  [['parse',   'p'], off, 'output a JSON-serialised AST representation of the input']
-  [['compile', 'c'], off, 'output a JSON-serialised AST representation of the output']
-  [['optimise'    ],  on, 'enable optimisations (default: on)']
-  [['debug'       ], off, 'output intermediate representations on stderr for debug']
-  [['raw'         ], off, 'preserve source position and raw parse information']
-  [['version', 'v'], off, 'display the version number']
-  [['help'        ], off, 'display this help message']
-]
+optionParser.addOption 'parse',   'p', off, 'output a JSON-serialised AST representation of the input'
+optionParser.addOption 'compile', 'c', off, 'output a JSON-serialised AST representation of the output'
+optionParser.addOption 'optimise'    ,  on, 'enable optimisations (default: on)'
+optionParser.addOption 'debug'       , off, 'output intermediate representations on stderr for debug'
+optionParser.addOption 'raw'         , off, 'preserve source position and raw parse information'
+optionParser.addOption 'version', 'v', off, 'display the version number'
+optionParser.addOption 'help'        , off, 'display this help message'
 
-parameterArguments = [
-  [['cli'         ], 'INPUT', 'pass a string from the command line as input']
-  [['input',   'i'], 'FILE' , 'file to be used as input instead of STDIN']
-  [['nodejs'      ], 'OPTS' , 'pass options through to the node binary']
-  [['output',  'o'], 'FILE' , 'file to be used as output instead of STDIN']
-  [['watch',   'w'], 'FILE' , 'watch the given file/directory for changes']
-]
+optionParser.addParameter 'cli'        , 'INPUT', 'pass a string from the command line as input'
+optionParser.addParameter 'input',  'i', 'FILE' , 'file to be used as input instead of STDIN'
+optionParser.addParameter 'nodejs'     , 'OPTS' , 'pass options through to the node binary'
+optionParser.addParameter 'output', 'o', 'FILE' , 'file to be used as output instead of STDIN'
+optionParser.addParameter 'watch',  'w', 'FILE' , 'watch the given file/directory for changes'
 
 if escodegen?
-  [].push.apply optionArguments, [
-    [['bare',    'b'], off, 'omit the top-level function wrapper']
-    [['js',      'j'], off, 'generate JavaScript output']
-    [['source-map'  ], off, 'generate source map']
-    [['eval',    'e'], off, 'evaluate compiled JavaScript']
-    [['repl'        ], off, 'run an interactive CoffeeScript REPL']
-  ]
-  [].push.apply parameterArguments, [
-    [['source-map-file'], 'FILE' , 'file used as output for source map when using --js']
-    [['require', 'I'], 'FILE' , 'require a library before a script is executed']
-  ]
+  optionParser.addOption 'bare',  'b', off, 'omit the top-level function wrapper'
+  optionParser.addOption 'js',    'j', off, 'generate JavaScript output'
+  optionParser.addOption 'source-map', off, 'generate source map'
+  optionParser.addOption 'eval',  'e', off, 'evaluate compiled JavaScript'
+  optionParser.addOption 'repl'      , off, 'run an interactive CoffeeScript REPL'
+  optionParser.addParameter 'source-map-file', 'FILE' , 'file used as output for source map when using --js'
+  optionParser.addParameter 'require', 'I', 'FILE' , 'require a library before a script is executed'
   if esmangle?
-    optionArguments.push [['minify',  'm'], off, 'run compiled javascript output through a JS minifier']
+    optionParser.addOption 'minify', 'm', off, 'run compiled javascript output through a JS minifier'
 
 if cscodegen?
-  optionArguments.push [['cscodegen', 'f'], off, 'output cscodegen-generated CoffeeScript code']
+  optionParser.addOption 'cscodegen', 'f', off, 'output cscodegen-generated CoffeeScript code'
 
 
-optionParser = new Jedediah optionArguments, parameterArguments
 [options, positionalArgs] = optionParser.parse process.argv
 
 
@@ -70,7 +62,7 @@ unless options.compile or options.js or options['source-map'] or options.parse o
 
 # mutual exclusions
 # - p (parse), c (compile), j (js), source-map, e (eval), cscodegen, repl
-if 1 isnt options.parse + options.compile + (options.js ? 0) + (options['source-map'] ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
+if 1 isnt (options.parse ? 0) + (options.compile ? 0) + (options.js ? 0) + (options['source-map'] ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
   console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --source-map, --eval (-e), --cscodegen, or --repl may be used."
   process.exit 1
 
@@ -124,22 +116,6 @@ output = (out) ->
 if options.help
   $0 = if process.argv[0] is 'node' then process.argv[1] else process.argv[0]
   $0 = path.basename $0
-  maxWidth = 85
-
-  wrap = (lhsWidth, input) ->
-    rhsWidth = maxWidth - lhsWidth
-    pad = (Array lhsWidth + 4 + 1).join ' '
-    rows = while input.length
-      row = input[...rhsWidth]
-      input = input[rhsWidth..]
-      row
-    rows.join "\n#{pad}"
-
-  formatOptions = (opts) ->
-    opts = for opt in opts when opt.length
-      if opt.length is 1 then "-#{opt}" else "--#{opt}"
-    opts.sort (a, b) -> a.length - b.length
-    opts.join ', '
 
   console.log "
   Usage: (OPT is interpreted by #{$0}, ARG is passed to FILE)
@@ -150,25 +126,9 @@ if options.help
       example: #{$0} myfile.coffee arg0 arg1
     #{$0} OPT* [--repl] OPT*
       example: #{$0}
-  "
 
-  optionRows = for opt in optionArguments
-    [(formatOptions opt[0]), opt[2]]
-  parameterRows = for opt in parameterArguments
-    ["#{formatOptions opt[0]} #{opt[1]}", opt[2]]
-  leftColumnWidth = foldl 0, [optionRows..., parameterRows...], (memo, opt) ->
-    Math.max memo, opt[0].length
+#{optionParser.help()}
 
-  rows = [optionRows..., parameterRows...]
-  rows.sort (a, b) ->
-    a = a[0]; b = b[0]
-    if a[0..1] is '--' and b[0..1] isnt '--' then return 1
-    if b[0..1] is '--' and a[0..1] isnt '--' then return -1
-    if a.toLowerCase() < b.toLowerCase() then -1 else 1
-  for row in rows
-    console.log "  #{row[0]}#{(Array leftColumnWidth - row[0].length + 1).join ' '}  #{wrap leftColumnWidth, row[1]}"
-
-  console.log "
   Unless given --input or --cli flags, `#{$0}` will operate on stdin/stdout.
   When none of --{parse,compile,js,source-map,eval,cscodegen,repl} are given,
     If positional arguments were given
@@ -176,7 +136,7 @@ if options.help
       * the first positional argument is used as an input filename
       * additional positional arguments are passed as arguments to the script
     Else --repl is implied
-  "
+"
 
 else if options.version
   pkg = require './../../package.json'

@@ -225,9 +225,6 @@ else
       console.error "### COMPILED JS-AST ###"
       console.error inspect jsAST.toBasicObject()
 
-    # we no longer need the AST nodes to be proper node instances
-    jsAST = jsAST.toBasicObject()
-
     # minification
     if options.minify
       try

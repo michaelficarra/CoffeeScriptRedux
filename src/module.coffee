@@ -57,7 +57,7 @@ module.exports =
       throw new Error formatParserError preprocessed, e
 
   compile: (csAst, options) ->
-    Compiler.compile csAst, options
+    (Compiler.compile csAst, options).toBasicObject()
 
   # TODO
   cs: (csAst, options) ->

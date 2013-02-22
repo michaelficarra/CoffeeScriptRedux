@@ -413,7 +413,10 @@ class exports.Compiler
       switch statements.length
         when 0 then new JS.EmptyStatement
         when 1 then new stmt statements[0]
-        else new JS.BlockStatement map statements, stmt
+        else new JS.BlockStatement concatMap statements, (s) ->
+          if s.instanceof JS.BlockStatement then map s.body, stmt
+          else if s.instanceof JS.SequenceExpression then map s.expressions, stmt
+          else [stmt s]
     ]
     [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
     [CS.Conditional, ({condition, consequent, alternate, ancestry}) ->

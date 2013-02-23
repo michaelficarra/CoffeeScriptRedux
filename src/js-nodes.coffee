@@ -57,7 +57,7 @@ nodeData = [
   ['IfStatement'          , yes, ['test', 'consequent', 'alternate']]
   ['LabeledStatement'     , yes, ['label', 'body']]
   ['Literal'              , no , ['value']]
-  ['LogicalExpression'    , no , ['left', 'right']]
+  ['LogicalExpression'    , no , ['operator', 'left', 'right']]
   ['MemberExpression'     , no , ['computed', 'object', 'property']]
   ['NewExpression'        , no , ['callee', 'arguments']]
   ['ObjectExpression'     , no , ['properties']]
@@ -88,8 +88,8 @@ for [node, isStatement, params] in nodeData
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
   CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
-  MemberExpression, UpdateExpression, AssignmentExpression, GenSym,
-  FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
+  MemberExpression, UpdateExpression, AssignmentExpression, LogicalExpression,
+  GenSym, FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
   TryStatement
 } = exports
 
@@ -105,6 +105,7 @@ handlePrimitives = (ctor, primitives) ->
 
 handlePrimitives AssignmentExpression, ['operator']
 handlePrimitives BinaryExpression, ['operator']
+handlePrimitives LogicalExpression, ['operator']
 handlePrimitives GenSym, ['ns', 'uniqueId']
 handlePrimitives Identifier, ['name']
 handlePrimitives Literal, ['value']

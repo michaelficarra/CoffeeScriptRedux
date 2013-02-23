@@ -1,4 +1,4 @@
-window.CoffeeScript = require './module'
+module.exports = CoffeeScript = require './module'
 
 # Use standard JavaScript `eval` to eval code.
 CoffeeScript.eval = (code, options = {}) ->

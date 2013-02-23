@@ -1,6 +1,3 @@
-fs = require 'fs'
-path = require 'path'
-
 {formatParserError} = require './helpers'
 Nodes = require './nodes'
 {Preprocessor} = require './preprocessor'

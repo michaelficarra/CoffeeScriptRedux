@@ -1,9 +1,6 @@
-fs = require 'fs'
 {EventEmitter} = require 'events'
 {pointToErrorLocation} = require './helpers'
 StringScanner = require 'StringScanner'
-
-inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
 
 # TODO: better comments
@@ -34,7 +31,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
         when TERM
           'TERM'
         else
-          inspect c
+          "\"#{c.replace /"/g, '\\"'}\""
     # This isn't perfect for error location tracking, but since we normally call this after a scan, it tends to work well.
     lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
     columns = if lines[lines.length-1]? then lines[lines.length-1].length else 0
@@ -234,7 +231,7 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
         @p "#{DEDENT}#{TERM}"
       if @context.length
         # TODO: store offsets of tokens when inserted and report position of unclosed starting token
-        throw new Error 'Unclosed ' + (inspect @peek()) + ' at EOF'
+        throw new Error "Unclosed \"#{@peek().replace /"/g, '\\"'}\" at EOF"
       @emit 'end'
       return
 

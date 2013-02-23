@@ -425,7 +425,6 @@ class exports.Compiler
         alternate = forceBlock alternate unless alternate.instanceof JS.IfStatement
       if alternate? or ancestry[0]?.instanceof CS.Conditional
         consequent = forceBlock consequent
-      inspect = (o) -> require('util').inspect o, no, 2, yes
       new JS.IfStatement (expr condition), (stmt consequent), alternate
     ]
     [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body}) ->

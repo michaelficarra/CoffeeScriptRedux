@@ -350,7 +350,7 @@ helpers =
       new JS.VariableDeclarator i, new JS.Literal 0
       new JS.VariableDeclarator length, memberAccess list, 'length'
     ]
-    loopBody = new JS.IfStatement (new JS.BinaryExpression '&&', (new JS.BinaryExpression 'in', i, list), (new JS.BinaryExpression '===', (new JS.MemberExpression yes, list, i), member)), new JS.ReturnStatement new JS.Literal yes
+    loopBody = new JS.IfStatement (new JS.LogicalExpression '&&', (new JS.BinaryExpression 'in', i, list), (new JS.BinaryExpression '===', (new JS.MemberExpression yes, list, i), member)), new JS.ReturnStatement new JS.Literal yes
     functionBody = [
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), loopBody
       new JS.Literal no
@@ -731,7 +731,7 @@ class exports.Compiler
 
       switch op
         when '&&', '||'
-          new JS.BinaryExpression op, assignee, new JS.AssignmentExpression '=', assignee, expr expression
+          new JS.LogicalExpression op, assignee, new JS.AssignmentExpression '=', assignee, expr expression
         when '?'
           condition = new JS.BinaryExpression '!=', (new JS.Literal null), assignee
           new JS.ConditionalExpression condition, assignee, new JS.AssignmentExpression '=', assignee, expr expression
@@ -749,7 +749,7 @@ class exports.Compiler
         if @expression.left.left.instanceof CS.ComparisonOps
           lhs.right.right = new JS.AssignmentExpression '=', left, lhs.right.right
         else lhs.right = new JS.AssignmentExpression '=', left, lhs.right
-      new JS.BinaryExpression '&&', lhs, new JS.BinaryExpression expression.operator, left, expression.right
+      new JS.LogicalExpression '&&', lhs, new JS.BinaryExpression expression.operator, left, expression.right
     ]
     [CS.FunctionApplication, ({function: fn, arguments: args, compile}) ->
       if any args, (m) -> m.spread
@@ -821,7 +821,7 @@ class exports.Compiler
         args.push if @isInclusive
           if (right.instanceof JS.Literal) and typeof right.data is 'number'
           then new JS.Literal right.data + 1
-          else new JS.BinaryExpression '||', (new JS.BinaryExpression '+', (new JS.UnaryExpression '+', right), new JS.Literal 1), new JS.Literal 9e9
+          else new JS.LogicalExpression '||', (new JS.BinaryExpression '+', (new JS.UnaryExpression '+', right), new JS.Literal 1), new JS.Literal 9e9
         else right
       new JS.CallExpression (memberAccess expression, 'slice'), args
     ]
@@ -829,7 +829,7 @@ class exports.Compiler
       e = if needsCaching @left then genSym 'cache' else expr left
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
       if (e.instanceof JS.Identifier) and e.name not in inScope
-        condition = new JS.BinaryExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
+        condition = new JS.LogicalExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
       node = new JS.ConditionalExpression condition, e, expr right
       if e is left then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, left), node]
@@ -838,7 +838,7 @@ class exports.Compiler
       nullTest = new JS.BinaryExpression '!=', (new JS.Literal null), expression
       if (expression.instanceof JS.Identifier) and expression.name not in inScope
         typeofTest = new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', expression
-        new JS.BinaryExpression '&&', typeofTest, nullTest
+        new JS.LogicalExpression '&&', typeofTest, nullTest
       else nullTest
     ]
     [CS.DoOp, do ->
@@ -889,15 +889,15 @@ class exports.Compiler
               helpers.in (expr left), expr right
             else
               comparisons = map right.elements, (e) -> new JS.BinaryExpression '===', left, e
-              foldl1 comparisons, (l, r) -> new JS.BinaryExpression '||', l, r
+              foldl1 comparisons, (l, r) -> new JS.LogicalExpression '||', l, r
       else
         helpers.in (expr left), expr right
     ]
     [CS.ExtendsOp, ({left, right}) -> helpers.extends (expr left), expr right]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 
-    [CS.LogicalAndOp, ({left, right}) -> new JS.BinaryExpression '&&', (expr left), expr right]
-    [CS.LogicalOrOp, ({left, right}) -> new JS.BinaryExpression '||', (expr left), expr right]
+    [CS.LogicalAndOp, ({left, right}) -> new JS.LogicalExpression '&&', (expr left), expr right]
+    [CS.LogicalOrOp, ({left, right}) -> new JS.LogicalExpression '||', (expr left), expr right]
 
     [CS.EQOp , ({left, right}) -> new JS.BinaryExpression '===', (expr left), expr right]
     [CS.NEQOp , ({left, right}) -> new JS.BinaryExpression '!==', (expr left), expr right]

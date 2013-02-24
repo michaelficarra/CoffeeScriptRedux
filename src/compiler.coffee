@@ -896,8 +896,8 @@ class exports.Compiler
     [CS.ExtendsOp, ({left, right}) -> helpers.extends (expr left), expr right]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 
-    [CS.LogicalAndOp, ({left, right}) -> new JS.LogicalExpression '&&', (expr left), expr right]
-    [CS.LogicalOrOp, ({left, right}) -> new JS.LogicalExpression '||', (expr left), expr right]
+    [CS.LogicalAndOp, ({left, right}) -> new JS.BinaryExpression '&&', (expr left), expr right]
+    [CS.LogicalOrOp, ({left, right}) -> new JS.BinaryExpression '||', (expr left), expr right]
 
     [CS.EQOp , ({left, right}) -> new JS.BinaryExpression '===', (expr left), expr right]
     [CS.NEQOp , ({left, right}) -> new JS.BinaryExpression '!==', (expr left), expr right]
@@ -917,7 +917,6 @@ class exports.Compiler
     [CS.PreIncrementOp, ({expression: e}) -> new JS.UpdateExpression '++', yes, expr e]
     [CS.PostDecrementOp, ({expression: e}) -> new JS.UpdateExpression '--', no, expr e]
     [CS.PostIncrementOp, ({expression: e}) -> new JS.UpdateExpression '++', no, expr e]
-
     [CS.UnaryPlusOp, ({expression: e}) -> new JS.UnaryExpression '+', expr e]
     [CS.UnaryNegateOp, ({expression: e}) -> new JS.UnaryExpression '-', expr e]
     [CS.LogicalNotOp, ({expression: e}) -> new JS.UnaryExpression '!', expr e]

@@ -544,11 +544,11 @@ class exports.Compiler
           [ys].concat groupMembers zs
       ({members, compile}) ->
         if any members, (m) -> m.spread
-          grouped = groupMembers members
+          grouped = map (groupMembers members), expr
           new JS.CallExpression (memberAccess grouped[0], 'concat'), grouped[1..]
         else new JS.ArrayExpression map members, expr
     ]
-    [CS.Spread, ({expression}) -> {spread: yes, expression}]
+    [CS.Spread, ({expression}) -> {spread: yes, expression: expr expression}]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
     [CS.ObjectInitialiserMember, ({key, expression}) ->
       keyName = @key.data

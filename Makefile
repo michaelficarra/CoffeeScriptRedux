@@ -10,13 +10,13 @@ ROOT = $(shell pwd)
 COFFEE = bin/coffee --js --bare
 PEGJS = node_modules/.bin/pegjs --cache --export-var 'module.exports'
 MOCHA = node_modules/.bin/mocha --compilers coffee:. -u tdd
-BROWSERIFY = node_modules/.bin/browserify
+CJSIFY = node_modules/.bin/cjsify --export CoffeeScript
 MINIFIER = node_modules/.bin/esmangle
 
 all: $(LIB)
 build: all
 parser: lib/coffee-script/parser.js
-browser: build dist/coffee-script-redux.min.js
+browser: dist/coffee-script-redux.js
 min: minify
 minify: $(LIBMIN)
 # TODO: test-browser
@@ -39,8 +39,7 @@ lib/coffee-script/bootstrap/parser.js: src/grammar.pegjs lib/coffee-script/boots
 lib/coffee-script/bootstrap/%.js: src/%.coffee lib/coffee-script/bootstrap
 	$(COFFEE) -i "$<" >"$@"
 bootstraps: $(BOOTSTRAPS) lib/coffee-script/bootstrap
-	mv lib/coffee-script/bootstrap/* lib/coffee-script
-	rmdir lib/coffee-script/bootstrap
+	cp lib/coffee-script/bootstrap/* lib/coffee-script
 lib/coffee-script/%.js: src/%.coffee lib/coffee-script/bootstrap/%.js bootstraps lib/coffee-script
 	$(COFFEE) -i "$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
 
@@ -48,11 +47,11 @@ lib/coffee-script/%.js: src/%.coffee lib/coffee-script/bootstrap/%.js bootstraps
 dist:
 	mkdir dist/
 
-dist/coffee-script-redux.js: dist
-	$(BROWSERIFY) lib/coffee-script/browser.js > dist/coffee-script-redux.js
+dist/coffee-script-redux.js: lib/coffee-script/browser.js dist
+	$(CJSIFY) lib/coffee-script/browser.js --source-map-file dist/coffee-script-redux.js.map > dist/coffee-script-redux.js
 
-dist/coffee-script-redux.min.js: dist/coffee-script-redux.js
-	$(MINIFIER) < dist/coffee-script-redux.js > dist/coffee-script-redux.min.js
+dist/coffee-script-redux.min.js: lib/coffee-script/browser.js dist
+	$(CJSIFY) lib/coffee-script/browser.js --minify --source-map-file dist/coffee-script-redux.js.map > dist/coffee-script-redux.js
 
 
 
@@ -65,6 +64,7 @@ lib/coffee-script/%.min.js: lib/coffee-script/%.js lib/coffee-script
 test:
 	$(MOCHA) -R dot $(TEST)
 
+# TODO: use Constellation/ibrik for coverage
 coverage:
 	@which jscoverage || (echo "install node-jscoverage"; exit 1)
 	rm -rf instrumented

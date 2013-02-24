@@ -2,3 +2,4 @@ node_modules
 .sw[po]
 .*.sw[po]
 dist
+lib/coffee-script/bootstrap

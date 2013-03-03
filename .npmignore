@@ -1,0 +1,7 @@
+coffee-script-redux-*.tgz
+.travis.yml
+.gitignore
+dist
+src
+test
+Makefile

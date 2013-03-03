@@ -1,6 +1,7 @@
 vm = require 'vm'
 nodeREPL = require 'repl'
 CoffeeScript = require './module'
+CS = require './nodes'
 {merge} = require './helpers'
 
 addMultilineHandler = (repl) ->
@@ -58,13 +59,16 @@ module.exports =
     opts.eval or= (input, context, filename, cb) ->
       # XXX: multiline hack
       input = input.replace /\uFF00/g, '\n'
+      input = input.replace /^\((.*)\n\)$/m, '$1'
       # strip single-line comments
       input = input.replace /(^|[\r\n]+)(\s*)##?(?:[^#\r\n][^\r\n]*|)($|[\r\n])/, '$1$2$3'
       # empty command
       return cb null if /^(\s*|\(\s*\))$/.test input
       # TODO: fix #1829: pass in-scope vars and avoid accidentally shadowing them by omitting those declarations
       try
-        js = CoffeeScript.cs2js "_=(#{input}\n)", {filename, bare: yes}
+        inputAst = CoffeeScript.parse input, {filename, raw: yes}
+        jsAst = CoffeeScript.compile (new CS.AssignOp (new CS.Identifier '_'), inputAst.body), bare: yes
+        js = CoffeeScript.js jsAst
         cb null, vm.runInContext js, context, filename
       catch err
         cb "\x1B[0;31m#{err.constructor.name}: #{err.message}\x1B[0m"

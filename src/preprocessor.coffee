@@ -226,12 +226,17 @@ StringScanner = require 'StringScanner'
     # reached the end of the file
     if isEnd
       @scan /// [#{ws}\n]* $ ///
-      while @context.length and INDENT is @peek()
-        @observe DEDENT
-        @p "#{DEDENT}#{TERM}"
-      if @context.length
-        # TODO: store offsets of tokens when inserted and report position of unclosed starting token
-        throw new Error "Unclosed \"#{@peek().replace /"/g, '\\"'}\" at EOF"
+      while @context.length
+        switch @peek()
+          when INDENT
+            @observe DEDENT
+            @p "#{DEDENT}#{TERM}"
+          when '#'
+            @observe '\n'
+            @p '\n'
+          else
+            # TODO: store offsets of tokens when inserted and report position of unclosed starting token
+            throw new Error "Unclosed \"#{@peek().replace /"/g, '\\"'}\" at EOF"
       @emit 'end'
       return
 

@@ -11,7 +11,7 @@
     "language",
     "compiler"
   ],
-  "main": "./lib/coffee-script/module",
+  "main": "./lib/module",
   "bin": {
     "coffee": "./bin/coffee"
   },

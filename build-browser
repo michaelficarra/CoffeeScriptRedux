@@ -1,0 +1,22 @@
+#!/usr/bin/env node bin/coffee
+fs = require 'fs'
+path = require 'path'
+
+CJSEverywhere = require 'commonjs-everywhere'
+escodegen = require 'escodegen'
+
+root = __dirname
+
+ast = CJSEverywhere.cjsify './src/browser.coffee', root,
+  aliases:
+    '/src/parser.coffee': '/lib/parser.js'
+  export: 'CoffeeScript'
+  verbose: yes
+
+{code, map} = escodegen.generate ast,
+  sourceMapRoot: path.resolve root
+  sourceMapWithCode: yes
+  sourceMap: yes
+
+fs.writeFile 'dist/coffee-script-redux.js', "#{code}\n/*\n//@ sourceMappingURL=coffee-script-redux.js.map\n*/"
+fs.writeFile 'dist/coffee-script-redux.js.map', map

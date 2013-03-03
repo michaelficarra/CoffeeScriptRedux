@@ -8,7 +8,7 @@ cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
 
 
-pkg = require './../../package.json'
+pkg = require './../package.json'
 
 escodegenFormatDefaults =
   indent:

@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require(require('path').join(__dirname, '..', 'lib', 'coffee-script', 'command'));
+require(require('path').join(__dirname, '..', 'lib', 'command'));

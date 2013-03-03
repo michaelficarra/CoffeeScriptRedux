@@ -1,9 +1,9 @@
 default: all
 
 SRC = $(shell find src -name "*.coffee" -type f | sort)
-LIB = $(SRC:src/%.coffee=lib/coffee-script/%.js) lib/coffee-script/parser.js
-BOOTSTRAPS = $(SRC:src/%.coffee=lib/coffee-script/bootstrap/%.js) lib/coffee-script/bootstrap/parser.js
-LIBMIN = $(LIB:lib/coffee-script/%.js=lib/coffee-script/%.min.js)
+LIB = $(SRC:src/%.coffee=lib/%.js) lib/parser.js
+BOOTSTRAPS = $(SRC:src/%.coffee=lib/bootstrap/%.js) lib/bootstrap/parser.js
+LIBMIN = $(LIB:lib/%.js=lib/%.min.js)
 TEST = $(shell echo test/*.coffee | sort)
 ROOT = $(shell pwd)
 
@@ -15,7 +15,7 @@ MINIFIER = node_modules/.bin/esmangle
 
 all: $(LIB)
 build: all
-parser: lib/coffee-script/parser.js
+parser: lib/parser.js
 browser: dist/coffee-script-redux.js
 min: minify
 minify: $(LIBMIN)
@@ -26,36 +26,34 @@ minify: $(LIBMIN)
 
 lib:
 	mkdir lib/
-lib/coffee-script: lib
-	mkdir -p lib/coffee-script/
-lib/coffee-script/bootstrap: lib/coffee-script
-	mkdir -p lib/coffee-script/bootstrap
+lib/bootstrap: lib
+	mkdir -p lib/bootstrap
 
 
-lib/coffee-script/parser.js: src/grammar.pegjs bootstraps lib/coffee-script
+lib/parser.js: src/grammar.pegjs bootstraps lib
 	$(PEGJS) <"$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
-lib/coffee-script/bootstrap/parser.js: src/grammar.pegjs lib/coffee-script/bootstrap
+lib/bootstrap/parser.js: src/grammar.pegjs lib/bootstrap
 	$(PEGJS) <"$<" >"$@"
-lib/coffee-script/bootstrap/%.js: src/%.coffee lib/coffee-script/bootstrap
+lib/bootstrap/%.js: src/%.coffee lib/bootstrap
 	$(COFFEE) -i "$<" >"$@"
-bootstraps: $(BOOTSTRAPS) lib/coffee-script/bootstrap
-	cp lib/coffee-script/bootstrap/* lib/coffee-script
-lib/coffee-script/%.js: src/%.coffee lib/coffee-script/bootstrap/%.js bootstraps lib/coffee-script
+bootstraps: $(BOOTSTRAPS) lib/bootstrap
+	cp lib/bootstrap/* lib
+lib/%.js: src/%.coffee lib/bootstrap/%.js bootstraps lib
 	$(COFFEE) -i "$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
 
 
 dist:
 	mkdir dist/
 
-dist/coffee-script-redux.js: lib/coffee-script/browser.js dist
-	$(CJSIFY) lib/coffee-script/browser.js --source-map-file dist/coffee-script-redux.js.map > dist/coffee-script-redux.js
+dist/coffee-script-redux.js: lib/browser.js dist
+	./build-browser
 
-dist/coffee-script-redux.min.js: lib/coffee-script/browser.js dist
-	$(CJSIFY) lib/coffee-script/browser.js --minify --source-map-file dist/coffee-script-redux.js.map > dist/coffee-script-redux.js
+#dist/coffee-script-redux.min.js: lib/browser.js dist
+#	$(CJSIFY) lib/browser.js --minify --source-map-file dist/coffee-script-redux.js.map > dist/coffee-script-redux.js
 
 
 
-lib/coffee-script/%.min.js: lib/coffee-script/%.js lib/coffee-script
+lib/%.min.js: lib/%.js lib/coffee-script
 	$(MINIFIER) <"$<" >"$@"
 
 
@@ -70,7 +68,7 @@ coverage:
 	rm -rf instrumented
 	jscoverage -v lib instrumented
 	$(MOCHA) -R dot
-	$(MOCHA) -r instrumented/coffee-script/compiler -R html-cov > coverage.html
+	$(MOCHA) -r instrumented/compiler -R html-cov > coverage.html
 	@xdg-open coverage.html &> /dev/null
 
 install:

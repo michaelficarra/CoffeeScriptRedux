@@ -60,7 +60,8 @@ module.exports =
     opts.eval or= (input, context, filename, cb) ->
       # XXX: multiline hack
       input = input.replace /\uFF00/g, '\n'
-      input = input.replace /^\((.*)\n\)$/m, '$1'
+      # strip parens added by node
+      input = input.replace /^\(([\s\S]*)\n\)$/m, '$1'
       # strip single-line comments
       input = input.replace /(^|[\r\n]+)(\s*)##?(?:[^#\r\n][^\r\n]*|)($|[\r\n])/, '$1$2$3'
       # empty command

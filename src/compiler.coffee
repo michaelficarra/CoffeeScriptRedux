@@ -1043,8 +1043,9 @@ class exports.Compiler
     (ast, options = {}) ->
       options.bare ?= no
       rules = @rules
-      jsAST = walk.call ast, (-> (rules[@className] ? defaultRule).apply this, arguments), [], [], options
+      inScope = options.inScope ? []
+      jsAST = walk.call ast, (-> (rules[@className] ? defaultRule).apply this, arguments), inScope, [], options
       generateSymbols jsAST,
-        declaredSymbols: []
+        declaredSymbols: inScope
         usedSymbols: union jsReserved[..], collectIdentifiers jsAST
         nsCounters: {}

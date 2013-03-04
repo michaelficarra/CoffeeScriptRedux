@@ -56,6 +56,7 @@ module.exports =
   start: (opts = {}) ->
     # REPL defaults
     opts.prompt or= 'coffee> '
+    opts.ignoreUndefined ?= yes
     opts.eval or= (input, context, filename, cb) ->
       # XXX: multiline hack
       input = input.replace /\uFF00/g, '\n'
@@ -63,11 +64,11 @@ module.exports =
       # strip single-line comments
       input = input.replace /(^|[\r\n]+)(\s*)##?(?:[^#\r\n][^\r\n]*|)($|[\r\n])/, '$1$2$3'
       # empty command
-      return cb null if /^(\s*|\(\s*\))$/.test input
-      # TODO: fix #1829: pass in-scope vars and avoid accidentally shadowing them by omitting those declarations
+      return cb null if /^\s*$/.test input
       try
         inputAst = CoffeeScript.parse input, {filename, raw: yes}
-        jsAst = CoffeeScript.compile (new CS.AssignOp (new CS.Identifier '_'), inputAst.body), bare: yes
+        transformedAst = new CS.AssignOp (new CS.Identifier '_'), inputAst.body
+        jsAst = CoffeeScript.compile transformedAst, bare: yes, inScope: Object.keys context
         js = CoffeeScript.js jsAst
         cb null, vm.runInContext js, context, filename
       catch err

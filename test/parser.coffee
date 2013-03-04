@@ -52,3 +52,93 @@ suite 'Parser', ->
 
   test 'windows line endings', ->
     @shouldParse 'if test\r\n  fn a\r\n\r\n  fn b'
+
+  test 'strip leading spaces in heredocs', ->
+    eq 'a\n  b\nc', '''
+      a
+        b
+      c
+    '''
+    eq 'a\n  b\nc', '''
+    a
+      b
+    c
+    '''
+    eq 'a\n  b\nc', '''
+      a
+        b
+      c
+      '''
+    eq '  a\nb\n  c', '''
+      a
+    b
+      c
+      '''
+
+    eq 'a\n  b\nc', """
+      a
+        b
+      c
+    """
+    eq 'a\n  b\nc', """
+    a
+      b
+    c
+    """
+    eq 'a\n  b\nc', """
+      a
+        b
+      c
+      """
+    eq '  a\nb\n  c', """
+      a
+    b
+      c
+      """
+
+  test 'strip leading spaces in heredocs with interpolations', ->
+    a = 'd'
+    b = 'e'
+    c = 'f'
+
+    eq 'd\n  e\nf', """
+      #{a}
+        #{b}
+      #{c}
+    """
+    eq 'd\n  e\nf', """
+    #{a}
+      #{b}
+    #{c}
+    """
+    eq 'd\n  e\nf', """
+      #{a}
+        #{b}
+      #{c}
+      """
+    eq '  d\ne\n  f', """
+      #{a}
+    #{b}
+      #{c}
+      """
+
+    eq "a\n  e\nc", """
+      a
+        #{b}
+      c
+    """
+    eq "a\n  e\nc", """
+    a
+      #{b}
+    c
+    """
+    eq "a\n  e\nc", """
+      a
+        #{b}
+      c
+      """
+    eq '  a\ne\n  c', """
+      a
+    #{b}
+      c
+      """

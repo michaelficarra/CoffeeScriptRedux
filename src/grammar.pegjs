@@ -491,7 +491,7 @@ prefixExpression
   PrefixOperators
     = "++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE
   nfe
-    = !unassignable a:identifier _ "=" _ f:functionLiteral { return rp(new CS.AssignOp(a, f)); }
+    = !unassignable a:Assignable _ "=" _ f:functionLiteral { return rp(new CS.AssignOp(a, f)); }
 prefixExpressionNoImplicitObjectCall
   = postfixExpressionNoImplicitObjectCall
   / DO _ e:(nfe / expressionworthy / prefixExpressionNoImplicitObjectCall) { return rp(new CS.DoOp(e)); }

@@ -458,6 +458,12 @@ suite 'Function Invocation', ->
       func
     eq ret, func
 
+    o = {}
+    ret = do o.f = (two) ->
+      eq two, 2
+      o.f
+    eq ret, o.f
+
   test "soaked function application", ->
     nonce = {}
     eq undefined, f?(0, 1)

@@ -79,3 +79,22 @@ suite 'REPL', ->
     input.emitLine '  1 + 1'
     input.emit 'keypress', null, ctrlV
     eq '2', output.lastWrite()
+
+  testRepl "variables in scope are preserved", (input, output) ->
+    input.emitLine 'a = 1'
+    input.emitLine 'do -> a = 2'
+    input.emitLine 'a'
+    eq '2', output.lastWrite()
+
+  testRepl "existential assignment of previously declared variable", (input, output) ->
+    input.emitLine 'a = null'
+    input.emitLine 'a ?= 42'
+    eq '42', output.lastWrite()
+
+  testRepl "keeps running after runtime error", (input, output) ->
+    input.emitLine 'a = b'
+    ok 0 <= output.lastWrite().indexOf 'ReferenceError: b is not defined'
+    input.emitLine 'a'
+    ok 0 <= output.lastWrite().indexOf 'ReferenceError: a is not defined'
+    input.emitLine '0'
+    eq '0', output.lastWrite()

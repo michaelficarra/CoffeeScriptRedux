@@ -216,14 +216,14 @@ else
     # --compile
     if options.compile
       if jsAST?
-        output inspect jsAST.toBasicObject()
+        output inspect jsAST
         return
       else
         process.exit 1
 
     if options.debug and jsAST?
       console.error "### COMPILED JS-AST ###"
-      console.error inspect jsAST.toBasicObject()
+      console.error inspect jsAST
 
     # minification
     if options.minify

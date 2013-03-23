@@ -984,7 +984,10 @@ class exports.Compiler
 
       do ancestry.shift
       jsNode = fn.call this, children
-      jsNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']
+      jsNode.raw = @raw
+      jsNode.line = @line
+      jsNode.column = @column - 1 # Spidermonkey AST columns are 0-based
+      jsNode.offset = @offset
       jsNode
 
     generateSymbols = do ->

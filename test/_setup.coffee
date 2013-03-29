@@ -1,3 +1,5 @@
+global.fs = require 'fs'
+global.path = require 'path'
 util = require 'util'
 inspect = (o) -> util.inspect o, no, 2, yes
 

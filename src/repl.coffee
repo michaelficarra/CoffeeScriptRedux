@@ -1,3 +1,5 @@
+fs = require 'fs'
+path = require 'path'
 vm = require 'vm'
 nodeREPL = require 'repl'
 CoffeeScript = require './module'
@@ -52,11 +54,61 @@ addMultilineHandler = (repl) ->
       rli.prompt true
     return
 
+# store and load command history from a file
+addHistory = (repl, filename, maxSize) ->
+  try
+    stat = fs.statSync filename
+    size = Math.min maxSize, stat.size
+    readFd = fs.openSync filename, 'r'
+    buffer = new Buffer size
+    # read last `size` bytes from the file
+    fs.readSync readFd, buffer, 0, size, stat.size - size if size
+    repl.rli.history = (buffer.toString().split '\n').reverse()
+    # if the history file was truncated we should pop off a potential partial line
+    do repl.rli.history.pop if stat.size > maxSize
+    # shift off the final blank newline
+    do repl.rli.history.shift if repl.rli.history[0] is ''
+    repl.rli.historyIndex = -1
+  catch e
+    repl.rli.history = []
+
+  fd = fs.openSync filename, 'a'
+
+  # like readline's history, we do not want any adjacent duplicates
+  lastLine = repl.rli.history[0]
+
+  # save new commands to the history file
+  repl.rli.addListener 'line', (code) ->
+    if code and code isnt lastLine
+      lastLine = code
+      fs.writeSync fd, "#{code}\n"
+
+  #repl.on 'exit', -> fs.closeSync fd
+
+  # .clear should also clear history
+  original_clear = repl.commands['.clear'].action
+  repl.commands['.clear'].action = ->
+    repl.outputStream.write 'Clearing history...\n'
+    repl.rli.history = []
+    fs.closeSync fd
+    fd = fs.openSync filename, 'w'
+    lastLine = undefined
+    original_clear.call this
+
+  # add a command to show the history stack
+  repl.commands['.history'] =
+    help: 'Show command history'
+    action: ->
+      repl.outputStream.write "#{repl.rli.history[..].reverse().join '\n'}\n"
+      do repl.displayPrompt
+
 module.exports =
   start: (opts = {}) ->
     # REPL defaults
     opts.prompt or= 'coffee> '
     opts.ignoreUndefined ?= yes
+    opts.historyFile ?= path.join process.env.HOME, '.coffee_history'
+    opts.historyMaxInputSize ?= 10 * 1024 # 10KiB
     opts.eval or= (input, context, filename, cb) ->
       # XXX: multiline hack
       input = input.replace /\uFF00/g, '\n'
@@ -78,4 +130,6 @@ module.exports =
     repl = nodeREPL.start opts
     repl.on 'exit', -> repl.outputStream.write '\n'
     addMultilineHandler repl
+    if opts.historyFile
+      addHistory repl, opts.historyFile, opts.historyMaxInputSize
     repl

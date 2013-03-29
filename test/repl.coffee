@@ -24,12 +24,15 @@ suite 'REPL', ->
     lastWrite: (fromEnd) ->
       @written[@written.length - 1 - fromEnd].replace /\n$/, ''
 
+  historyFile = path.join __dirname, 'coffee_history_test'
+  process.on 'exit', -> fs.unlinkSync historyFile
 
   testRepl = (desc, fn) ->
     input = new MockInputStream
     output = new MockOutputStream
-    Repl.start {input, output}
-    test desc, -> fn input, output
+    repl = Repl.start {input, output, historyFile}
+    test desc, -> fn input, output, repl
+    repl.emit 'exit'
 
   ctrlV = { ctrl: true, name: 'v'}
 
@@ -98,3 +101,35 @@ suite 'REPL', ->
     ok 0 <= (output.lastWrite 1).indexOf 'ReferenceError: a is not defined'
     input.emitLine '0'
     eq '0', output.lastWrite 1
+
+  test 'reads history from persistence file', ->
+    input = new MockInputStream
+    output = new MockOutputStream
+    fs.writeFileSync historyFile, '0\n1\n'
+    repl = Repl.start {input, output, historyFile}
+    arrayEq ['1', '0'], repl.rli.history
+
+  testRepl 'writes history to persistence file', (input, output, repl) ->
+    fs.writeFileSync historyFile, ''
+    input.emitLine '2'
+    input.emitLine '3'
+    eq '2\n3\n', (fs.readFileSync historyFile).toString()
+
+  testRepl '.history shows history', (input, output, repl) ->
+    repl.rli.history = history = ['1', '2', '3']
+    fs.writeFileSync historyFile, "#{history.join '\n'}\n"
+    input.emitLine '.history'
+    eq (history.reverse().join '\n'), output.lastWrite 1
+
+  testRepl '.clear clears history', (input, output, repl) ->
+    input = new MockInputStream
+    output = new MockOutputStream
+    fs.writeFileSync historyFile, ''
+    repl = Repl.start {input, output, historyFile}
+    input.emitLine '0'
+    input.emitLine '1'
+    eq '0\n1\n', (fs.readFileSync historyFile).toString()
+    #arrayEq ['1', '0'], repl.rli.history
+    input.emitLine '.clear'
+    eq '.clear\n', (fs.readFileSync historyFile).toString()
+    #arrayEq ['.clear'], repl.rli.history

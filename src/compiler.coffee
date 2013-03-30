@@ -112,8 +112,7 @@ generateMutatingWalker = (fn) -> (node, args...) ->
 declarationsNeeded = (node) ->
   return [] unless node?
   if (node.instanceof JS.AssignmentExpression) and node.operator is '=' and node.left.instanceof JS.Identifier then [node.left]
-  else if node.instanceof JS.ForInStatement then [node.left]
-  #TODO: else if node.instanceof JS.CatchClause then [node.param]
+  else if (node.instanceof JS.ForInStatement) and node.left.instanceof JS.Identifier then [node.left]
   else []
 
 declarationsNeededRecursive = (node) ->
@@ -307,7 +306,7 @@ helpers =
     ctor = new JS.Identifier 'ctor'
     key = new JS.Identifier 'key'
     block = [
-      new JS.ForInStatement key, parent, new JS.IfStatement (helpers.isOwn parent, key), f = # TODO: figure out how we can allow this
+      new JS.ForInStatement (new JS.VariableDeclaration 'var', [new JS.VariableDeclarator key, null]), parent, new JS.IfStatement (helpers.isOwn parent, key), f = # TODO: figure out how we can allow this
         stmt new JS.AssignmentExpression '=', (new JS.MemberExpression yes, child, key), new JS.MemberExpression yes, parent, key
       new JS.FunctionDeclaration ctor, [], new JS.BlockStatement [
         stmt new JS.AssignmentExpression '=', (memberAccess new JS.ThisExpression, 'constructor'), child

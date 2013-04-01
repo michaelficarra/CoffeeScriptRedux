@@ -59,7 +59,7 @@ lib/%.min.js: lib/%.js lib/coffee-script
 .PHONY: test coverage install loc clean
 
 test:
-	$(MOCHA) -R dot $(TEST)
+	$(MOCHA) -R dot test/*.coffee
 
 # TODO: use Constellation/ibrik for coverage
 coverage:

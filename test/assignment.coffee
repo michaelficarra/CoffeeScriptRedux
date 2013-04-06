@@ -370,3 +370,31 @@ suite 'Assignment', ->
       obj = {g: g}
       obj.g().a = nonce
       eq nonce, obj.a
+
+  suite 'Assignment + Logical operators', ->
+
+    test 'assignment operator takes precedence over logical operator on the left', ->
+      true if true  &&  a = 'bar'
+      true if true  and b = 'bar'
+      true if false ||  c = 'bar'
+      true if false or  d = 'bar'
+      true if e = 'bar' &&  true
+      true if f = 'bar' and true
+      true if g = 'bar' ||  true
+      true if h = 'bar' or  true
+      true if true  &&  i = 'bar' &&  true
+      true if true  and j = 'bar' and true
+      true if false ||  k = 'bar' ||  true
+      true if false or  l = 'bar' or  true
+      eq a, 'bar'
+      eq b, 'bar'
+      eq c, 'bar'
+      eq d, 'bar'
+      eq e, true
+      eq f, true
+      eq g, 'bar'
+      eq h, 'bar'
+      eq i, true
+      eq j, true
+      eq k, 'bar'
+      eq l, 'bar'

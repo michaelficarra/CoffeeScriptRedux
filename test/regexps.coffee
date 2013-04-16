@@ -41,6 +41,5 @@ suite 'Regular Expressions', ->
   test 'regexps can be empty', ->
     ok //.test ''
 
-  # below test disabled until v8 bug is fixed: https://code.google.com/p/v8/issues/detail?id=956
-  #test '#190: heregexen can contain 2 or fewer consecutive slashes', ->
-  #  ok /// / // /// instanceof RegExp
+  test '#190: heregexen can contain 2 or fewer consecutive slashes', ->
+    ok /// / // /// instanceof RegExp

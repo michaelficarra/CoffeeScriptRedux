@@ -83,7 +83,7 @@ addHistory = (repl, filename, maxSize) ->
       lastLine = code
       fs.writeSync fd, "#{code}\n"
 
-  #repl.on 'exit', -> fs.closeSync fd
+  repl.rli.on 'exit', -> fs.closeSync fd
 
   # .clear should also clear history
   original_clear = repl.commands['.clear'].action

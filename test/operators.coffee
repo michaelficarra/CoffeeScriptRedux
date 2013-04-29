@@ -291,3 +291,10 @@ suite 'Operators', ->
     class B
     B extends A
     ok new B instanceof A
+
+  # Loop Operators
+
+  test "#195: 'until' keyword should negate loop condition", ->
+    x = 0
+    x++ until x > 10
+    eq x, 11

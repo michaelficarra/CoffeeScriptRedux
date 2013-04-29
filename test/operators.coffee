@@ -297,4 +297,4 @@ suite 'Operators', ->
   test "#195: 'until' keyword should negate loop condition", ->
     x = 0
     x++ until x > 10
-    eq x, 10
+    eq x, 11

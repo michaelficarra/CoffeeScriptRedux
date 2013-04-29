@@ -371,8 +371,8 @@ postfixControlFlowExpression
             return rp(new constructor(cond, expr, null));
           case 'while':
           case 'until':
-            constructor = ('unless' === indicator) ? CS.NegatedWhile : CS.While;
-            cond = ('unless' === indicator) ? new CS.LogicalNotOp(postfix.cond).g() : postfix.cond;
+            constructor = ('until' === indicator) ? CS.NegatedWhile : CS.While;
+            cond = ('until' === indicator) ? new CS.LogicalNotOp(postfix.cond).g() : postfix.cond;
             return rp(new constructor(cond, expr));
           case 'for-in':
             return rp(new CS.ForIn(postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, expr));

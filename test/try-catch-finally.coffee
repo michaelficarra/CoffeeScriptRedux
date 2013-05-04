@@ -29,6 +29,14 @@ suite 'Try/Catch/Finally', ->
   test 'try without catch just suppresses thrown errors', ->
     try throw {}
 
+  test 'a try with a finally does not supress thrown errors', ->
+    success = no
+    try
+      try throw {} finally success = no
+    catch e
+      success = yes
+    ok success
+
   test 'catch variable is not let-scoped as in JS', ->
     nonce = {}
     try throw nonce
@@ -40,3 +48,10 @@ suite 'Try/Catch/Finally', ->
     try throw {nonce}
     catch {nonce: a}
       eq nonce, a
+
+  test 'parameterless catch', ->
+    try throw {}
+    catch then ok yes
+
+  test 'catch with empty body', ->
+    try throw {} catch finally ok yes

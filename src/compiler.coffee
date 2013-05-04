@@ -484,12 +484,15 @@ class exports.Compiler
       cases
     ]
     [CS.Try, ({body, catchAssignee, catchBody, finallyBody}) ->
-      finallyBlock = if finallyBody? then forceBlock finallyBody else null
-      e = genSym 'e'
-      catchBlock = forceBlock catchBody
-      if catchAssignee?
-        catchBlock.body.unshift stmt assignment catchAssignee, e
-      handlers = [new JS.CatchClause e, catchBlock]
+      finallyBlock = if @hasFinally then forceBlock finallyBody else null
+      if @hasCatch or not @hasFinally
+        e = genSym 'e'
+        catchBlock = forceBlock catchBody
+        if catchAssignee?
+          catchBlock.body.unshift stmt assignment catchAssignee, e
+        handlers = [new JS.CatchClause e, catchBlock]
+      else
+        handlers = []
       new JS.TryStatement (forceBlock body), handlers, finallyBlock
     ]
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]

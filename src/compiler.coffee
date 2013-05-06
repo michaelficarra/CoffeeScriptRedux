@@ -426,11 +426,27 @@ class exports.Compiler
         consequent = forceBlock consequent
       new JS.IfStatement (expr condition), (stmt consequent), alternate
     ]
-    [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body}) ->
+    [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body, compile}) ->
       i = genSym 'i'
       length = genSym 'length'
       block = forceBlock body
       block.body.push stmt helpers.undef() unless block.body.length
+
+      # optimise loops over static, integral ranges
+      if (@target.instanceof CS.Range) and
+      # TODO: extract this test to some "static, integral range" helper
+      ((@target.left.instanceof CS.Int) or ((@target.left.instanceof CS.UnaryNegateOp) and @target.left.expression.instanceof CS.Int)) and
+      ((@target.right.instanceof CS.Int) or ((@target.right.instanceof CS.UnaryNegateOp) and @target.right.expression.instanceof CS.Int))
+        varDeclaration = new JS.AssignmentExpression '=', i, compile @target.left
+        update = new JS.UpdateExpression '++', yes, i
+        if keyAssignee
+          k = genSym 'k'
+          varDeclaration = new JS.SequenceExpression [(new JS.AssignmentExpression '=', k, new JS.Literal 0), varDeclaration]
+          update = new JS.SequenceExpression [(new JS.UpdateExpression '++', yes, k), update]
+          block.body.unshift stmt new JS.AssignmentExpression '=', keyAssignee, k
+        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, i
+        return new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, compile @target.right), update, block
+
       e = if needsCaching @target then genSym 'cache' else target
       varDeclaration = new JS.VariableDeclaration 'var', [
         new JS.VariableDeclarator i, new JS.Literal 0

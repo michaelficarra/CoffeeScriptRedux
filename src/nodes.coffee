@@ -152,7 +152,7 @@ createNodes
     ForOf: [['isOwn', 'keyAssignee', 'valAssignee', 'target', 'filter', 'body']] # :: bool -> Assignable -> Maybe Assignable -> Exprs -> Maybe Exprs -> Maybe Exprs -> ForOf
     Switch: [['expression', 'cases', 'alternate']] # :: Maybe Exprs -> [SwitchCase] -> Maybe Exprs -> Switch
     SwitchCase: [['conditions', 'consequent']] # :: [Exprs] -> Maybe Expr -> SwitchCase
-    Try: [['hasCatch', 'hasFinally', 'body', 'catchAssignee', 'catchBody', 'finallyBody']] # :: bool -> bool -> Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
+    Try: [['body', 'catchAssignee', 'catchBody', 'finallyBody']] # :: Exprs -> Maybe Assignable -> Maybe Exprs -> Maybe Exprs -> Try
     While: [['condition', 'body']] # :: Exprs -> Maybe Exprs -> While
 
     ArrayInitialiser: [['members']] # :: [ArrayInitialiserMembers] -> ArrayInitialiser
@@ -203,7 +203,7 @@ createNodes
   ArrayInitialiser, ObjectInitialiser, NegatedConditional, Conditional,
   Identifier, ForOf, Functions, While, Class, Block, NewOp, Bool,
   FunctionApplications, RegExps, RegExp, HeregExp, Super, Slice, Switch,
-  Identifiers, SwitchCase, GenSym, Try
+  Identifiers, SwitchCase, GenSym
 } = exports
 
 
@@ -273,7 +273,6 @@ handlePrimitives Range, 'isInclusive'
 handlePrimitives RegExp, 'data', 'flags'
 handlePrimitives Slice, 'isInclusive'
 handlePrimitives StaticMemberAccessOps, 'memberName'
-handlePrimitives Try, 'hasCatch', 'hasFinally'
 
 
 ## Nodes that contain list properties

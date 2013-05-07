@@ -500,8 +500,8 @@ class exports.Compiler
       cases
     ]
     [CS.Try, ({body, catchAssignee, catchBody, finallyBody}) ->
-      finallyBlock = if @hasFinally then forceBlock finallyBody else null
-      if @hasCatch or not @hasFinally
+      finallyBlock = if @finallyBody? then forceBlock finallyBody else null
+      if @catchBody? or not @finallyBody?
         e = genSym 'e'
         catchBlock = forceBlock catchBody
         if catchAssignee?

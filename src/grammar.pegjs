@@ -691,7 +691,7 @@ loop
 
 try
   = TRY body:tryBody c:catchClause? f:finallyClause? {
-      return rp(new CS.Try(!!c, !!f, body.block, c ? c.assignee : null, c ? c.block : null, f ? f.block : null));
+      return rp(new CS.Try(body.block, c ? c.assignee : null, c ? c.block : null, f ? f.block : null));
     }
   tryBody = b:functionBody { return {block: b}; }
   catchClause

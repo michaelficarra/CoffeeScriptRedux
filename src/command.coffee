@@ -269,6 +269,7 @@ else
 
     # --eval
     if options.eval
+      CoffeeScript.register()
       runMain input, js, jsAST, inputSource
       return
 

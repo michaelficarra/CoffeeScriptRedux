@@ -9,7 +9,7 @@ ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare
 PEGJS = node_modules/.bin/pegjs --cache --export-var 'module.exports'
-MOCHA = node_modules/.bin/mocha --compilers coffee:. -u tdd
+MOCHA = node_modules/.bin/mocha --compilers coffee:./register -u tdd
 CJSIFY = node_modules/.bin/cjsify --export CoffeeScript
 MINIFIER = node_modules/.bin/esmangle
 

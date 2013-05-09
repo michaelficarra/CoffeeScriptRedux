@@ -32,8 +32,9 @@ escodegenCompactDefaults =
   semicolons: no
 
 
-module.exports =
+CoffeeScript =
 
+  CoffeeScript: CoffeeScript
   Compiler: Compiler
   Optimiser: Optimiser
   Parser: Parser
@@ -82,8 +83,7 @@ module.exports =
     CoffeeScript.js jsAST, compact: options.compact or options.minify
 
 
-CoffeeScript = module.exports.CoffeeScript = module.exports
+module.exports = CoffeeScript
 
-if (process.title == 'node')
-  noBrowserifyRequire = require
-  noBrowserifyRequire './run'
+if process.title is 'node'
+  CoffeeScript.register = -> require './register'

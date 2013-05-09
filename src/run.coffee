@@ -1,6 +1,5 @@
 # Node.js-specific support: module loading, sourceMapping errors
 
-fs = require 'fs'
 path = require 'path'
 Module = require 'module'
 CoffeeScript = require './module'
@@ -97,32 +96,20 @@ formatSourcePosition = (frame, getSourceMapping) ->
     fileLocation
 
 # Run JavaScript as a main program - resetting process.argv and module lookup paths
-exports.runMain = (csSource, jsSource, jsAst, filename) ->
+runMain = (csSource, jsSource, jsAst, filename) ->
   mainModule = new Module '.'
   mainModule.filename = process.argv[1] = filename
-
   # Set it as the main module -- this is used for require.main
   process.mainModule = mainModule
-
   # Add the module to the cache
   Module._cache[mainModule.filename] = mainModule
-
   # Assign paths for node_modules loading
   mainModule.paths = Module._nodeModulePaths path.dirname filename
-
   runModule mainModule, jsSource, jsAst, filename
 
 runModule = (module, jsSource, jsAst, filename) ->
   do patchStackTrace
-
   Module._sourceMaps[filename] = -> "#{CoffeeScript.sourceMap jsAst, filename}"
-
   module._compile jsSource, filename
 
-require.extensions['.coffee'] = (module, filename) ->
-  input = fs.readFileSync filename, 'utf8'
-  csAst = CoffeeScript.parse input, raw: yes
-  jsAst = CoffeeScript.compile csAst
-  js = CoffeeScript.js jsAst
-
-  runModule module, js, jsAst, filename
+module.exports = {runMain, runModule}

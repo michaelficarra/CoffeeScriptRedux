@@ -55,3 +55,4 @@ suite 'Try/Catch/Finally', ->
 
   test 'catch with empty body', ->
     try throw {} catch finally ok yes
+    return

@@ -700,7 +700,7 @@ try
   tryBody = b:functionBody { return {block: b}; }
   catchClause
     = TERMINATOR? _ CATCH _ e:Assignable? body:conditionalBody? {
-      return r({block: body ? body.block : null, assignee: e || null});
+      return r({block: body ? body.block : new CS.Block([]), assignee: e || null});
     }
   finallyClause
     = TERMINATOR? _ FINALLY body:tryBody? {

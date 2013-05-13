@@ -750,8 +750,11 @@ class
         return rp(new CS.Constructor(e));
       }
   staticAssignment
-    = key:contextVar _ ":" _ e:expression {
-        return rp(new CS.AssignOp(key, e));
+    = key:contextVar _ ":" _ e:
+      ( TERMINDENT e:expression DEDENT { return r({expr: e}); }
+      / TERMINATOR? _ e:expression { return r({expr: e}); }
+      ) {
+        return rp(new CS.AssignOp(key, e.expr));
       }
   classProtoAssignment
     = key:ObjectInitialiserKeys _ ":" _ e:

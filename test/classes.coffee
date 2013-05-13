@@ -660,3 +660,13 @@ suite 'Classes', ->
       a = new A
       ok a instanceof A
       eq nonce, a.nonce
+
+    test '#199: implicit object as static class member', ->
+      nonceA = {}
+      nonceB = {}
+      class A
+        @prop:
+          a: nonceA
+          b: nonceB
+      eq nonceA, A.prop.a
+      eq nonceB, A.prop.b

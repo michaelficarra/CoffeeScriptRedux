@@ -542,6 +542,7 @@ leftHandSideExpression = callExpression / newExpression
     / TERMINDENT o:implicitObjectLiteral DEDENT { return [o]; }
   secondaryArgument
     = spread
+    / singleLineImplicitObjectLiteral
     / secondaryExpression
 leftHandSideExpressionNoImplicitObjectCall = callExpressionNoImplicitObjectCall / newExpressionNoImplicitObjectCall
   secondaryArgumentListNoImplicitObjectCall
@@ -759,7 +760,8 @@ class
   classProtoAssignment
     = key:ObjectInitialiserKeys _ ":" _ e:
       ( TERMINDENT e:expression DEDENT { return r({expr: e}); }
-      / TERMINATOR? _ e:expression { return r({expr: e}); }
+      / e:singleLineImplicitObjectLiteral { return r({expr: e}); }
+      / TERMINATOR? _ e:secondaryExpression { return r({expr: e}); }
       ) {
         if('constructor' === key.data) return null;
         return rp(new CS.ClassProtoAssignOp(key, e.expr));
@@ -890,18 +892,17 @@ objectLiteral
     / string
     / Numbers
 
-// TODO: complete support for implicit objects
 implicitObjectLiteral
   = members:implicitObjectLiteralMemberList {
     return rp(new CS.ObjectInitialiser(members));
   }
   implicitObjectLiteralMemberList
-    = e:implicitObjectLiteralMember es:(implicitObjectLiteralMemberSeparator _ implicitObjectLiteralMember)* {
-        return [e].concat(es.map(function(e){ return e[2]; }));
+    = e:implicitObjectLiteralMember es:(implicitObjectLiteralMemberSeparator implicitObjectLiteralMember)* {
+        return [e].concat(es.map(function(e){ return e[1]; }));
       }
   implicitObjectLiteralMemberSeparator
     = TERMINATOR ","? _
-    / "," TERMINATOR?
+    / _ "," TERMINATOR? _
   implicitObjectLiteralMember
     = key:ObjectInitialiserKeys _ ":" _ val:implicitObjectLiteralMemberValue {
         return rp(new CS.ObjectInitialiserMember(key, val));
@@ -909,6 +910,16 @@ implicitObjectLiteral
   implicitObjectLiteralMemberValue
     = expression
     / TERMINDENT o:implicitObjectLiteral DEDENT { return o; }
+singleLineImplicitObjectLiteral
+  = members:singleLineImplicitObjectLiteralMemberList {
+    return rp(new CS.ObjectInitialiser(members));
+  }
+  singleLineImplicitObjectLiteralMemberList
+    = e:implicitObjectLiteralMember es:(singleLineImplicitObjectLiteralMemberSeparator implicitObjectLiteralMember)* {
+        return [e].concat(es.map(function(e){ return e[1]; }));
+      }
+  singleLineImplicitObjectLiteralMemberSeparator
+    = _ "," _
 
 
 macro

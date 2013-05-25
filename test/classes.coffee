@@ -670,3 +670,12 @@ suite 'Classes', ->
           b: nonceB
       eq nonceA, A.prop.a
       eq nonceB, A.prop.b
+
+    test '#205: implicit objects should not consume following prototype assignments', ->
+      class A
+        a: b: 0
+        c: 1
+      ok 'a' of A.prototype
+      ok 'b' of A::a
+      ok 'b' not of A.prototype
+      ok 'c' of A.prototype

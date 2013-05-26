@@ -45,7 +45,7 @@ CoffeeScript =
 
   parse: (coffee, options = {}) ->
     try
-      preprocessed = Preprocessor.processSync coffee
+      preprocessed = Preprocessor.process coffee
       parsed = Parser.parse preprocessed,
         raw: options.raw
         inputSource: options.inputSource

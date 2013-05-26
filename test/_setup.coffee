@@ -32,6 +32,6 @@ global.Parser = require "../lib/parser"
 {Optimiser: global.Optimiser} = require "../lib/optimiser"
 {Preprocessor} = require "../lib/preprocessor"
 
-global.parse = (input) -> Parser.parse Preprocessor.processSync input
+global.parse = (input) -> Parser.parse Preprocessor.process input
 optimiser = new Optimiser
 global.optimise = (ast) -> optimiser.optimise ast

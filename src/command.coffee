@@ -167,7 +167,8 @@ else
     if options.debug
       try
         console.error '### PREPROCESSED CS ###'
-        console.error numberLines humanReadable Preprocessor.processSync input
+        preprocessed = Preprocessor.process input
+        console.error numberLines humanReadable preprocessed
 
     # parse
     try

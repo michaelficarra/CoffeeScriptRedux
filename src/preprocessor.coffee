@@ -82,6 +82,8 @@ StringScanner = require 'StringScanner'
   scan: (r) -> @p @ss.scan r
 
   process: (input) ->
+    if @options.literate
+      input = input.replace /^( {0,3}\S)/gm, '    #$1'
     @ss = new StringScanner input
 
     until @ss.eos()
@@ -93,7 +95,7 @@ StringScanner = require 'StringScanner'
 
             # consume base indentation
             if @base?
-              unless (@scan @base)?
+              if not (@ss.eos() or (@scan @base)?)
                 throw new Error "inconsistent base indentation"
             else
               @base = /// #{@scan /// [#{ws}]* ///} ///

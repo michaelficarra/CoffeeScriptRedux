@@ -20,6 +20,7 @@ optionParser.addOption 'parse',   'p', off, 'output a JSON-serialised AST repres
 optionParser.addOption 'compile', 'c', off, 'output a JSON-serialised AST representation of the output'
 optionParser.addOption 'optimise'    ,  on, 'enable optimisations (default: on)'
 optionParser.addOption 'debug'       , off, 'output intermediate representations on stderr for debug'
+optionParser.addOption 'literate'    , off, 'treat the input as literate CoffeeScript code'
 optionParser.addOption 'raw'         , off, 'preserve source position and raw parse information'
 optionParser.addOption 'version', 'v', off, 'display the version number'
 optionParser.addOption 'help'        , off, 'display this help message'
@@ -167,7 +168,7 @@ else
     if options.debug
       try
         console.error '### PREPROCESSED CS ###'
-        preprocessed = Preprocessor.process input
+        preprocessed = Preprocessor.process input, literate: options.literate
         console.error numberLines humanReadable preprocessed
 
     # parse
@@ -176,6 +177,7 @@ else
         optimise: no
         raw: options.raw or options['source-map'] or options['source-map-file'] or options.eval
         inputSource: inputSource
+        literate: options.literate
     catch e
       console.error e.message
       process.exit 1

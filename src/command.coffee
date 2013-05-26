@@ -16,14 +16,14 @@ inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
 optionParser = new Jedediah
 
-optionParser.addOption 'parse',   'p', off, 'output a JSON-serialised AST representation of the input'
-optionParser.addOption 'compile', 'c', off, 'output a JSON-serialised AST representation of the output'
-optionParser.addOption 'optimise'    ,  on, 'enable optimisations (default: on)'
-optionParser.addOption 'debug'       , off, 'output intermediate representations on stderr for debug'
-optionParser.addOption 'literate'    , off, 'treat the input as literate CoffeeScript code'
-optionParser.addOption 'raw'         , off, 'preserve source position and raw parse information'
-optionParser.addOption 'version', 'v', off, 'display the version number'
-optionParser.addOption 'help'        , off, 'display this help message'
+optionParser.addOption 'parse',    'p', off, 'output a JSON-serialised AST representation of the input'
+optionParser.addOption 'compile',  'c', off, 'output a JSON-serialised AST representation of the output'
+optionParser.addOption 'optimise'     ,  on, 'enable optimisations (default: on)'
+optionParser.addOption 'debug'        , off, 'output intermediate representations on stderr for debug'
+optionParser.addOption 'literate', 'l', off, 'treat the input as literate CoffeeScript code'
+optionParser.addOption 'raw'          , off, 'preserve source position and raw parse information'
+optionParser.addOption 'version',  'v', off, 'display the version number'
+optionParser.addOption 'help'         , off, 'display this help message'
 
 optionParser.addParameter 'cli'        , 'INPUT', 'pass a string from the command line as input'
 optionParser.addParameter 'input',  'i', 'FILE' , 'file to be used as input instead of STDIN'

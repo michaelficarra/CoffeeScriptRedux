@@ -24,28 +24,32 @@ CoffeeScript II: The Wrath of Khan
                                                            /    _.'
                                                           ( _.-'
 ```
-If you haven't seen [the funded Kickstarter project](http://www.kickstarter.com/projects/michaelficarra/make-a-better-coffeescript-compiler)
-yet, you should check that out to find out more about this.
 
 ### Status
 
-See the [roadmap to 2.0](https://github.com/michaelficarra/CoffeeScriptRedux/wiki/Roadmap).
+Complete enough to use for nearly every project. See the [roadmap to 2.0](https://github.com/michaelficarra/CoffeeScriptRedux/wiki/Roadmap).
 
 ### Getting Started
 
-    npm install
-    make -j test
-    bin/coffee --help
+    npm install -g coffee-script-redux
+    coffee --help
+    coffee --js <input.coffee >output.js
+
+Before transitioning from Jeremy's compiler, see the
+[intentional deviations from jashkenas/coffee-script](https://github.com/michaelficarra/CoffeeScriptRedux/wiki/Intentional-Deviations-From-jashkenas-coffee-script)
+wiki page.
 
 ### Development
 
-    make -j build test
+    git clone git://github.com/michaelficarra/CoffeeScriptRedux.git
+    make clean && git co lib && make -j build && make test
 
 ### Notable Contributors
 
 I'd like to thank the following financial contributors for their large
-donations to the Kickstarter project. Together, you donated over $10,000 toward
-the project. Without you, I wouldn't be able to do this.
+donations to [the Kickstarter project](http://www.kickstarter.com/projects/michaelficarra/make-a-better-coffeescript-compiler)
+that funded the initial work on this compiler.
+Together, you donated over $10,000. Without you, I wouldn't have been able to do this.
 
 * [Groupon](http://groupon.com/), who is generously allowing me to work in their offices
 * [Trevor Burnham](http://trevorburnham.com)

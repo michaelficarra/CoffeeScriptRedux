@@ -28,7 +28,7 @@ optionParser.addOption 'help'         , off, 'display this help message'
 optionParser.addParameter 'cli'        , 'INPUT', 'pass a string from the command line as input'
 optionParser.addParameter 'input',  'i', 'FILE' , 'file to be used as input instead of STDIN'
 optionParser.addParameter 'nodejs'     , 'OPTS' , 'pass options through to the node binary'
-optionParser.addParameter 'output', 'o', 'FILE' , 'file to be used as output instead of STDIN'
+optionParser.addParameter 'output', 'o', 'FILE' , 'file to be used as output instead of STDOUT'
 optionParser.addParameter 'watch',  'w', 'FILE' , 'watch the given file/directory for changes'
 
 if escodegen?

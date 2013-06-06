@@ -85,5 +85,5 @@ CoffeeScript =
 
 module.exports = CoffeeScript
 
-if process.title is 'node'
+if require.extensions?['.node']?
   CoffeeScript.register = -> require './register'

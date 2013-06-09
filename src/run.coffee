@@ -21,7 +21,7 @@ patchStackTrace = ->
   patched = true
 
   # Map of filenames -> functions that return a sourceMap string.
-  Module._sourceMaps = {}
+  Module._sourceMaps ?= {}
 
   # (Assigning to a property of the Module object in the normal module cache is
   # unsuitable, because node deletes those objects from the cache if an

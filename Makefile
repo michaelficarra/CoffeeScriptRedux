@@ -1,6 +1,6 @@
 default: all
 
-SRC = $(shell find src -name "*.coffee" -type f | sort)
+SRC = $(wildcard src/*.coffee | sort)
 LIB = $(SRC:src/%.coffee=lib/%.js) lib/parser.js
 BOOTSTRAPS = $(SRC:src/%.coffee=lib/bootstrap/%.js) lib/bootstrap/parser.js
 LIBMIN = $(LIB:lib/%.js=lib/%.min.js)

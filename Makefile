@@ -4,7 +4,7 @@ SRC = $(wildcard src/*.coffee | sort)
 LIB = $(SRC:src/%.coffee=lib/%.js) lib/parser.js
 BOOTSTRAPS = $(SRC:src/%.coffee=lib/bootstrap/%.js) lib/bootstrap/parser.js
 LIBMIN = $(LIB:lib/%.js=lib/%.min.js)
-TEST = $(shell echo test/*.coffee | sort)
+TEST = $(wildcard test/*.coffee | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare

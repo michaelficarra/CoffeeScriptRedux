@@ -487,3 +487,16 @@ suite 'Function Invocation', ->
     fn a: 0
     b: 1
     0
+
+  test '#220: `do` on bound functions with non-empty parameter lists', ->
+    i = 1
+    ok not do (i) =>
+      ok i
+      --i
+    ok i
+
+    k = 1
+    ok not do =>
+      ok k
+      --k
+    ok not k

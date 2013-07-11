@@ -10,7 +10,7 @@ escodegen = try require 'escodegen'
 
 pkg = require './../package.json'
 
-escodegenFormatDefaults =
+escodegenFormat =
   indent:
     style: '  '
     base: 0
@@ -18,18 +18,6 @@ escodegenFormatDefaults =
   hexadecimal: yes
   quotes: 'auto'
   parentheses: no
-
-escodegenCompactDefaults =
-  indent:
-    style: ''
-    base: 0
-  renumber: yes
-  hexadecimal: yes
-  quotes: 'auto'
-  escapeless: yes
-  compact: yes
-  parentheses: no
-  semicolons: no
 
 
 CoffeeScript =
@@ -70,7 +58,7 @@ CoffeeScript =
       comment: not options.compact
       sourceMapWithCode: yes
       sourceMap: name
-      format: if options.compact then escodegenCompactDefaults else options.format ? escodegenFormatDefaults
+      format: if options.compact then escodegen.FORMAT_MINIFY else options.format ? escodegenFormat
 
   js: (jsAst, options) -> (@jsWithSourceMap jsAst, null, options).code
   sourceMap: (jsAst, name, options) -> (@jsWithSourceMap jsAst, name, options).map

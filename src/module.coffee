@@ -54,10 +54,12 @@ CoffeeScript =
     throw new Error 'escodegen not found: run `npm install escodegen`' unless escodegen?
     unless {}.hasOwnProperty.call jsAst, 'type'
       jsAst = jsAst.toBasicObject()
+    targetName = options['source-map-file'] or (options['source-map'] and (options.output.match /^.*[\\\/]([^\\\/]+)$/)[1])
     escodegen.generate jsAst,
       comment: not options.compact
       sourceMapWithCode: yes
       sourceMap: name
+      file: targetName or 'unknown'
       format: if options.compact then escodegen.FORMAT_MINIFY else options.format ? escodegenFormat
 
   js: (jsAst, options) -> (@jsWithSourceMap jsAst, null, options).code

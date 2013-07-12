@@ -34,7 +34,7 @@
   },
   "optionalDependencies": {
     "esmangle": "~0.0.8",
-    "source-map": "~0.1.7",
+    "source-map": "0.1.11",
     "escodegen": "~0.0.24",
     "cscodegen": "git://github.com/michaelficarra/cscodegen.git#73fd7202ac086c26f18c9d56f025b18b3c6f5383"
   },

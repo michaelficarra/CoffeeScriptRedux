@@ -178,6 +178,7 @@ class exports.Optimiser
     [CS.SeqOp, ({inScope, ancestry}) ->
       canDropLast = not usedAsExpression this, ancestry
       if @left.instanceof CS.Undefined then @right
+      else if @left.instanceof CS.Return, CS.Throw then @left
       else if mayHaveSideEffects @left, inScope
         if mayHaveSideEffects @right, inScope then this
         else if not canDropLast then this
@@ -195,8 +196,6 @@ class exports.Optimiser
         declarationsFor this, inScope
       else @right
     ]
-
-    # TODO: everything after a CS.Return in a CS.SeqOp
 
     # Push assignments through sequences
     [CS.AssignOp, ->

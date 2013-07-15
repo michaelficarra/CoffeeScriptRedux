@@ -177,7 +177,8 @@ class exports.Optimiser
     # TODO: comments
     [CS.SeqOp, ({inScope, ancestry}) ->
       canDropLast = not usedAsExpression this, ancestry
-      if mayHaveSideEffects @left, inScope
+      if @left.instanceof CS.Undefined then @right
+      else if mayHaveSideEffects @left, inScope
         if mayHaveSideEffects @right, inScope then this
         else if not canDropLast then this
         else if @right.instanceof CS.Undefined then @left
@@ -188,15 +189,11 @@ class exports.Optimiser
         if (@left.instanceof CS.Int) and 0 <= @left.data <= 9 then this
         else if mayHaveSideEffects @left, inScope then this
         else new CS.SeqOp (new CS.Int 0).g(), @right
-      else
-        if mayHaveSideEffects @right, inScope
-          decls = declarationsFor @left, inScope
-          if decls.instanceof CS.Undefined then @right
-          #else new CS.SeqOp decls, @right
-          else this # TODO: I would love to be able to do the above, but it will infinite loop
-        else if canDropLast
-          declarationsFor this, inScope
-        else @right
+      else if mayHaveSideEffects @right, inScope
+        new CS.SeqOp (declarationsFor @left, inScope), @right
+      else if canDropLast
+        declarationsFor this, inScope
+      else @right
     ]
 
     # TODO: everything after a CS.Return in a CS.SeqOp
@@ -358,9 +355,6 @@ class exports.Optimiser
   optimise: do ->
 
     walk = (fn, inScope = [], ancestry = []) ->
-      if not this? or this is global
-        throw new Error 'Optimiser rules must produce a node. `null` is not a node.'
-      return this if this in ancestry
       ancestry.unshift this
       for childName in @childNodes when @[childName]?
         if childName in @listMembers
@@ -371,18 +365,21 @@ class exports.Optimiser
           while @[childName] isnt walk.call (@[childName] = fn.call @[childName], {inScope, ancestry}), fn, inScope, ancestry then
           inScope = union inScope, envEnrichments @[childName], inScope
       do ancestry.shift
-      jsNode = fn.call this, {inScope, ancestry}
-      jsNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']
-      jsNode
+      replacementNode = fn.call this, {inScope, ancestry}
+      if this isnt replacementNode
+        while replacementNode isnt walk.call (replacementNode = fn.call replacementNode, {inScope, ancestry}), fn, inScope, ancestry then
+        replacementNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']
+      replacementNode
 
     (ast) ->
       rules = @rules
-      walk.call ast, ->
+      walk.call ast, ({ancestry}) ->
+        if not this? or this is global
+          throw new Error 'Optimiser rules must produce a node. `null` is not a node.'
+        return this if this in ancestry
         # not a fold for efficiency's sake
         memo = this
-        oldClassName = null
-        while oldClassName isnt memo.className
-          for rule in rules[oldClassName = memo.className] ? []
-            memo = rule.apply memo, arguments
-            break unless oldClassName is memo.className
+        for rule in rules[memo.className] ? []
+          memo = rule.apply memo, arguments
+          break if memo isnt this
         memo

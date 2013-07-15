@@ -39,3 +39,10 @@ suite 'Optimisations', ->
       a = null
       `a = nonce`
       eq nonce, a
+
+    test '#223: infinite loop when optimising ineffectful code with declarations followed by code with possible effects', ->
+      b = []
+      c = ->
+
+      a for a in b
+      do c

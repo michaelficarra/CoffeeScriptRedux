@@ -173,7 +173,7 @@ memberAccess = (e, member) ->
 dynamicMemberAccess = (e, index) ->
   if (index.instanceof JS.Literal) and typeof index.value is 'string'
   then memberAccess e, index.value
-  else new JS.MemberExpression yes, (expr e), index
+  else new JS.MemberExpression yes, (expr e), expr index
 
 # TODO: rewrite this whole thing using the CS AST nodes
 assignment = (assignee, expression, valueUsed = no) ->

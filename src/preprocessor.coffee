@@ -1,4 +1,3 @@
-{EventEmitter} = require 'events'
 {pointToErrorLocation} = require './helpers'
 StringScanner = require 'StringScanner'
 
@@ -7,7 +6,7 @@ StringScanner = require 'StringScanner'
 # TODO: support win32-style line endings
 # TODO: now that the preprocessor doesn't support streaming input, optimise the `process` method
 
-@Preprocessor = class Preprocessor extends EventEmitter
+@Preprocessor = class Preprocessor
 
   ws = '\\t\\x0B\\f\\r \\xA0\\u1680\\u180E\\u2000-\\u200A\\u202F\\u205F\\u3000\\uFEFF'
   INDENT = '\uEFEF'

@@ -26,7 +26,7 @@
   "devDependencies": {
     "mocha": "~1.12.0",
     "pegjs": "git://github.com/dmajda/pegjs.git#bea6b1fde74c8aebf802f9bcc3380c65b241e1b7",
-    "commonjs-everywhere": "~0.6.0"
+    "commonjs-everywhere": "~0.9.0"
   },
   "dependencies": {
     "StringScanner": "~0.0.3",

@@ -46,10 +46,20 @@ dist:
 	mkdir dist/
 
 dist/coffee-script-redux.js: lib/browser.js dist
-#	$(CJSIFY) lib/browser.js --source-map-file dist/coffee-script-redux.js.map > dist/coffee-script-redux.js
+	$(CJSIFY) src/browser.coffee -vx CoffeeScript \
+		-a fs: -a child_process: \
+		-a /src/register.coffee: \
+		-a /src/parser.coffee:/lib/parser.js \
+		--source-map dist/coffee-script-redux.js.map \
+		> dist/coffee-script-redux.js
 
 dist/coffee-script-redux.min.js: lib/browser.js dist
-	./build-browser
+	$(CJSIFY) src/browser.coffee -vmx CoffeeScript \
+		-a fs: -a child_process: \
+		-a /src/register.coffee: \
+		-a /src/parser.coffee:/lib/parser.js \
+		--source-map dist/coffee-script-redux.min.js.map \
+		> dist/coffee-script-redux.min.js
 
 
 lib/%.min.js: lib/%.js lib/coffee-script

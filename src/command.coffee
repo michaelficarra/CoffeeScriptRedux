@@ -144,6 +144,8 @@ else if options.version
   console.log "CoffeeScript version #{pkg.version}"
 
 else if options.repl
+  CoffeeScript.register()
+  do process.argv.shift
   do Repl.start
 
 else
@@ -273,6 +275,7 @@ else
     # --eval
     if options.eval
       CoffeeScript.register()
+      process.argv = ['coffee'].concat [].slice.call process.argv, 2
       runMain input, js, jsAST, inputSource
       return
 

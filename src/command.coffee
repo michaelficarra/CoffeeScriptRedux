@@ -265,9 +265,7 @@ else
         js = """
           #{js}
 
-          /*
-          //@ sourceMappingURL=#{options['source-map-file']}
-          */
+          //# sourceMappingURL=#{options['source-map-file']}
         """
       output js
       return

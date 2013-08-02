@@ -679,3 +679,18 @@ suite 'Classes', ->
       ok 'b' of A::a
       ok 'b' not of A.prototype
       ok 'c' of A.prototype
+
+    test '#201: subclasses without explicit constructors inherit parent constructors', ->
+      i = 0
+      class A
+        constructor: -> i++
+      class B extends A
+
+      eq 0, i
+      a = new A
+      ok a instanceof A
+      eq 1, i
+      b = new B
+      eq 2, i
+      ok b instanceof B
+      ok b instanceof A

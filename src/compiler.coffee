@@ -667,7 +667,12 @@ class exports.Compiler
           break
         block.body.splice ctorIndex, 1, ctor
       else
-        ctor = new JS.FunctionDeclaration name, [], new JS.BlockStatement []
+        ctorBody = new JS.BlockStatement []
+        if parent?
+          ctorBody.body.push stmt new JS.CallExpression (memberAccess parentRef, 'apply'), [
+            new JS.ThisExpression, new JS.Identifier 'arguments'
+          ]
+        ctor = new JS.FunctionDeclaration name, [], ctorBody
         ctorIndex = 0
         block.body.unshift ctor
       ctor.id = name

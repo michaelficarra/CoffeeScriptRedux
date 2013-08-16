@@ -50,16 +50,14 @@ dist/coffee-script-redux.js: lib/browser.js dist
 		-a fs: -a child_process: \
 		-a /src/register.coffee: \
 		-a /src/parser.coffee:/lib/parser.js \
-		--source-map dist/coffee-script-redux.js.map \
-		> dist/coffee-script-redux.js
+		--source-map "$@.map" > "$@"
 
 dist/coffee-script-redux.min.js: lib/browser.js dist
 	$(CJSIFY) src/browser.coffee -vmx CoffeeScript \
 		-a fs: -a child_process: \
 		-a /src/register.coffee: \
 		-a /src/parser.coffee:/lib/parser.js \
-		--source-map dist/coffee-script-redux.min.js.map \
-		> dist/coffee-script-redux.min.js
+		--source-map "$@.map" > "$@"
 
 
 lib/%.min.js: lib/%.js lib/coffee-script

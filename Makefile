@@ -31,7 +31,7 @@ lib/bootstrap: lib
 
 
 lib/parser.js: src/grammar.pegjs bootstraps lib
-	$(PEGJS) <"$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
+	$(PEGJS) <"$<" >"$@.tmp" && mv "$@.tmp" "$@"
 lib/bootstrap/parser.js: src/grammar.pegjs lib/bootstrap
 	$(PEGJS) <"$<" >"$@"
 lib/bootstrap/%.js: src/%.coffee lib/bootstrap
@@ -39,7 +39,7 @@ lib/bootstrap/%.js: src/%.coffee lib/bootstrap
 bootstraps: $(BOOTSTRAPS) lib/bootstrap
 	cp lib/bootstrap/* lib
 lib/%.js: src/%.coffee lib/bootstrap/%.js bootstraps lib
-	$(COFFEE) -i "$<" >"$(@:%=%.tmp)" && mv "$(@:%=%.tmp)" "$@"
+	$(COFFEE) -i "$<" >"$@.tmp" && mv "$@.tmp" "$@"
 
 
 dist:

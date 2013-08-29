@@ -986,15 +986,15 @@ class exports.Compiler
       ancestry.unshift this
       children = {}
 
-      for childName in @childNodes when @[childName]?
+      for childName in @childNodes when this[childName]?
         children[childName] =
           if childName in @listMembers
-            for member in @[childName]
+            for member in this[childName]
               jsNode = walk.call member, fn, inScope, ancestry
               inScope = union inScope, envEnrichments member, inScope
               jsNode
           else
-            child = @[childName]
+            child = this[childName]
             jsNode = walk.call child, fn, inScope, ancestry
             inScope = union inScope, envEnrichments child, inScope
             jsNode

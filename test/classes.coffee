@@ -165,11 +165,11 @@ suite 'Classes', ->
 
       class Base
         @attr = (name) ->
-          @::[name] = (val) ->
+          this::[name] = (val) ->
             if arguments.length > 0
-              @["_#{name}"] = val
+              this["_#{name}"] = val
             else
-              @["_#{name}"]
+              this["_#{name}"]
 
       class Robot extends Base
         @attr 'power'
@@ -406,7 +406,7 @@ suite 'Classes', ->
 
       class ClassName
         amI: ->
-          @ instanceof ClassName
+          this instanceof ClassName
 
       obj = new ClassName
       ok obj.amI()

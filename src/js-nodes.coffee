@@ -4,7 +4,7 @@ exports = module?.exports ? this
 createNode = (type, props) ->
   class extends Nodes
     constructor: ->
-      @[prop] = arguments[i] for prop, i in props
+      this[prop] = arguments[i] for prop, i in props
     type: type
     childNodes: props
 
@@ -20,9 +20,9 @@ createNode = (type, props) ->
     obj.leadingComments = @leadingComments if @leadingComments?
     for child in @childNodes
       if child in @listMembers
-        obj[child] = (p?.toBasicObject() for p in @[child])
+        obj[child] = (p?.toBasicObject() for p in this[child])
       else
-        obj[child] = @[child]?.toBasicObject()
+        obj[child] = this[child]?.toBasicObject()
     if @line? and @column?
       obj.loc = start: {@line, @column}
     if @offset?
@@ -100,7 +100,7 @@ handlePrimitives = (ctor, primitives) ->
   ctor::toBasicObject = ->
     obj = Nodes::toBasicObject.call this
     for primitive in primitives
-      obj[primitive] = @[primitive]
+      obj[primitive] = this[primitive]
     obj
 
 handlePrimitives AssignmentExpression, ['operator']

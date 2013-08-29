@@ -103,8 +103,8 @@ envEnrichments_ = (inScope = []) ->
       nub concat [
         concatMap @childNodes, (child) =>
           if child in @listMembers
-          then concatMap @[child], (m) -> envEnrichments m, inScope
-          else envEnrichments @[child], inScope
+          then concatMap this[child], (m) -> envEnrichments m, inScope
+          else envEnrichments this[child], inScope
         beingDeclared @keyAssignee
         beingDeclared @valAssignee
       ]
@@ -112,8 +112,8 @@ envEnrichments_ = (inScope = []) ->
     else
       nub concatMap @childNodes, (child) =>
         if child in @listMembers
-        then concatMap @[child], (m) -> envEnrichments m, inScope
-        else envEnrichments @[child], inScope
+        then concatMap this[child], (m) -> envEnrichments m, inScope
+        else envEnrichments this[child], inScope
   difference possibilities, inScope
 
 @envEnrichments = envEnrichments = (node, args...) ->

@@ -5,3 +5,7 @@ suite 'Comprehensions', ->
 
   test '#66: `throw` as the final expression in the body of a comprehension', ->
     (->) -> for a in [0..9] then throw {}
+
+  test 'comprehensions over static, integral ranges', ->
+    arrayEq [0..9], (a for a in [0..9])
+    arrayEq [0...9], (a for a in [0...9])

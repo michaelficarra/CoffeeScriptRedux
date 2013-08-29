@@ -417,7 +417,7 @@ class exports.Compiler
           else if s.instanceof JS.SequenceExpression then map s.expressions, stmt
           else [stmt s]
     ]
-    [CS.SeqOp, ({left, right})-> new JS.SequenceExpression [left, right]]
+    [CS.SeqOp, ({left, right}) -> new JS.SequenceExpression [left, right]]
     [CS.Conditional, ({condition, consequent, alternate, ancestry}) ->
       if alternate?
         throw new Error 'Conditional with non-null alternate requires non-null consequent' unless consequent?
@@ -446,6 +446,8 @@ class exports.Compiler
           block.body.unshift stmt new JS.AssignmentExpression '=', keyAssignee, k
         block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, i
         return new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, compile @target.right), update, block
+        op = if @target.isInclusive then '<=' else '<'
+        return new JS.ForStatement varDeclaration, (new JS.BinaryExpression op, i, compile @target.right), update, block
 
       e = if needsCaching @target then genSym 'cache' else target
       varDeclaration = new JS.VariableDeclaration 'var', [

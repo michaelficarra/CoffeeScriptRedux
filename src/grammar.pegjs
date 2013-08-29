@@ -384,8 +384,9 @@ postfixControlFlowExpression
   postfixControlFlowOp
     = kw:(IF / UNLESS) _ e:assignmentExpression { return {type: kw, cond: e}; }
     / kw:(WHILE / UNTIL) _ e:assignmentExpression { return {type: kw, cond: e}; }
-    / FOR _ val:Assignable _ maybeKey:("," _ Assignable _)? IN _ list:assignmentExpression maybeStep:(_ BY _ assignmentExpression)? maybeFilter:(_ WHEN _ assignmentExpression)? {
-        var key = maybeKey ? maybeKey[2] : null,
+    / FOR _ maybeVal:(Assignable _ ("," _ Assignable _)?)? IN _ list:assignmentExpression maybeStep:(_ BY _ assignmentExpression)? maybeFilter:(_ WHEN _ assignmentExpression)? {
+        var val = maybeVal ? maybeVal[0] : null,
+            key = maybeVal && maybeVal[2] ? maybeVal[2][2] : null,
             step = maybeStep ? maybeStep[3] : new CS.Int(1).r('1').g(),
             filter = maybeFilter ? maybeFilter[3] : null;
         return 0,
@@ -776,8 +777,9 @@ forOf
       return rp(new CS.ForOf(!!own, key, val, obj, filter, body.block));
     }
 forIn
-  = FOR _ val:Assignable _ maybeKey:("," _ Assignable _)? IN _ list:assignmentExpressionNoImplicitObjectCall _ maybeStep:(BY _ assignmentExpressionNoImplicitObjectCall _)? maybeFilter:(WHEN _ assignmentExpressionNoImplicitObjectCall _)? body:forBody {
-      var key = maybeKey ? maybeKey[2] : null;
+  = FOR _ maybeVal:(Assignable _ ("," _ Assignable _)?)? IN _ list:assignmentExpressionNoImplicitObjectCall _ maybeStep:(BY _ assignmentExpressionNoImplicitObjectCall _)? maybeFilter:(WHEN _ assignmentExpressionNoImplicitObjectCall _)? body:forBody {
+      var val = maybeVal ? maybeVal[0] : null;
+      var key = maybeVal && maybeVal[2] ? maybeVal[2][2] : null;
       var step = maybeStep ? maybeStep[2] : new CS.Int(1).r('1').g();
       var filter = maybeFilter ? maybeFilter[2] : null;
       return rp(new CS.ForIn(val, key, list, step, filter, body.block));

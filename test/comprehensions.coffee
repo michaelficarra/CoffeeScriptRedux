@@ -9,3 +9,15 @@ suite 'Comprehensions', ->
   test 'comprehensions over static, integral ranges', ->
     arrayEq [0..9], (a for a in [0..9])
     arrayEq [0...9], (a for a in [0...9])
+
+  test '#234: value may be omitted in for-in comprehensions', ->
+    arrayEq [0, 0, 0, 0], (0 for in [0..3])
+    c = 0
+    fn = -> c++
+    arrayEq [0..9], (fn() for in [0..9])
+    a = 0
+    b = 9
+    c = 0
+    arrayEq [a..b], (fn() for in [a..b])
+    c = 0
+    arrayEq [a...b], (fn() for in [a...b])

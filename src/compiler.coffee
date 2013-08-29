@@ -439,13 +439,13 @@ class exports.Compiler
       ((@target.right.instanceof CS.Int) or ((@target.right.instanceof CS.UnaryNegateOp) and @target.right.expression.instanceof CS.Int))
         varDeclaration = new JS.AssignmentExpression '=', i, compile @target.left
         update = new JS.UpdateExpression '++', yes, i
-        if keyAssignee
+        if keyAssignee?
           k = genSym 'k'
           varDeclaration = new JS.SequenceExpression [(new JS.AssignmentExpression '=', k, new JS.Literal 0), varDeclaration]
           update = new JS.SequenceExpression [(new JS.UpdateExpression '++', yes, k), update]
           block.body.unshift stmt new JS.AssignmentExpression '=', keyAssignee, k
-        block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, i
-        return new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, compile @target.right), update, block
+        if valAssignee?
+          block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, i
         op = if @target.isInclusive then '<=' else '<'
         return new JS.ForStatement varDeclaration, (new JS.BinaryExpression op, i, compile @target.right), update, block
 
@@ -461,7 +461,8 @@ class exports.Compiler
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filter), new JS.ContinueStatement
       if keyAssignee?
         block.body.unshift stmt assignment keyAssignee, i
-      block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, i
+      if valAssignee?
+        block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, i
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), block
     ]
     [CS.ForOf, ({keyAssignee, valAssignee, target, filter, body}) ->

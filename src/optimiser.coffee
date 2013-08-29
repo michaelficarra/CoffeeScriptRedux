@@ -141,8 +141,8 @@ mayHaveSideEffects =
   ], (inScope) ->
     any @childNodes, (child) =>
       if child in @listMembers
-      then any @[child], (m) -> mayHaveSideEffects m, inScope
-      else mayHaveSideEffects @[child], inScope
+      then any this[child], (m) -> mayHaveSideEffects m, inScope
+      else mayHaveSideEffects this[child], inScope
 
 
 
@@ -355,19 +355,19 @@ class exports.Optimiser
 
     walk = (fn, inScope = [], ancestry = []) ->
       ancestry.unshift this
-      for childName in @childNodes when @[childName]?
+      for childName in @childNodes when this[childName]?
         if childName in @listMembers
-          for member, n in @[childName]
-            while @[childName][n] isnt walk.call (@[childName][n] = fn.call @[childName][n], {inScope, ancestry}), fn, inScope, ancestry then
-            inScope = union inScope, envEnrichments @[childName][n], inScope
+          for member, n in this[childName]
+            while this[childName][n] isnt walk.call (this[childName][n] = fn.call this[childName][n], {inScope, ancestry}), fn, inScope, ancestry then
+            inScope = union inScope, envEnrichments this[childName][n], inScope
         else
-          while @[childName] isnt walk.call (@[childName] = fn.call @[childName], {inScope, ancestry}), fn, inScope, ancestry then
-          inScope = union inScope, envEnrichments @[childName], inScope
+          while this[childName] isnt walk.call (this[childName] = fn.call this[childName], {inScope, ancestry}), fn, inScope, ancestry then
+          inScope = union inScope, envEnrichments this[childName], inScope
       do ancestry.shift
       replacementNode = fn.call this, {inScope, ancestry}
       if this isnt replacementNode
         while replacementNode isnt walk.call (replacementNode = fn.call replacementNode, {inScope, ancestry}), fn, inScope, ancestry then
-        replacementNode[p] = @[p] for p in ['raw', 'line', 'column', 'offset']
+        replacementNode[p] = this[p] for p in ['raw', 'line', 'column', 'offset']
       replacementNode
 
     (ast) ->

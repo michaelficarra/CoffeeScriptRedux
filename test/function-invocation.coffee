@@ -100,12 +100,10 @@ suite 'Function Invocation', ->
   #  ok mult(1, 2, 3,) is 6
   #  ok mult(10, (i for i in [1..6])...) is 7200
 
-  test "`@` and `this` should both be able to invoke a function", ->
+  test "`this` should be able to invoke a function", ->
     nonce = {}
     fn          = (arg) -> eq nonce, arg
-    fn.withAt   = -> @ nonce
     fn.withThis = -> this nonce
-    fn.withAt()
     fn.withThis()
 
   test "Trying an implicit object call with a trailing function.", ->
@@ -243,7 +241,7 @@ suite 'Function Invocation', ->
     ok (func --val) is 5
 
   test "jashkenas/coffee-script#855: execution context for `func arr...` should be `null`", ->
-    contextTest = -> eq @, if window? then window else global
+    contextTest = -> eq this, if window? then window else global
     array = []
     contextTest array
     contextTest.apply null, array

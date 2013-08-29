@@ -603,12 +603,15 @@ memberExpression
       return rp(new CS.NewOp(e, args));
     }
   memberAccess
-    = e:( primaryExpression
+    = e:
+      ( primaryExpression
       / NEW __ e:memberExpression args:argumentList { return rp(new CS.NewOp(e, args.operands[0])); }
       ) accesses:(argumentList MemberAccessOps / MemberAccessOps)+ {
         var acc = foldl(function(memo, a){ return memo.concat(a); }, [], accesses);
         return createMemberExpression(e, acc);
       }
+    / contextVar
+
   MemberNames
     = identifierName
   MemberAccessOps
@@ -642,7 +645,7 @@ primaryExpression
   / null
   / undefined
   / contextVar
-  / r:(THIS / "@") { return rp(new CS.This); }
+  / r:THIS { return rp(new CS.This); }
   / identifier
   / range
   / arrayLiteral
@@ -1051,12 +1054,10 @@ unassignable = ("arguments" / "eval") !identifierPart
 CompoundAssignable
   = memberAccess
   / !unassignable i:identifier { return i; }
-  / contextVar
 ExistsAssignable = CompoundAssignable
 Assignable
   = memberAccess
   / !unassignable i:identifier { return i; }
-  / contextVar
   / positionalDestructuring
   / namedDestructuring
 

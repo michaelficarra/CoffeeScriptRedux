@@ -141,7 +141,7 @@ collectIdentifiers = (node) -> nub switch
 needsCaching = (node) ->
   return no unless node?
   (envEnrichments node, []).length > 0 or
-  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp, CS.PreIncrementOp, CS.PostIncrementOp, CS.PreDecrementOp, CS.PostDecrementOp) or
+  (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp, CS.PreIncrementOp, CS.PostIncrementOp, CS.PreDecrementOp, CS.PostDecrementOp, CS.Range) or
   (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
   any node.listMembers, (n) -> any node[n], needsCaching
 

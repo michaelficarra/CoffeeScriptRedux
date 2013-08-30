@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "StringScanner": "~0.0.3",
-    "jedediah": "~0.1.0"
+    "nopt": "~2.1.2"
   },
   "optionalDependencies": {
     "esmangle": "~0.0.8",
@@ -38,7 +38,9 @@
     "escodegen": "~0.0.24",
     "cscodegen": "git://github.com/michaelficarra/cscodegen.git#73fd7202ac086c26f18c9d56f025b18b3c6f5383"
   },
-  "engines": { "node": "0.8.x || 0.10.x" },
+  "engines": {
+    "node": "0.8.x || 0.10.x"
+  },
   "licenses": [
     {
       "type": "3-clause BSD",

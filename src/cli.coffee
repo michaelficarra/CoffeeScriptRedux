@@ -7,46 +7,51 @@ path = require 'path'
 {runMain} = require './run'
 CoffeeScript = require './module'
 Repl = require './repl'
-Jedediah = require 'jedediah'
+nopt = require 'nopt'
 cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
 esmangle = try require 'esmangle'
 
 inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
 
-optionParser = new Jedediah
+knownOpts = {}
+option = -> knownOpts[o] = Boolean for o in arguments; return
+parameter = -> knownOpts[p] = String for p in arguments; return
 
-optionParser.addOption 'parse',    'p', off, 'output a JSON-serialised AST representation of the input'
-optionParser.addOption 'compile',  'c', off, 'output a JSON-serialised AST representation of the output'
-optionParser.addOption 'optimise'     ,  on, 'enable optimisations (default: on)'
-optionParser.addOption 'debug'        , off, 'output intermediate representations on stderr for debug'
-optionParser.addOption 'literate', 'l', off, 'treat the input as literate CoffeeScript code'
-optionParser.addOption 'raw'          , off, 'preserve source position and raw parse information'
-optionParser.addOption 'version',  'v', off, 'display the version number'
-optionParser.addOption 'help'         , off, 'display this help message'
+optAliases =
+  b: '--bare'
+  c: '--compile'
+  e: '--eval'
+  f: '--cscodegen'
+  I: '--require'
+  i: '--input'
+  j: '--js'
+  l: '--literate'
+  m: '--minify'
+  o: '--output'
+  p: '--parse'
+  v: '--version'
+  w: '--watch'
 
-optionParser.addParameter 'cli'        , 'INPUT', 'pass a string from the command line as input'
-optionParser.addParameter 'input',  'i', 'FILE' , 'file to be used as input instead of STDIN'
-optionParser.addParameter 'nodejs'     , 'OPTS' , 'pass options through to the node binary'
-optionParser.addParameter 'output', 'o', 'FILE' , 'file to be used as output instead of STDOUT'
-optionParser.addParameter 'watch',  'w', 'FILE' , 'watch the given file/directory for changes'
+option 'parse', 'compile', 'optimise', 'debug', 'literate', 'raw', 'version', 'help'
+parameter 'cli', 'input', 'nodejs', 'output', 'watch'
 
 if escodegen?
-  optionParser.addOption 'bare',  'b', off, 'omit the top-level function wrapper'
-  optionParser.addOption 'js',    'j', off, 'generate JavaScript output'
-  optionParser.addOption 'source-map', off, 'generate source map'
-  optionParser.addOption 'eval',  'e', off, 'evaluate compiled JavaScript'
-  optionParser.addOption 'repl'      , off, 'run an interactive CoffeeScript REPL'
-  optionParser.addParameter 'source-map-file', 'FILE' , 'file used as output for source map when using --js'
-  optionParser.addParameter 'require', 'I', 'FILE' , 'require a library before a script is executed'
+  option 'bare', 'js', 'source-map', 'eval', 'repl'
+  parameter 'source-map-file', 'require'
   if esmangle?
-    optionParser.addOption 'minify', 'm', off, 'run compiled javascript output through a JS minifier'
+    option 'minify'
 
 if cscodegen?
-  optionParser.addOption 'cscodegen', 'f', off, 'output cscodegen-generated CoffeeScript code'
+  option 'cscodegen'
 
 
-[options, positionalArgs] = optionParser.parse process.argv
+options = nopt knownOpts, optAliases, process.argv, 2
+positionalArgs = options.argv.remain
+delete options.argv
+
+# default values
+options.optimise ?= yes
 
 
 # input validation
@@ -128,7 +133,28 @@ if options.help
     #{$0} OPT* [--repl] OPT*
       example: #{$0}
 
-#{optionParser.help()}
+  -b, --bare              omit the top-level function wrapper
+  -c, --compile           output a JSON-serialised AST representation of the output
+  -e, --eval              evaluate compiled JavaScript
+  -f, --cscodegen         output cscodegen-generated CoffeeScript code
+  -i, --input FILE        file to be used as input instead of STDIN
+  -I, --require FILE      require a library before a script is executed
+  -j, --js                generate JavaScript output
+  -l, --literate          treat the input as literate CoffeeScript code
+  -m, --minify            run compiled javascript output through a JS minifier
+  -o, --output FILE       file to be used as output instead of STDOUT
+  -p, --parse             output a JSON-serialised AST representation of the input
+  -v, --version           display the version number
+  -w, --watch FILE        watch the given file/directory for changes
+  --cli INPUT             pass a string from the command line as input
+  --debug                 output intermediate representations on stderr for debug
+  --help                  display this help message
+  --nodejs OPTS           pass options through to the node binary
+  --optimise              enable optimisations (default: on)
+  --raw                   preserve source position and raw parse information
+  --repl                  run an interactive CoffeeScript REPL
+  --source-map            generate source map
+  --source-map-file FILE  file used as output for source map when using --js
 
   Unless given --input or --cli flags, `#{$0}` will operate on stdin/stdout.
   When none of --{parse,compile,js,source-map,eval,cscodegen,repl} are given,

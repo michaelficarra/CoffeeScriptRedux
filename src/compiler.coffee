@@ -1059,7 +1059,9 @@ class exports.Compiler
             usedSymbols: union usedSymbols, params
             nsCounters: nsCounters_
           newNode.body = forceBlock newNode.body
-          declNames = nub difference (map (declarationsNeededRecursive @body), (id) -> id.name), union declaredSymbols, params
+          undeclared = map (declarationsNeededRecursive @body), (id) -> id.name
+          alreadyDeclared = union declaredSymbols, concatMap @params, collectIdentifiers
+          declNames = nub difference undeclared, alreadyDeclared
           decls = map declNames, (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode

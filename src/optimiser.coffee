@@ -159,7 +159,7 @@ class exports.Optimiser
 
     # If a program has no side effects, then it is the empty program
     [CS.Program, ->
-      if @body? and mayHaveSideEffects @body, [] then this
+      if !@body? or mayHaveSideEffects @body, [] then this
       else new CS.Program null
     ]
 

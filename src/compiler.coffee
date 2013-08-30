@@ -647,10 +647,9 @@ class exports.Compiler
 
         fn = new JS.FunctionExpression null, parameters, block
         if performedRewrite
-          new JS.SequenceExpression [
-            new JS.AssignmentExpression '=', newThis, new JS.ThisExpression
-            fn
-          ]
+          new JS.CallExpression (new JS.FunctionExpression null, [newThis], new JS.BlockStatement [
+            new JS.ReturnStatement fn
+          ]), [new JS.ThisExpression]
         else fn
     ]
     [CS.Rest, ({expression}) -> {rest: yes, expression, isExpression: yes, isStatement: yes}]

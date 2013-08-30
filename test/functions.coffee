@@ -178,6 +178,12 @@ suite 'Function Literals', ->
       eq 0, ((x = fn) -> x()) -> 0
       eq 2, ((x = fn()) -> x)()
 
+    test "#229: default values with destructuring", ->
+      nonceA = {}
+      nonceB = {}
+      eq nonceA, (({a} = {a: nonceA}) -> a)()
+      eq nonceB, (({a} = {a: nonceA}) -> a)({a: nonceB})
+
     test "arguments vs parameters", ->
       nonce = {}
       f = (x) -> x()

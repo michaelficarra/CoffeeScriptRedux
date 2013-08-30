@@ -587,8 +587,9 @@ class exports.Compiler
           block.body.unshift stmt assignment param, p
           p
         when original.instanceof CS.DefaultParam
-          block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), param.param), stmt new JS.AssignmentExpression '=', param.param, param.default
-          handleParam.call this, param.param, original.param, block
+          p = handleParam.call this, param.param, original.param, block
+          block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), p), stmt assignment p, param.default
+          p
         else throw new Error "Unsupported parameter type: #{original.className}"
 
       ({parameters, body, ancestry}) ->

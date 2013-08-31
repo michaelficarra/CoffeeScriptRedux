@@ -40,7 +40,7 @@
     function compile(input) {
       var out, csAST, jsAST;
       try {
-        csAST = CoffeeScript.parse(input, {optimise: false, raw: false, inputSource: '(demo)'});
+        csAST = CoffeeScript.parse(input, {optimise: true, raw: false, inputSource: '(demo)'});
         jsAST = CoffeeScript.compile(csAST, {bare: false});
         out = CoffeeScript.js(jsAST, {compact: false});
       } catch (e) {

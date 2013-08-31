@@ -53,10 +53,13 @@ delete options.argv
 # default values
 options.optimise ?= yes
 
+options.sourceMap = options['source-map']
+options.sourceMapFile = options['source-map-file']
+
 
 # input validation
 
-unless options.compile or options.js or options['source-map'] or options.parse or options.eval or options.cscodegen
+unless options.compile or options.js or options.sourceMap or options.parse or options.eval or options.cscodegen
   if not escodegen?
     options.compile = on
   else if positionalArgs.length
@@ -68,7 +71,7 @@ unless options.compile or options.js or options['source-map'] or options.parse o
 
 # mutual exclusions
 # - p (parse), c (compile), j (js), source-map, e (eval), cscodegen, repl
-if 1 isnt (options.parse ? 0) + (options.compile ? 0) + (options.js ? 0) + (options['source-map'] ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
+if 1 isnt (options.parse ? 0) + (options.compile ? 0) + (options.js ? 0) + (options.sourceMap ? 0) + (options.eval ? 0) + (options.cscodegen ? 0) + (options.repl ? 0)
   console.error "Error: At most one of --parse (-p), --compile (-c), --js (-j), --source-map, --eval (-e), --cscodegen, or --repl may be used."
   process.exit 1
 
@@ -89,12 +92,12 @@ if options.minify and not (options.js or options.eval)
   process.exit 1
 
 # - b (bare) depends on escodegen and (c (compile) or e (eval)
-if options.bare and not (options.compile or options.js or options['source-map'] or options.eval)
+if options.bare and not (options.compile or options.js or options.sourceMap or options.eval)
   console.error 'Error: --bare does not make sense without --compile, --js, --source-map, or --eval'
   process.exit 1
 
 # - source-map-file depends on j (js)
-if options['source-map-file'] and not options.js
+if options.sourceMapFile and not options.js
   console.error 'Error: --source-map-file depends on --js'
   process.exit 1
 
@@ -203,7 +206,7 @@ else
     try
       result = CoffeeScript.parse input,
         optimise: no
-        raw: options.raw or options['source-map'] or options['source-map-file'] or options.eval
+        raw: options.raw or options.sourceMap or options.sourceMapFile or options.eval
         inputSource: inputSource
         literate: options.literate
     catch e
@@ -264,7 +267,7 @@ else
         console.error (e.stack or e.message)
         process.exit 1
 
-    if options['source-map']
+    if options.sourceMap
       # source map generation
       try sourceMap = CoffeeScript.sourceMap jsAST, inputName, compact: options.minify
       catch e
@@ -286,12 +289,12 @@ else
 
     # --js
     if options.js
-      if options['source-map-file']
-        fs.writeFileSync options['source-map-file'], "#{sourceMap}"
+      if options.sourceMapFile
+        fs.writeFileSync options.sourceMapFile, "#{sourceMap}"
         js = """
           #{js}
 
-          //# sourceMappingURL=#{options['source-map-file']}
+          //# sourceMappingURL=#{options.sourceMapFile}
         """
       output js
       return

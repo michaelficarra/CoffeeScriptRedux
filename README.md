@@ -41,8 +41,8 @@ wiki page.
 
 ### Development
 
-    git clone git://github.com/michaelficarra/CoffeeScriptRedux.git
-    make clean && git co lib && make -j build && make test
+    git clone git://github.com/michaelficarra/CoffeeScriptRedux.git && cd CoffeeScriptRedux && npm install
+    make clean && git checkout -- lib && make -j build && make test
 
 ### Notable Contributors
 

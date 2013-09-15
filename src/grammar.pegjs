@@ -933,6 +933,7 @@ macro
   / "__DATE__" { return rp(new CS.String((new Date).toDateString().slice(4))); }
   / "__TIME__" { return rp(new CS.String((new Date).toTimeString().slice(0, 8))); }
   / "__DATETIMEMS__" { return rp(new CS.Int(+new Date)); }
+  / "__COFFEE_VERSION__" { return rp(new CS.String("____VERSION____")); }
 
 
 bool

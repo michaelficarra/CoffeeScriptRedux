@@ -1,3 +1,4 @@
 dist
 lib/bootstrap
 coffee-script-redux-*.tgz
+node_modules

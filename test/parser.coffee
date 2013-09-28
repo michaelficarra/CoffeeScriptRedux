@@ -10,7 +10,7 @@ suite 'Parser', ->
 
   test 'simple error', -> @shouldNotParse '0+'
 
-  test 'jashkenas/coffee-script#1601', -> @shouldNotParse '@'
+  test 'jashkenas/coffee-script#1601', -> @shouldParse '@'
 
   test 'deeply nested expressions', ->
     @shouldParse '((((((((((((((((((((0))))))))))))))))))))'

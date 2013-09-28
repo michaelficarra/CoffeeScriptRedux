@@ -645,7 +645,7 @@ primaryExpression
   / null
   / undefined
   / contextVar
-  / r:THIS { return rp(new CS.This); }
+  / r:(THIS / "@") { return rp(new CS.This); }
   / identifier
   / range
   / arrayLiteral

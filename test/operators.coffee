@@ -56,6 +56,31 @@ suite 'Operators', ->
     obj = prototype: prop: nonce = {}
     eq nonce, (-> this::prop).call obj
 
+  test 'variously spaced divisions following a dynamic member access', ->
+    nonce = 242424242
+    p = 1
+    o = {1: nonce}
+
+    eq nonce, (o[1]/1)
+    eq nonce, (o[p]/1)
+    eq nonce, (o[1]/p)
+    eq nonce, (o[p]/p)
+
+    eq nonce, (o[1] /1)
+    eq nonce, (o[p] /1)
+    eq nonce, (o[1] /p)
+    eq nonce, (o[p] /p)
+
+    eq nonce, (o[1]/ 1)
+    eq nonce, (o[p]/ 1)
+    eq nonce, (o[1]/ p)
+    eq nonce, (o[p]/ p)
+
+    eq nonce, (o[1] / 1)
+    eq nonce, (o[p] / 1)
+    eq nonce, (o[1] / p)
+    eq nonce, (o[p] / p)
+
 
   suite 'Existential Operator (Binary)', ->
 

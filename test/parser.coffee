@@ -12,6 +12,9 @@ suite 'Parser', ->
 
   test 'jashkenas/coffee-script#1601', -> @shouldParse '@'
 
+  test '#242: a very specifically spaced division, by itself', ->
+    @shouldParse 'a[1]/ 1'
+
   test 'deeply nested expressions', ->
     @shouldParse '((((((((((((((((((((0))))))))))))))))))))'
     @shouldParse '++++++++++++++++++++0'

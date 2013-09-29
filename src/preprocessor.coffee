@@ -156,7 +156,7 @@ StringScanner = require 'StringScanner'
               lastChar = @ss.string()[pos - 2]
               spaceBefore = ///[#{ws}]///.test lastChar
               impliedRegexp = /[;,=><*%^&|[(+!~-]/.test lastChar
-            if pos is 1 or impliedRegexp or spaceBefore and not @ss.check ///[#{ws}=]///
+            if pos is 1 or impliedRegexp or spaceBefore and not (@ss.check ///[#{ws}=]///) and @ss.check /[^\r\n]*\//
               @observe '/'
         when '\\'
           if (@scan /[\s\S]/) then @observe 'end-\\'

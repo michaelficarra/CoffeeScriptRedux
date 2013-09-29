@@ -15,6 +15,9 @@ suite 'Parser', ->
   test '#242: a very specifically spaced division, by itself', ->
     @shouldParse 'a[1]/ 1'
 
+  test 'more oddly-spaced division', ->
+    @shouldParse 'f(a /b)'
+
   test 'deeply nested expressions', ->
     @shouldParse '((((((((((((((((((((0))))))))))))))))))))'
     @shouldParse '++++++++++++++++++++0'

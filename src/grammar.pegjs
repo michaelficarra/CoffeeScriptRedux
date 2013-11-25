@@ -346,9 +346,9 @@ expressionworthy
   / try
   / forOf
   / forIn
-  / class
   / switch
   / implicitObjectLiteral
+  / class
 
 
 seqExpression

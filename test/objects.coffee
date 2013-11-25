@@ -283,3 +283,29 @@ suite 'Object Literals', ->
       eq 2, obj.c.a
       eq 3, obj.c.b
       eq 4, obj.d
+
+    test '#258: object literals with a key named class', ->
+      a = class: 'b'
+      eq 'b', a.class
+
+    test '#259: object literals inside a class with a key named class', ->
+      class Bar
+        a: false
+        render: (x) ->
+          'rendered: ' + x
+
+      class Foo extends Bar
+        foo: 'bar'
+        attributes:
+          class: 'c'
+        render: ->
+          Bar::render.apply(this, arguments)
+
+      otherRender = ->
+        Bar::render.apply(this, arguments)
+
+      f = new Foo
+
+      eq f.attributes.class, 'c'
+      eq f.render('baz'), 'rendered: baz'
+      eq otherRender('baz'), 'rendered: baz'

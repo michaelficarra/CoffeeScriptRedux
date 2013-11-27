@@ -6,6 +6,7 @@ BOOTSTRAPS = $(SRC:src/%.coffee=lib/bootstrap/%.js) lib/bootstrap/parser.js
 LIBMIN = $(LIB:lib/%.js=lib/%.min.js)
 TEST = $(wildcard test/*.coffee | sort)
 ROOT = $(shell pwd)
+VERSION = $(shell node -e 'console.log(require("./package.json").version)')
 
 COFFEE = bin/coffee --js --bare
 PEGJS = node_modules/.bin/pegjs --cache --export-var 'module.exports'
@@ -30,8 +31,9 @@ lib/bootstrap: lib
 	mkdir -p lib/bootstrap
 
 
-lib/parser.js: src/grammar.pegjs bootstraps lib
-	$(PEGJS) <"$<" >"$@.tmp" && mv "$@.tmp" "$@"
+lib/parser.js: src/grammar.pegjs package.json bootstraps lib
+	$(PEGJS) <"$<" | sed "s/____VERSION____/$(VERSION)/" >"$@.tmp" \
+		&& mv "$@.tmp" "$@"
 lib/bootstrap/parser.js: src/grammar.pegjs lib/bootstrap
 	$(PEGJS) <"$<" >"$@"
 lib/bootstrap/%.js: src/%.coffee lib/bootstrap

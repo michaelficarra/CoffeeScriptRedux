@@ -6,7 +6,7 @@ BOOTSTRAPS = $(SRC:src/%.coffee=lib/bootstrap/%.js) lib/bootstrap/parser.js
 LIBMIN = $(LIB:lib/%.js=lib/%.min.js)
 TEST = $(wildcard test/*.coffee | sort)
 ROOT = $(shell pwd)
-VERSION = $(shell grep '"version"' package.json | head -1 | cut -f 4 -d '"')
+VERSION = $(shell node -e 'console.log(require("./package.json").version)')
 
 COFFEE = bin/coffee --js --bare
 PEGJS = node_modules/.bin/pegjs --cache --export-var 'module.exports'

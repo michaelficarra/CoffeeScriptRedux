@@ -302,7 +302,7 @@ else
     # --eval
     if options.eval
       CoffeeScript.register()
-      process.argv = ['coffee'].concat [].slice.call process.argv, 2
+      process.argv = [process.argv[1], options.input].concat additionalArgs
       runMain input, js, jsAST, inputSource
       return
 

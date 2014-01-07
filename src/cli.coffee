@@ -291,10 +291,15 @@ else
     if options.js
       if options.sourceMapFile
         fs.writeFileSync options.sourceMapFile, "#{sourceMap}"
+        sourceMappingUrl =
+          if options.output
+            path.relative (path.dirname options.output), options.sourceMapFile
+          else
+            options.sourceMapFile
         js = """
           #{js}
 
-          //# sourceMappingURL=#{options.sourceMapFile}
+          //# sourceMappingURL=#{sourceMappingUrl}
         """
       output js
       return

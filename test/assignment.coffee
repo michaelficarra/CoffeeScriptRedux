@@ -9,6 +9,12 @@ suite 'Assignment', ->
 
   suite 'Regular Assignment', ->
 
+    test 'assign to the result of an assignment', ->
+      nonce = {}
+      a = b = nonce
+      eq nonce, a
+      eq nonce, b
+
     test "context property assignment (using @)", ->
       nonce = {}
       addMethod = ->

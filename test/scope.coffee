@@ -7,6 +7,16 @@ suite 'Scope', ->
     throws -> b
     eq 'undefined', typeof b
 
+  test 'assignments within assignments', ->
+    throws -> a
+    throws -> b
+    fn = ->
+      a = b = 0
+      eq 'number', typeof a
+      eq 'number', typeof b
+    throws -> a
+    throws -> b
+
   test 'reassignments in a closure', ->
     a = false
     ok not a

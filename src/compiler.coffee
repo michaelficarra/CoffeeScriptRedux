@@ -393,6 +393,7 @@ class exports.Compiler
       [].unshift.apply block, otherHelpers
 
       decls = nub concatMap block, declarationsNeededRecursive
+      #decls = (new JS.Identifier name for name in envEnrichments @body, inScope)
       if decls.length > 0
         if options.bare
           block.unshift makeVarDeclaration decls
@@ -853,12 +854,15 @@ class exports.Compiler
         else right
       new JS.CallExpression (memberAccess expression, 'slice'), args
     ]
-    [CS.ExistsOp, ({left, right, inScope}) ->
-      e = if needsCaching @left then genSym 'cache' else expr left
+    [CS.ExistsOp, ({left, right, ancestry, inScope}) ->
+      if usedAsExpression this, ancestry
+        left = expr left
+        right = expr right
+      e = if needsCaching @left then genSym 'cache' else left
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
       if (e.instanceof JS.Identifier) and e.name not in inScope
         condition = new JS.LogicalExpression '&&', (new JS.BinaryExpression '!==', (new JS.Literal 'undefined'), new JS.UnaryExpression 'typeof', e), condition
-      node = new JS.ConditionalExpression condition, e, expr right
+      node = new JS.ConditionalExpression condition, e, right
       if e is left then node
       else new JS.SequenceExpression [(new JS.AssignmentExpression '=', e, left), node]
     ]

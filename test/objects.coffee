@@ -282,6 +282,13 @@ suite 'Object Literals', ->
       eq 3, obj.c.b
       eq 4, obj.d
 
+    test '#266: inline implicit object literals within multiline implicit object literals', ->
+      x =
+        a: aa: 0
+        b: 0
+      eq 0, x.b
+      eq 0, x.a.aa
+
     test '#258: object literals with a key named class', ->
       a = class: 'b'
       eq 'b', a.class

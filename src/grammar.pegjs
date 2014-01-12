@@ -913,7 +913,8 @@ implicitObjectLiteral
         return rp(new CS.ObjectInitialiserMember(key, val));
       }
   implicitObjectLiteralMemberValue
-    = expression
+    = singleLineImplicitObjectLiteral
+    / expression
     / TERMINDENT o:implicitObjectLiteral DEDENT { return o; }
 singleLineImplicitObjectLiteral
   = members:singleLineImplicitObjectLiteralMemberList {

@@ -91,26 +91,36 @@ usedAsExpression_ = (ancestors) ->
 # Note: these are enrichments of the *surrounding* environment; while function
 # parameters do enrich *an* environment, that environment is newly created
 envEnrichments_ = (inScope = []) ->
-  possibilities = switch
-    when @instanceof CS.AssignOp then nub beingDeclared @assignee
+  possibilities = nub switch
+    when @instanceof CS.AssignOp
+      concat [
+        beingDeclared @assignee
+        envEnrichments @expression
+      ]
     when @instanceof CS.Class
-      nub concat [
+      concat [
         beingDeclared @nameAssignee
         envEnrichments @parent
-        if name? then [name] else []
       ]
     when @instanceof CS.ForIn, CS.ForOf
-      nub concat [
-        concatMap @childNodes, (child) =>
-          if child in @listMembers
-          then concatMap this[child], (m) -> envEnrichments m, inScope
-          else envEnrichments this[child], inScope
+      concat [
         beingDeclared @keyAssignee
         beingDeclared @valAssignee
+        envEnrichments @target
+        envEnrichments @step
+        envEnrichments @filter
+        envEnrichments @body
+      ]
+    when @instanceof CS.Try
+      concat [
+        beingDeclared @catchAssignee
+        envEnrichments @body
+        envEnrichments @catchBody
+        envEnrichments @finallyBody
       ]
     when @instanceof CS.Functions then []
     else
-      nub concatMap @childNodes, (child) =>
+      concatMap @childNodes, (child) =>
         if child in @listMembers
         then concatMap this[child], (m) -> envEnrichments m, inScope
         else envEnrichments this[child], inScope

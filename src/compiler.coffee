@@ -65,11 +65,11 @@ expr = (s) ->
       s.body.body.push push helpers.undef()
     block = new JS.BlockStatement [s, new JS.ReturnStatement accum]
     iife = new JS.FunctionExpression null, [accum], block
-    new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression, new JS.ArrayExpression []]
+    new JS.CallExpression (memberAccess iife.g(), 'call'), [new JS.ThisExpression, new JS.ArrayExpression []]
   else if s.instanceof JS.SwitchStatement, JS.TryStatement
     block = new JS.BlockStatement [makeReturn s]
     iife = new JS.FunctionExpression null, [], block
-    new JS.CallExpression (memberAccess iife, 'call'), [new JS.ThisExpression]
+    new JS.CallExpression (memberAccess iife.g(), 'call'), [new JS.ThisExpression]
   else
     # TODO: comprehensive
     throw new Error "expr: Cannot use a #{s.type} as a value"
@@ -118,7 +118,7 @@ declarationsNeeded = (node) ->
 declarationsNeededRecursive = (node) ->
   return [] unless node?
   # don't cross scope boundaries
-  if node.instanceof JS.FunctionExpression, JS.FunctionDeclaration then []
+  if (node.instanceof JS.FunctionExpression, JS.FunctionDeclaration) and not node.generated then []
   else union (declarationsNeeded node), concatMap node.childNodes, (childName) ->
     # TODO: this should make use of an fmap method
     return [] unless node[childName]?
@@ -393,7 +393,6 @@ class exports.Compiler
       [].unshift.apply block, otherHelpers
 
       decls = nub concatMap block, declarationsNeededRecursive
-      #decls = (new JS.Identifier name for name in envEnrichments @body, inScope)
       if decls.length > 0
         if options.bare
           block.unshift makeVarDeclaration decls
@@ -713,7 +712,7 @@ class exports.Compiler
         else rewriteThis this
       rewriteThis block
 
-      iife = new JS.CallExpression (new JS.FunctionExpression null, params, block), args
+      iife = new JS.CallExpression (new JS.FunctionExpression null, params, block).g(), args
       if nameAssignee? then assignment nameAssignee, iife else iife
     ]
     [CS.Constructor, ({expression}) ->
@@ -1012,7 +1011,7 @@ class exports.Compiler
       children.ancestry = ancestry
       children.options = options
       children.compile = (node) ->
-        walk.call node.g(), fn, inScope, ancestry
+        walk.call node, fn, inScope, ancestry
 
       do ancestry.shift
       jsNode = fn.call this, children
@@ -1055,7 +1054,7 @@ class exports.Compiler
           newNode = new JS.Identifier generateName this, state
           usedSymbols.push newNode.name
           newNode
-        else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration
+        else if (@instanceof JS.FunctionExpression, JS.FunctionDeclaration) and not @generated
           params = concatMap @params, collectIdentifiers
           nsCounters_ = {}
           nsCounters_[k] = v for own k, v of nsCounters

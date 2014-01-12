@@ -69,12 +69,19 @@ suite 'Scope', ->
       ok not p
     fn nonce
 
-  # DISABLED DUE TO BUG: see issue #46
-  #test 'declarations in a loop used as a value', ->
-  #  a = 1
-  #  a = while a--
-  #    b = 1
-  #  ok b
+  test '#46: declarations in a loop used as a value', ->
+    a = 0
+    a = while a--
+      b = 1
+    eq undefined, b
+
+  test '#46: declarations in a switch used as a value', ->
+    b = 0
+    c = 1
+    x = switch c
+      when 0 then a = b
+      else a = c
+    eq 1, a
 
   test 'loop iterators available within the loop', ->
     for v, k in [1]

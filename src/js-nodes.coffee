@@ -131,3 +131,11 @@ handleLists SwitchCase, ['consequent']
 handleLists SwitchStatement, ['cases']
 handleLists TryStatement, ['handlers']
 handleLists VariableDeclaration, ['declarations']
+
+# Functions need to be marked as generated when used as IIFE for converting
+# statements to expressions so they may be ignored when doing auto-declaration
+
+FunctionDeclaration::generated = FunctionExpression::generated = false
+FunctionDeclaration::g = FunctionExpression::g = ->
+  @generated = yes
+  this

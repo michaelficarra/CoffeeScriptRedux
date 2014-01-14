@@ -178,15 +178,16 @@ dynamicMemberAccess = (e, index) ->
 # TODO: rewrite this whole thing using the CS AST nodes
 assignment = (assignee, expression, valueUsed = no) ->
   assignments = []
+  expression = expr expression
   switch
     when assignee.rest then # do nothing for right now
     when assignee.instanceof JS.ArrayExpression
-      e = expr expression
+      e = expression
       # TODO: only cache expression when it needs it
       #if valueUsed or @assignee.members.length > 1 and needsCaching @expression
       if valueUsed or assignee.elements.length > 1
         e = genSym 'cache'
-        assignments.push new JS.AssignmentExpression '=', e, expr expression
+        assignments.push new JS.AssignmentExpression '=', e, expression
 
       elements = assignee.elements
 

@@ -314,3 +314,15 @@ suite 'Object Literals', ->
       eq f.attributes.class, 'c'
       eq f.render('baz'), 'rendered: baz'
       eq otherRender('baz'), 'rendered: baz'
+
+    test '#253: indented value', ->
+      nonce = {}
+      o = {
+        a:
+          nonce
+      }
+      eq nonce, o.a
+      o =
+        a:
+          nonce
+      eq nonce, o.a

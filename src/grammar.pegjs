@@ -915,7 +915,7 @@ implicitObjectLiteral
   implicitObjectLiteralMemberValue
     = singleLineImplicitObjectLiteral
     / expression
-    / TERMINDENT o:implicitObjectLiteral DEDENT { return o; }
+    / TERMINDENT o:expression DEDENT { return o; }
 singleLineImplicitObjectLiteral
   = members:singleLineImplicitObjectLiteralMemberList {
     return rp(new CS.ObjectInitialiser(members));

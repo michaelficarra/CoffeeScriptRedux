@@ -633,7 +633,7 @@ class exports.Compiler
             ]), new JS.BlockStatement [stmt new JS.AssignmentExpression '=', paramName, new JS.ArrayExpression []]
             for p, i in parameters[index...]
               reassignments.consequent.body.push stmt new JS.AssignmentExpression '=', p, new JS.MemberExpression yes, (new JS.Identifier 'arguments'), new JS.BinaryExpression '-', numArgs, new JS.Literal numParams - index - i
-            block.body.unshift reassignments
+            block.body.unshift (makeVarDeclaration [paramName]), reassignments
           if any parameters, (p) -> p.rest
             throw new Error 'Parameter lists may not have more than one rest operator'
 

@@ -214,3 +214,13 @@ suite 'Function Literals', ->
       (->) ->
         a = Math.random()
         if a then throw {}
+
+    test '#270: splat in parameter list should shadow outer variables', ->
+      a = nonceA = {}
+      b = nonceB = {}
+      f0 = (a..., b) ->
+      f1 = (a, b...) ->
+      f0()
+      f1()
+      eq nonceA, a
+      eq nonceB, b

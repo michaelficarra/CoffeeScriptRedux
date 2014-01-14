@@ -133,6 +133,12 @@ suite 'Operators', ->
       d = (if a then b else c()) ? c
       eq nonce, d
 
+    test '#85: binary existential with cached LHS', ->
+      a = {b: ->}
+      c = true
+      a?.b() ? c
+      return
+
 
   suite 'Existential Operator (Unary)', ->
 

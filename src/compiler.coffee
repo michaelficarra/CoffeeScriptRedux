@@ -855,9 +855,8 @@ class exports.Compiler
       new JS.CallExpression (memberAccess expression, 'slice'), args
     ]
     [CS.ExistsOp, ({left, right, ancestry, inScope}) ->
-      if usedAsExpression this, ancestry
-        left = expr left
-        right = expr right
+      left = expr left
+      right = expr right
       e = if needsCaching @left then genSym 'cache' else left
       condition = new JS.BinaryExpression '!=', (new JS.Literal null), e
       if (e.instanceof JS.Identifier) and e.name not in inScope

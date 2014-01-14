@@ -224,3 +224,9 @@ suite 'Function Literals', ->
       f1()
       eq nonceA, a
       eq nonceB, b
+
+    test '#273: destructuring in parameter list should shadow outer variables', ->
+      x = nonce = {}
+      f = ({x}) -> x
+      f {x: 1}
+      eq nonce, x

@@ -1,4 +1,4 @@
-{any, concat, concatMap, difference, divMod, foldl1, map, nub, owns, partition, span, union} = require './functional-helpers'
+{any, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -124,6 +124,18 @@ declarationsNeededRecursive = (node) ->
     return [] unless node[childName]?
     if childName in node.listMembers then concatMap node[childName], declarationsNeededRecursive
     else declarationsNeededRecursive node[childName]
+
+variableDeclarations = (node) ->
+  return [] unless node?
+  # don't cross scope boundaries
+  if node.instanceof JS.FunctionDeclaration then [node.id]
+  else if (node.instanceof JS.FunctionExpression) and not node.generated then []
+  else if node.instanceof JS.VariableDeclarator then [node.id]
+  else concatMap node.childNodes, (childName) ->
+    # TODO: this should make use of an fmap method
+    return [] unless node[childName]?
+    if childName in node.listMembers then concatMap node[childName], variableDeclarations
+    else variableDeclarations node[childName]
 
 collectIdentifiers = (node) -> nub switch
   when !node? then []
@@ -582,20 +594,22 @@ class exports.Compiler
     [CS.DefaultParam, ({param, default: d}) -> {param, default: d}]
     [CS.Function, CS.BoundFunction, do ->
 
-      handleParam = (param, original, block) -> switch
+      handleParam = (param, original, block, inScope) -> switch
         when original.instanceof CS.Rest then param # keep these for special processing later
         when original.instanceof CS.Identifier then param
         when original.instanceof CS.MemberAccessOps, CS.ObjectInitialiser, CS.ArrayInitialiser
           p = genSym 'param'
+          decls = map (intersect inScope, beingDeclared original), (i) -> new JS.Identifier i
           block.body.unshift stmt assignment param, p
+          block.body.unshift makeVarDeclaration decls if decls.length
           p
         when original.instanceof CS.DefaultParam
-          p = handleParam.call this, param.param, original.param, block
+          p = handleParam.call this, param.param, original.param, block, inScope
           block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), p), stmt assignment p, param.default
           p
         else throw new Error "Unsupported parameter type: #{original.className}"
 
-      ({parameters, body, ancestry}) ->
+      ({parameters, body, ancestry, inScope}) ->
         unless ancestry[0]?.instanceof CS.Constructor
           body = makeReturn body
         block = forceBlock body
@@ -608,7 +622,7 @@ class exports.Compiler
           else
             pIndex = parameters.length
             while pIndex--
-              handleParam.call this, parameters[pIndex], @parameters[pIndex], block
+              handleParam.call this, parameters[pIndex], @parameters[pIndex], block, inScope
         parameters = parameters_.reverse()
 
         if parameters.length > 0
@@ -1064,6 +1078,7 @@ class exports.Compiler
             nsCounters: nsCounters_
           newNode.body = forceBlock newNode.body
           undeclared = map (declarationsNeededRecursive @body), (id) -> id.name
+          undeclared = difference undeclared, map (variableDeclarations @body), (id) -> id.name
           alreadyDeclared = union declaredSymbols, concatMap @params, collectIdentifiers
           declNames = nub difference undeclared, alreadyDeclared
           decls = map declNames, (name) -> new JS.Identifier name

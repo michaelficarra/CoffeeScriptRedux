@@ -150,3 +150,26 @@ suite 'Parser', ->
     #{b}
       c
       """
+
+  suite 'raw value preservation', ->
+
+    test 'basic indentation', ->
+      ast = parse '''
+      fn = ->
+        body
+      ''', raw: yes
+      eq 'fn = ->\n  body', ast.raw
+
+    test 'numbers', ->
+      ast = parse '0x0', raw: yes
+      eq '0x0', ast.body.statements[0].raw
+
+  suite 'position/offset preservation', ->
+
+    test 'basic indentation', ->
+      ast = parse '''
+      fn = ->
+        body
+      ''', raw: yes
+      eq 3, ast.body.statements[0].expression.body.statements[0].column
+      eq 11, ast.body.statements[0].expression.body.statements[0].offset

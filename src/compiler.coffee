@@ -530,7 +530,7 @@ class exports.Compiler
     [CS.Throw, ({expression}) -> new JS.ThrowStatement expression]
 
     # data structures
-    [CS.Range, ({left: left_, right: right_}) ->
+    [CS.Range, ({left: left_, right: right_, ancestry}) ->
       # enumerate small integral ranges
       if ((@left.instanceof CS.Int) or  ((@left.instanceof CS.UnaryNegateOp) and  @left.expression.instanceof CS.Int)) and
       (  (@right.instanceof CS.Int) or ((@right.instanceof CS.UnaryNegateOp) and @right.expression.instanceof CS.Int))
@@ -564,7 +564,10 @@ class exports.Compiler
 
       body.push new JS.ForStatement vars, condition, update, stmt new JS.CallExpression (memberAccess accum, 'push'), [i]
       body.push new JS.ReturnStatement accum
-      new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement body), 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
+      if any ancestry, (ancestor) -> ancestor.instanceof CS.Functions
+        new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement body), 'apply'), [new JS.ThisExpression, new JS.Identifier 'arguments']
+      else
+        new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement body), 'call'), [new JS.ThisExpression]
     ]
     [CS.ArrayInitialiser, do ->
       groupMembers = (members) ->

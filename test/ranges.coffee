@@ -79,3 +79,7 @@ suite 'Range Literals', ->
     arrayEq expected, argsAtEnd
     argsAtBoth = (-> [arguments[0]..arguments[1]]) 0, 9
     arrayEq expected, argsAtBoth
+
+  test '#257: do not reference `arguments` outside of function context', ->
+    eq -1, (CoffeeScript.cs2js 'f [a..b]').indexOf 'arguments'
+    neq -1, ((CoffeeScript.cs2js 'fn -> f arguments, [a..b]').replace 'arguments', 'a').indexOf 'arguments'

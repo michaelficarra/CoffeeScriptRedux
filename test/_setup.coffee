@@ -20,7 +20,8 @@ arrayEgal = (a, b) ->
     return no for el, idx in a when not arrayEgal el, b[idx]
     yes
 
-global.eq      = (a, b, msg) -> ok egal(a, b), msg ? "#{inspect a} === #{inspect b}"
+global.eq      = (a, b, msg) -> ok (egal a, b), msg ? "#{inspect a} === #{inspect b}"
+global.neq     = (a, b, msg) -> ok (not egal a, b), msg ? "#{inspect a} !== #{inspect b}"
 global.arrayEq = (a, b, msg) -> ok arrayEgal(a,b), msg ? "#{inspect a} === #{inspect b}"
 
 

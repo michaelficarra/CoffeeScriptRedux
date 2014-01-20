@@ -80,6 +80,57 @@ StringScanner = require 'StringScanner'
 
   scan: (r) -> @p @ss.scan r
 
+  consumeIndentation: ->
+    if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
+      @scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n )+ ///
+
+      # consume base indentation
+      if @base?
+        if not (@ss.eos() or (@scan @base)?)
+          throw new Error "inconsistent base indentation"
+      else
+        @base = /// #{@scan /// [#{ws}]* ///} ///
+
+      # move through each level of indentation
+      indentIndex = 0
+      while indentIndex < @indents.length
+        indent = @indents[indentIndex]
+        if @ss.check /// #{indent} ///
+          # an existing indent
+          @scan /// #{indent} ///
+        else if @ss.eos() or @ss.check /// [^#{ws}] ///
+          # we lost an indent
+          @indents.splice indentIndex, 1
+          --indentIndex
+          @p "#{DEDENT}#{TERM}"
+          @observe DEDENT
+        else
+          # Some ambiguous dedent
+          lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
+          message = "Syntax error on line #{lines.length}: indentation is ambiguous"
+          lineLen = @indents.reduce ((l, r) -> l + r.length), 0
+          context = pointToErrorLocation @ss.str, lines.length, lineLen
+          throw new Error "#{message}\n#{context}"
+        ++indentIndex
+      if @ss.check /// [#{ws}]+ [^#{ws}#] ///
+        # an indent
+        @indents.push @scan /// [#{ws}]+ ///
+        @p INDENT
+        @observe INDENT
+
+  introduceContext: ->
+    if tok = @scan /"""|'''|\/\/\/|###|["'`#[({\\]/
+      @observe tok
+    else if tok = @scan /\//
+      # unfortunately, we must look behind us to determine if this is a regexp or division
+      pos = @ss.position()
+      if pos > 1
+        lastChar = @ss.string()[pos - 2]
+        spaceBefore = ///[#{ws}]///.test lastChar
+        impliedRegexp = /[;,=><*%^&|[(+!~-]/.test lastChar
+      if pos is 1 or impliedRegexp or spaceBefore and not (@ss.check ///[#{ws}=]///) and @ss.check /[^\r\n]*\//
+        @observe '/'
+
   process: (input) ->
     if @options.literate
       input = input.replace /^( {0,3}\S)/gm, '    #$1'
@@ -87,77 +138,41 @@ StringScanner = require 'StringScanner'
 
     until @ss.eos()
       switch @peek()
-        when null, INDENT, '#{', '[', '(', '{'
-          if @ss.bol() or @scan /// (?:[#{ws}]* \n)+ ///
 
-            @scan /// (?: [#{ws}]* (\#\#?(?!\#)[^\n]*)? \n )+ ///
+        when null, INDENT
+          @consumeIndentation()
+          @scan /[^\n'"\\\/#`[(){}\]]+/
+          if @ss.check /[})\]]/
+            while @peek() is INDENT
+              @indents.pop()
+              @p "#{DEDENT}#{TERM}"
+              @observe DEDENT
+            @observe @scan /[})\]]/
+          else
+            @introduceContext()
 
-            # consume base indentation
-            if @base?
-              if not (@ss.eos() or (@scan @base)?)
-                throw new Error "inconsistent base indentation"
-            else
-              @base = /// #{@scan /// [#{ws}]* ///} ///
-
-            # move through each level of indentation
-            indentIndex = 0
-            while indentIndex < @indents.length
-              indent = @indents[indentIndex]
-              if @ss.check /// #{indent} ///
-                # an existing indent
-                @scan /// #{indent} ///
-              else if @ss.eos() or @ss.check /// [^#{ws}] ///
-                # we lost an indent
-                @indents.splice indentIndex, 1
-                --indentIndex
-                @observe DEDENT
-                @p "#{DEDENT}#{TERM}"
-              else
-                # Some ambiguous dedent
-                lines = @ss.str.substr(0, @ss.pos).split(/\n/) || ['']
-                message = "Syntax error on line #{lines.length}: indentation is ambiguous"
-                lineLen = @indents.reduce ((l, r) -> l + r.length), 0
-                context = pointToErrorLocation @ss.str, lines.length, lineLen
-                throw new Error "#{message}\n#{context}"
-              ++indentIndex
-            if @ss.check /// [#{ws}]+ [^#{ws}#] ///
-              # an indent
-              @indents.push @scan /// [#{ws}]+ ///
-              @observe INDENT
-              @p INDENT
-
-          tok = switch @peek()
-            when '['
-              # safe things, but not closing bracket
-              @scan /[^\n'"\\\/#`[({\]]+/
-              @scan /\]/
-            when '('
-              # safe things, but not closing paren
-              @scan /[^\n'"\\\/#`[({)]+/
-              @scan /\)/
-            when '#{', '{'
-              # safe things, but not closing brace
-              @scan /[^\n'"\\\/#`[({}]+/
-              @scan /\}/
-            else
-              # scan safe characters (anything that doesn't *introduce* context)
-              @scan /[^\n'"\\\/#`[({]+/
-              null
-          if tok
+        when '#{', '{'
+          @scan /[^\n'"\\\/#`[({}]+/
+          if tok = @scan /\}/
             @observe tok
-            continue
-
-          if tok = @scan /"""|'''|\/\/\/|###|["'`#[({\\]/
+          else
+            @consumeIndentation()
+            @introduceContext()
+        when '['
+          @scan /[^\n'"\\\/#`[({\]]+/
+          if tok = @scan /\]/
             @observe tok
-          else if tok = @scan /\//
-            # unfortunately, we must look behind us to determine if this is a regexp or division
-            pos = @ss.position()
-            if pos > 1
-              lastChar = @ss.string()[pos - 2]
-              spaceBefore = ///[#{ws}]///.test lastChar
-              impliedRegexp = /[;,=><*%^&|[(+!~-]/.test lastChar
-            if pos is 1 or impliedRegexp or spaceBefore and not (@ss.check ///[#{ws}=]///) and @ss.check /[^\r\n]*\//
-              @observe '/'
+          else
+            @consumeIndentation()
+            @introduceContext()
+        when '('
+          @scan /[^\n'"\\\/#`[({)]+/
+          if tok = @scan /\)/
+            @observe tok
+          else
+            @consumeIndentation()
+            @introduceContext()
+
         when '\\'
           if (@scan /[\s\S]/) then @observe 'end-\\'
           # TODO: somehow prevent indent tokens from being inserted after these newlines
@@ -229,11 +244,11 @@ StringScanner = require 'StringScanner'
     while @context.length
       switch @peek()
         when INDENT
-          @observe DEDENT
           @p "#{DEDENT}#{TERM}"
+          @observe DEDENT
         when '#'
-          @observe '\n'
           @p '\n'
+          @observe '\n'
         else
           # TODO: store offsets of tokens when inserted and report position of unclosed starting token
           throw new Error "Unclosed \"#{@peek().replace /"/g, '\\"'}\" at EOF"

@@ -498,3 +498,13 @@ suite 'Function Invocation', ->
       ok k
       --k
     ok not k
+
+  test '#140: parentheses close all internal indentation', ->
+    nonce = {}
+    id = (x) -> x
+    eq nonce, (->
+      nonce)()
+    eq nonce, id(
+      nonce)
+    eq nonce, {a: ->
+      nonce}.a()

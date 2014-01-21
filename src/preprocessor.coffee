@@ -47,7 +47,7 @@ StringScanner = require 'StringScanner'
     switch c
       # opening token is closing token
       when '"""', '\'\'\'', '"', '\'', '###', '`', '///', '/'
-        if top is c then do @context.pop
+        if top is c then @context.pop()
         else @context.push c
       # strictly opening tokens
       when INDENT, '#', '#{', '[', '(', '{', '\\', 'regexp-[', 'regexp-(', 'regexp-{', 'heregexp-#', 'heregexp-[', 'heregexp-(', 'heregexp-{'
@@ -55,22 +55,23 @@ StringScanner = require 'StringScanner'
       # strictly closing tokens
       when DEDENT
         (@err c) unless top is INDENT
-        do @context.pop
+        @indents.pop()
+        @context.pop()
       when '\n'
         (@err c) unless top in ['#', 'heregexp-#']
-        do @context.pop
+        @context.pop()
       when ']'
         (@err c) unless top in ['[', 'regexp-[', 'heregexp-[']
-        do @context.pop
+        @context.pop()
       when ')'
         (@err c) unless top in ['(', 'regexp-(', 'heregexp-(']
-        do @context.pop
+        @context.pop()
       when '}'
         (@err c) unless top in ['#{', '{', 'regexp-{', 'heregexp-{']
-        do @context.pop
+        @context.pop()
       when 'end-\\'
         (@err c) unless top is '\\'
-        do @context.pop
+        @context.pop()
       else throw new Error "undefined token observed: " + c
     @context
 
@@ -100,7 +101,6 @@ StringScanner = require 'StringScanner'
           @scan /// #{indent} ///
         else if @ss.eos() or @ss.check /// [^#{ws}] ///
           # we lost an indent
-          @indents.splice indentIndex, 1
           --indentIndex
           @p "#{DEDENT}#{TERM}"
           @observe DEDENT
@@ -144,7 +144,6 @@ StringScanner = require 'StringScanner'
           @scan /[^\n'"\\\/#`[(){}\]]+/
           if @ss.check /[})\]]/
             while @peek() is INDENT
-              @indents.pop()
               @p "#{DEDENT}#{TERM}"
               @observe DEDENT
             @observe @scan /[})\]]/

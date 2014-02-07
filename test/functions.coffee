@@ -87,6 +87,12 @@ suite 'Function Literals', ->
     #  arrayEq [0, 1], (((splat..., _, _1) -> splat) 0, 1, 2, 3)
     #  arrayEq [2], (((_, _1, splat..., _2) -> splat) 0, 1, 2, 3)
 
+    test "function length with splats", ->
+      eq 0, ((splat...) ->).length
+      eq 2, ((_, _1, splat...) ->).length
+      eq 2, ((splat..., _, _1) ->).length
+      eq 3, ((_, _1, splat..., _2) ->).length
+
     #test "destructured splatted parameters", ->
     #  arr = [0,1,2]
     #  splatArray = ([a...]) -> a

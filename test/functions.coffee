@@ -239,3 +239,5 @@ suite 'Function Literals', ->
 
     test '#288: at-splat', ->
       (@a...) ->
+      (a, @b...) ->
+      (@a..., b) ->

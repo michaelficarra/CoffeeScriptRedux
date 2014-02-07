@@ -40,7 +40,7 @@ patchStackTrace = ->
       break if frame.getFunction() is exports.runMain
       "  at #{formatSourcePosition frame, getSourceMapping}"
 
-    "#{err.name}: #{err.message ? ''}\n#{frames.join '\n'}\n"
+    "#{err.toString()}\n#{frames.join '\n'}\n"
 
 # Based on http://v8.googlecode.com/svn/branches/bleeding_edge/src/messages.js
 # Modified to handle sourceMap

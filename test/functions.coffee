@@ -236,3 +236,8 @@ suite 'Function Literals', ->
       f = ({x}) -> x
       f {x: 1}
       eq nonce, x
+
+    test '#288: at-splat', ->
+      (@a...) ->
+      (a, @b...) ->
+      (@a..., b) ->

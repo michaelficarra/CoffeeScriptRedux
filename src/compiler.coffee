@@ -630,12 +630,12 @@ class exports.Compiler
 
         if parameters.length > 0
           if parameters[-1..][0].rest
+            paramName = parameters.pop().expression
             numParams = parameters.length
-            paramName = parameters[numParams - 1] = parameters[numParams - 1].expression
-            test = new JS.BinaryExpression '<=', (new JS.Literal numParams), memberAccess (new JS.Identifier 'arguments'), 'length'
-            consequent = helpers.slice (new JS.Identifier 'arguments'), new JS.Literal (numParams - 1)
+            test = new JS.BinaryExpression '>', (memberAccess (new JS.Identifier 'arguments'), 'length'), new JS.Literal numParams
+            consequent = helpers.slice (new JS.Identifier 'arguments'), new JS.Literal numParams
             alternate = new JS.ArrayExpression []
-            block.body.unshift stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
+            block.body.unshift (makeVarDeclaration [paramName]), stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
           else if any parameters, (p) -> p.rest
             paramName = index = null
             for p, i in parameters when p.rest

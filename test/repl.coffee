@@ -27,12 +27,14 @@ suite 'REPL', ->
   historyFile = path.join __dirname, 'coffee_history_test'
   process.on 'exit', -> fs.unlinkSync historyFile
 
-  testRepl = (desc, fn) ->
+  testRepl = (desc, fn, testFn = test) ->
     input = new MockInputStream
     output = new MockOutputStream
     repl = Repl.start {input, output, historyFile}
-    test desc, -> fn input, output, repl
+    testFn desc, -> fn input, output, repl
     repl.emit 'exit'
+
+  testRepl.skip = (desc, fn) -> testRepl desc, fn, test.skip
 
   ctrlV = { ctrl: true, name: 'v'}
 
@@ -109,11 +111,11 @@ suite 'REPL', ->
     repl = Repl.start {input, output, historyFile}
     arrayEq ['1', '0'], repl.rli.history
 
-  #testRepl 'writes history to persistence file', (input, output, repl) ->
-  #  fs.writeFileSync historyFile, ''
-  #  input.emitLine '2'
-  #  input.emitLine '3'
-  #  eq '2\n3\n', (fs.readFileSync historyFile).toString()
+  testRepl.skip 'writes history to persistence file', (input, output, repl) -> # Fails in node <= 0.8.
+    fs.writeFileSync historyFile, ''
+    input.emitLine '2'
+    input.emitLine '3'
+    eq '2\n3\n', (fs.readFileSync historyFile).toString()
 
   testRepl '.history shows history', (input, output, repl) ->
     repl.rli.history = history = ['1', '2', '3']
@@ -121,15 +123,15 @@ suite 'REPL', ->
     input.emitLine '.history'
     eq (history.reverse().join '\n'), output.lastWrite 1
 
-  #testRepl '.clear clears history', (input, output, repl) ->
-  #  input = new MockInputStream
-  #  output = new MockOutputStream
-  #  fs.writeFileSync historyFile, ''
-  #  repl = Repl.start {input, output, historyFile}
-  #  input.emitLine '0'
-  #  input.emitLine '1'
-  #  eq '0\n1\n', (fs.readFileSync historyFile).toString()
-  #  #arrayEq ['1', '0'], repl.rli.history
-  #  input.emitLine '.clear'
-  #  eq '.clear\n', (fs.readFileSync historyFile).toString()
-  #  #arrayEq ['.clear'], repl.rli.history
+  testRepl.skip '.clear clears history', (input, output, repl) -> # Fails in node <= 0.8.
+    input = new MockInputStream
+    output = new MockOutputStream
+    fs.writeFileSync historyFile, ''
+    repl = Repl.start {input, output, historyFile}
+    input.emitLine '0'
+    input.emitLine '1'
+    eq '0\n1\n', (fs.readFileSync historyFile).toString()
+    #arrayEq ['1', '0'], repl.rli.history
+    input.emitLine '.clear'
+    eq '.clear\n', (fs.readFileSync historyFile).toString()
+    #arrayEq ['.clear'], repl.rli.history

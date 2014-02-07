@@ -15,24 +15,24 @@ suite 'Function Invocation', ->
     eq a, (id a)
     eq c, (id a, b, c)[2]
 
-  #test "passing arguments on separate lines", ->
-  #  a = {}
-  #  b = {}
-  #  c = {}
-  #  ok(id(
-  #    a
-  #    b
-  #    c
-  #  )[1] is b)
-  #  eq(0, id(
-  #    0
-  #    10
-  #  )[0])
-  #  eq(a,id(
-  #    a
-  #  ))
-  #  eq b,
-  #  (id b)
+  test "passing arguments on separate lines", ->
+    a = {}
+    b = {}
+    c = {}
+    ok(id(
+      a
+      b
+      c
+    )[1] is b)
+    eq(0, id(
+      0
+      10
+    )[0])
+    eq(a,id(
+      a
+    ))
+    eq b,
+    (id b)
 
   test "optional parens can be used in a nested fashion", ->
     call = (func) -> func()
@@ -74,13 +74,13 @@ suite 'Function Invocation', ->
     eq nonce, identityWrap(identityWrap(nonce))()()
     eq nonce, (identityWrap identityWrap nonce)()()
 
-  #test "Multi-blocks with optional parens.", ->
-  #  fn = (arg) -> arg
-  #  result = fn( ->
-  #    fn ->
-  #      "Wrapped"
-  #  )
-  #  ok result()() is 'Wrapped'
+  test "Multi-blocks with optional parens.", ->
+    fn = (arg) -> arg
+    result = fn( ->
+      fn ->
+        "Wrapped"
+    )
+    ok result()() is 'Wrapped'
 
   test "method calls", ->
     fnId = (fn) -> -> fn.apply this, arguments
@@ -92,13 +92,13 @@ suite 'Function Invocation', ->
     eq 20, obj.anonymousAdd 10, 10
     eq 40, obj.fastAdd (20), 20
 
-  #test "Ensure that functions can have a trailing comma in their argument list", ->
-  #  mult = (x, mids..., y) ->
-  #    x *= n for n in mids
-  #    x *= y
-  #  ok mult(1, 2,) is 2
-  #  ok mult(1, 2, 3,) is 6
-  #  ok mult(10, (i for i in [1..6])...) is 7200
+  test "Ensure that functions can have a trailing comma in their argument list", ->
+    mult = (x, mids..., y) ->
+      x *= n for n in mids
+      x *= y
+    ok mult(1, 2,) is 2
+    ok mult(1, 2, 3,) is 6
+    ok mult(10, (i for i in [1..6])...) is 7200
 
   test "`this` should be able to invoke a function", ->
     nonce = {}
@@ -113,13 +113,13 @@ suite 'Function Invocation', ->
       'orange'
     ok a is '13 apple orange'
 
-  #test "Ensure that empty functions don't return mistaken values.", ->
-  #  obj = {func: (@param, @rest...) ->}
-  #  ok obj.func(101, 102, 103, 104) is undefined
-  #  ok obj.param is 101
-  #  ok obj.rest.join(' ') is '102 103 104'
+  test "Ensure that empty functions don't return mistaken values.", ->
+    obj = {func: (@param, @rest...) ->}
+    ok obj.func(101, 102, 103, 104) is undefined
+    ok obj.param is 101
+    ok obj.rest.join(' ') is '102 103 104'
 
-  #test "Passing multiple functions without paren-wrapping is legal, and should compile.", ->
+  test.skip "Passing multiple functions without paren-wrapping is legal, and should compile.", -> # Currently syntax error.
   #  sum = (one, two) -> one() + two()
   #  eq 20, sum ->
   #    7 + 9
@@ -137,7 +137,7 @@ suite 'Function Invocation', ->
     result = func 'one', if false then 100 else 13
     ok result is 13
 
-  #test "Test more function passing:", ->
+  test.skip "Test more function passing:", -> # Currently syntax error.
   #  sum = (one, two) -> one() + two()
   #
   #  result = sum( ->
@@ -152,7 +152,7 @@ suite 'Function Invocation', ->
   #  , 2)
   #  ok result is 3
 
-  #test "Chained blocks, with proper indentation levels:", ->
+  test.skip "Chained blocks, with proper indentation levels:", -> # Currently syntax error.
   #  counter =
   #    results: []
   #    tick: (func) ->
@@ -184,11 +184,11 @@ suite 'Function Invocation', ->
     result  = combine (-> 1 + 2), 3
     ok result is 9
 
-  #test "Test for calls/parens/multiline-chains.", ->
-  #  f = (x) -> x
-  #  result = (f 1).toString()
-  #    .length
-  #  ok result is 1
+  test "Test for calls/parens/multiline-chains.", ->
+    f = (x) -> x
+    result = (f 1).toString()
+      .length
+    ok result is 1
 
   test "Test implicit calls in functions in parens:", ->
     result = ((val) ->
@@ -197,22 +197,22 @@ suite 'Function Invocation', ->
     )(10)
     ok result is 10
 
-  #test "Ensure that chained calls with indented implicit object literals below are alright.", ->
-  #  result = null
-  #  obj =
-  #    method: (val)  -> this
-  #    second: (hash) -> result = hash.three
-  #  obj
-  #    .method(
-  #      101
-  #    ).second(
-  #      one:
-  #        two: 2
-  #      three: 3
-  #    )
-  #  eq result, 3
+  test "Ensure that chained calls with indented implicit object literals below are alright.", ->
+    result = null
+    obj =
+      method: (val)  -> this
+      second: (hash) -> result = hash.three
+    obj
+      .method(
+        101
+      ).second(
+        one:
+          two: 2
+        three: 3
+      )
+    eq result, 3
 
-  #test "Test newline-supressed call chains with nested functions.", ->
+  test.skip "Test newline-supressed call chains with nested functions.", -> # Currently syntax error.
   #  obj  =
   #    call: -> this
   #  func = ->
@@ -247,20 +247,20 @@ suite 'Function Invocation', ->
     contextTest.apply null, array
     contextTest array...
 
-  #test "jashkenas/coffee-script#904: Destructuring function arguments with same-named variables in scope", ->
-  #  a = b = nonce = {}
-  #  fn = ([a,b]) -> {a:a,b:b}
-  #  result = fn([c={},d={}])
-  #  eq c, result.a
-  #  eq d, result.b
-  #  eq nonce, a
-  #  eq nonce, b
+  test "jashkenas/coffee-script#904: Destructuring function arguments with same-named variables in scope", ->
+    a = b = nonce = {}
+    fn = ([a,b]) -> {a:a,b:b}
+    result = fn([c={},d={}])
+    eq c, result.a
+    eq d, result.b
+    eq nonce, a
+    eq nonce, b
 
-  #test "Simple Destructuring function arguments with same-named variables in scope", ->
-  #  x = 1
-  #  f = ([x]) -> x
-  #  eq f([2]), 2
-  #  eq x, 1
+  test "Simple Destructuring function arguments with same-named variables in scope", ->
+    x = 1
+    f = ([x]) -> x
+    eq f([2]), 2
+    eq x, 1
 
   test "caching base value", ->
     obj = {index: 0, 0: {method: -> this is obj[0]}}
@@ -296,7 +296,7 @@ suite 'Function Invocation', ->
     eq 2, method 1, 2, 3
     eq 2, method 1, 2
 
-  #test "splats with super() within classes.", ->
+  test.skip "splats with super() within classes.", -> # Currently syntax error.
   #  class Parent
   #    meth: (args...) ->
   #      args
@@ -364,7 +364,7 @@ suite 'Function Invocation', ->
     eq nonce, obj.method()
     eq nonce, obj.property
 
-  #test "don't wrap 'pure' statements in a closure", ->
+  test.skip "don't wrap 'pure' statements in a closure", -> # Currently syntax error.
   #  nonce = {}
   #  items = [0, 1, 2, 3, nonce, 4, 5]
   #  fn = (items) ->

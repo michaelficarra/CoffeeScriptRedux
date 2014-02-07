@@ -635,7 +635,9 @@ class exports.Compiler
             test = new JS.BinaryExpression '>', (memberAccess (new JS.Identifier 'arguments'), 'length'), new JS.Literal numParams
             consequent = helpers.slice (new JS.Identifier 'arguments'), new JS.Literal numParams
             alternate = new JS.ArrayExpression []
-            block.body.unshift (makeVarDeclaration [paramName]), stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
+            if (paramName.instanceof JS.Identifier) and paramName.name in inScope
+              block.body.unshift makeVarDeclaration [paramName]
+            block.body.unshift stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
           else if any parameters, (p) -> p.rest
             paramName = index = null
             for p, i in parameters when p.rest

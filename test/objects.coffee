@@ -59,11 +59,11 @@ suite 'Object Literals', ->
       {f: -> a = true}.f() + 1
       ok a
 
-    #test 'jashkenas/coffee-script#1274: `{} = a()` should not optimise away a()', ->
-    #  a = false
-    #  fn = -> a = true
-    #  {} = fn()
-    #  ok a
+    test.skip 'jashkenas/coffee-script#1274: `{} = a()` should not optimise away a()', ->
+      a = false
+      fn = -> a = true
+      {} = fn()
+      ok a
 
     test 'jashkenas/coffee-script#1436: `for` etc. work as normal property names', ->
       obj = {}
@@ -71,9 +71,9 @@ suite 'Object Literals', ->
       obj.for = 'for' of obj
       ok 'for' of obj
 
-    #test 'jashkenas/coffee-script#1513: Top level bare objects need to be wrapped in parens for unary and existence ops', ->
-    #  doesNotThrow -> CoffeeScript.run '{}?', bare: true
-    #  doesNotThrow -> CoffeeScript.run '{}.a++', bare: true
+    test.skip 'jashkenas/coffee-script#1513: Top level bare objects need to be wrapped in parens for unary and existence ops', ->
+      doesNotThrow -> CoffeeScript.run '{}?', bare: true
+      doesNotThrow -> CoffeeScript.run '{}.a++', bare: true
 
   suite 'Implicit Objects', ->
 
@@ -102,7 +102,7 @@ suite 'Object Literals', ->
 
     test 'explicit objects nested under implicit objects', ->
 
-    #test 'invoking functions with implicit object literals', ->
+    test.skip 'invoking functions with implicit object literals', -> # Currently syntax error.
     #  generateGetter = (prop) -> (obj) -> obj[prop]
     #  getA = generateGetter 'a'
     #  getArgs = -> arguments
@@ -173,37 +173,37 @@ suite 'Object Literals', ->
       eq nonce0, obj.a.b().c
       eq nonce1, obj.d
 
-    #test 'jashkenas/coffee-script#1871: Special case for IMPLICIT_END in the middle of an implicit object', ->
-    #  result = 'result'
-    #  ident = (x) -> x
-    #
-    #  result = ident one: 1 if false
-    #
-    #  eq result, 'result'
-    #
-    #  result = ident
-    #    one: 1
-    #    two: 2 for i in [1..3]
-    #
-    #  eq result.two.join(' '), '2 2 2'
+    test.skip 'jashkenas/coffee-script#1871: Special case for IMPLICIT_END in the middle of an implicit object', ->
+      result = 'result'
+      ident = (x) -> x
 
-    #test 'jashkenas/coffee-script#1961, jashkenas/coffee-script#1974, regression with compound assigning to an implicit object', ->
-    #
-    #  obj = null
-    #
-    #  obj ?=
-    #    one: 1
-    #    two: 2
-    #
-    #  eq obj.two, 2
-    #
-    #  obj = null
-    #
-    #  obj or=
-    #    three: 3
-    #    four: 4
-    #
-    #  eq obj.four, 4
+      result = ident one: 1 if false
+
+      eq result, 'result'
+
+      result = ident
+        one: 1
+        two: 2 for i in [1..3]
+
+      eq result.two.join(' '), '2 2 2'
+
+    test 'jashkenas/coffee-script#1961, jashkenas/coffee-script#1974, regression with compound assigning to an implicit object', ->
+
+      obj = null
+
+      obj ?=
+        one: 1
+        two: 2
+
+      eq obj.two, 2
+
+      obj = null
+
+      obj or=
+        three: 3
+        four: 4
+
+      eq obj.four, 4
 
     test 'jashkenas/coffee-script#2207: Immediate implicit closes don not close implicit objects', ->
       func = ->

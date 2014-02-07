@@ -28,10 +28,10 @@ suite 'Slices', ->
     arrayEq @shared      , @shared[..-1]
     arrayEq @shared[0..8], @shared[...-1]
 
-    #for a in [-@shared.length..@shared.length]
-    #  arrayEq @shared[a..] , @shared[a...]
-    #for a in [-@shared.length+1...@shared.length]
-    #  arrayEq @shared[..a][...-1] , @shared[...a]
+    for a in [-@shared.length..@shared.length]
+      arrayEq @shared[a..] , @shared[a...]
+    for a in [-@shared.length+1...@shared.length]
+      arrayEq @shared[..a][...-1] , @shared[...a]
 
     arrayEq [1, 2, 3], [1, 2, 3][..]
 
@@ -48,12 +48,12 @@ suite 'Slices', ->
     ok str[0..4] is "abcde"
     ok str[-5..] is "vwxyz"
 
-  #test "#1722: operator precedence in unbounded slice compilation", ->
+  test.skip "#1722: operator precedence in unbounded slice compilation", -> # Currently syntax error.
   #  list = [0..9]
   #  n = 2 # some truthy number in `list`
   #  arrayEq [0..n], list[..n]
   #  arrayEq [0..n], list[..n or 0]
   #  arrayEq [0..n], list[..if n then n else 0]
 
-  #test "#2349: inclusive slicing to numeric strings", ->
-  #  arrayEq [0, 1], [0..10][.."1"]
+  test "#2349: inclusive slicing to numeric strings", ->
+    arrayEq [0, 1], [0..10][.."1"]

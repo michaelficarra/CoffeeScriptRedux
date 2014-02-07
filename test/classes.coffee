@@ -2,25 +2,25 @@ suite 'Classes', ->
 
   suite 'Class Definition', ->
 
-    #test 'Overriding the static property new doesn't clobber Function::new', ->
-    #
-    #  class OneClass
-    #    @new: 'new'
-    #    function: 'function'
-    #    constructor: (name) -> @name = name
-    #
-    #  class TwoClass extends OneClass
-    #  delete TwoClass.new
-    #
-    #  Function.prototype.new = -> new this arguments...
-    #
-    #  ok (TwoClass.new('three')).name is 'three'
-    #  ok (new OneClass).function is 'function'
-    #  ok OneClass.new is 'new'
-    #
-    #  delete Function.prototype.new
+    test "Overriding the static property new doesn't clobber Function::new", ->
 
-    #test 'basic classes, again, but in the manual prototype style', ->
+      class OneClass
+        @new: 'new'
+        function: 'function'
+        constructor: (name) -> @name = name
+
+      class TwoClass extends OneClass
+      delete TwoClass.new
+
+      Function.prototype.new = -> new this arguments...
+
+      ok (TwoClass.new('three')).name is 'three'
+      ok (new OneClass).function is 'function'
+      ok OneClass.new is 'new'
+
+      delete Function.prototype.new
+
+    test.skip 'basic classes, again, but in the manual prototype style', -> # Currently syntax error.
     #
     #  Base = ->
     #  Base::func = (string) ->
@@ -101,33 +101,33 @@ suite 'Classes', ->
       instance = new obj.klass
       ok instance.method() is 'value'
 
-    #test 'Implicit objects as static properties', ->
-    #
-    #  class Static
-    #    @static =
-    #      one: 1
-    #      two: 2
-    #
-    #  ok Static.static.one is 1
-    #  ok Static.static.two is 2
+    test 'Implicit objects as static properties', ->
 
-    #test 'classes with static-level implicit objects', ->
-    #
-    #  class A
-    #    @static = one: 1
-    #    two: 2
-    #
-    #  class B
-    #    @static = one: 1,
-    #    two: 2
-    #
-    #  eq A.static.one, 1
-    #  eq A.static.two, undefined
-    #  eq (new A).two, 2
-    #
-    #  eq B.static.one, 1
-    #  eq B.static.two, 2
-    #  eq (new B).two, undefined
+      class Static
+        @static =
+          one: 1
+          two: 2
+
+      ok Static.static.one is 1
+      ok Static.static.two is 2
+
+    test.skip 'classes with static-level implicit objects', ->
+
+      class A
+        @static = one: 1
+        two: 2
+
+      class B
+        @static = one: 1,
+        two: 2
+
+      eq A.static.one, 1
+      eq A.static.two, undefined
+      eq (new A).two, 2
+
+      eq B.static.one, 1
+      eq B.static.two, 2
+      eq (new B).two, undefined
 
     test 'external constructors', ->
 
@@ -148,18 +148,18 @@ suite 'Classes', ->
       eq (new One).value, 1
       eq (new Two).value, 2
 
-    #test 'exectuable class bodies', ->
-    #
-    #  class A
-    #    if true
-    #      b: 'b'
-    #    else
-    #      c: 'c'
-    #
-    #  a = new A
-    #
-    #  eq a.b, 'b'
-    #  eq a.c, undefined
+    test.skip 'exectuable class bodies', ->
+
+      class A
+        if true
+          b: 'b'
+        else
+          c: 'c'
+
+      a = new A
+
+      eq a.b, 'b'
+      eq a.c, undefined
 
     test 'mild metaprogramming', ->
 
@@ -334,65 +334,65 @@ suite 'Classes', ->
       class A then constructor: ctor
       ok (new A) not instanceof A
 
-    #test 'jashkenas/coffee-script#1534: class then 'use strict'', ->
-    #  # [14.1 Directive Prologues and the Use Strict Directive](http://es5.github.com/#x14.1)
-    #  nonce = {}
-    #  error = 'do -> ok this'
-    #  strictTest = "do ->'use strict';#{error}"
-    #  return unless (try CoffeeScript.run strictTest, bare: yes catch e then nonce) is nonce
-    #
-    #  throws -> CoffeeScript.run "class then 'use strict';#{error}", bare: yes
-    #  doesNotThrow -> CoffeeScript.run "class then #{error}", bare: yes
-    #  doesNotThrow -> CoffeeScript.run "class then #{error};'use strict'", bare: yes
-    #
-    #  # comments are ignored in the Directive Prologue
-    #  comments = ["""
-    #  class
-    #    ### comment ###
-    #    'use strict'
-    #    #{error}""",
-    #  """
-    #  class
-    #    ### comment 1 ###
-    #    ### comment 2 ###
-    #    'use strict'
-    #    #{error}""",
-    #  """
-    #  class
-    #    ### comment 1 ###
-    #    ### comment 2 ###
-    #    'use strict'
-    #    #{error}
-    #    ### comment 3 ###"""
-    #  ]
-    #  throws (-> CoffeeScript.run comment, bare: yes) for comment in comments
-    #
-    #  # [ES5 §14.1](http://es5.github.com/#x14.1) allows for other directives
-    #  directives = ["""
-    #  class
-    #    'directive 1'
-    #    'use strict'
-    #    #{error}""",
-    #  """
-    #  class
-    #    'use strict'
-    #    'directive 2'
-    #    #{error}""",
-    #  """
-    #  class
-    #    ### comment 1 ###
-    #    'directive 1'
-    #    'use strict'
-    #    #{error}""",
-    #  """
-    #  class
-    #    ### comment 1 ###
-    #    'directive 1'
-    #    ### comment 2 ###
-    #    'use strict'
-    #    #{error}"""
-    #  ]
-    #  throws (-> CoffeeScript.run directive, bare: yes) for directive in directives
+    test.skip "jashkenas/coffee-script#1534: class then 'use strict'", ->
+      # [14.1 Directive Prologues and the Use Strict Directive](http://es5.github.com/#x14.1)
+      nonce = {}
+      error = 'do -> ok this'
+      strictTest = "do ->'use strict';#{error}"
+      return unless (try CoffeeScript.run strictTest, bare: yes catch e then nonce) is nonce
+
+      throws -> CoffeeScript.run "class then 'use strict';#{error}", bare: yes
+      doesNotThrow -> CoffeeScript.run "class then #{error}", bare: yes
+      doesNotThrow -> CoffeeScript.run "class then #{error};'use strict'", bare: yes
+
+      # comments are ignored in the Directive Prologue
+      comments = ["""
+      class
+        ### comment ###
+        'use strict'
+        #{error}""",
+      """
+      class
+        ### comment 1 ###
+        ### comment 2 ###
+        'use strict'
+        #{error}""",
+      """
+      class
+        ### comment 1 ###
+        ### comment 2 ###
+        'use strict'
+        #{error}
+        ### comment 3 ###"""
+      ]
+      throws (-> CoffeeScript.run comment, bare: yes) for comment in comments
+
+      # [ES5 §14.1](http://es5.github.com/#x14.1) allows for other directives
+      directives = ["""
+      class
+        'directive 1'
+        'use strict'
+        #{error}""",
+      """
+      class
+        'use strict'
+        'directive 2'
+        #{error}""",
+      """
+      class
+        ### comment 1 ###
+        'directive 1'
+        'use strict'
+        #{error}""",
+      """
+      class
+        ### comment 1 ###
+        'directive 1'
+        ### comment 2 ###
+        'use strict'
+        #{error}"""
+      ]
+      throws (-> CoffeeScript.run directive, bare: yes) for directive in directives
 
     test 'jashkenas/coffee-script#2052: classes should work in strict mode', ->
       do ->
@@ -422,19 +422,19 @@ suite 'Classes', ->
       m = new Mini
       eq (func() for func in m.generate()).join(' '), '10 10 10'
 
-    #test 'contructor called with varargs', ->
-    #
-    #  class Connection
-    #    constructor: (one, two, three) ->
-    #      [@one, @two, @three] = [one, two, three]
-    #
-    #    out: ->
-    #      "#{@one}-#{@two}-#{@three}"
-    #
-    #  list = [3, 2, 1]
-    #  conn = new Connection list...
-    #  ok conn instanceof Connection
-    #  ok conn.out() is '3-2-1'
+    test 'contructor called with varargs', ->
+
+      class Connection
+        constructor: (one, two, three) ->
+          [@one, @two, @three] = [one, two, three]
+
+        out: ->
+          "#{@one}-#{@two}-#{@three}"
+
+      list = [3, 2, 1]
+      conn = new Connection list...
+      ok conn instanceof Connection
+      ok conn.out() is '3-2-1'
 
     test 'classes wrapped in decorators', ->
 
@@ -448,43 +448,43 @@ suite 'Classes', ->
       ok (new Test).prop  is 'value'
       ok (new Test).prop2 is 'value2'
 
-    #test 'ensure that constructors invoked with splats return a new object', ->
-    #
-    #  args = [1, 2, 3]
-    #  Type = (@args) ->
-    #  type = new Type args
-    #
-    #  ok type and type instanceof Type
-    #  ok type.args and type.args instanceof Array
-    #  ok v is args[i] for v, i in type.args
-    #
-    #  Type1 = (@a, @b, @c) ->
-    #  type1 = new Type1 args...
-    #
-    #  ok type1 instanceof   Type1
-    #  eq type1.constructor, Type1
-    #  ok type1.a is args[0] and type1.b is args[1] and type1.c is args[2]
-    #
-    #  # Ensure that constructors invoked with splats cache the function.
-    #  called = 0
-    #  get = -> if called++ then false else class Type
-    #  new get() args...
+    test 'ensure that constructors invoked with splats return a new object', ->
+
+      args = [1, 2, 3]
+      Type = (@args) ->
+      type = new Type args
+
+      ok type and type instanceof Type
+      ok type.args and type.args instanceof Array
+      ok v is args[i] for v, i in type.args
+
+      Type1 = (@a, @b, @c) ->
+      type1 = new Type1 args...
+
+      ok type1 instanceof   Type1
+      eq type1.constructor, Type1
+      ok type1.a is args[0] and type1.b is args[1] and type1.c is args[2]
+
+      # Ensure that constructors invoked with splats cache the function.
+      called = 0
+      get = -> if called++ then false else class Type
+      new get() args...
 
     test '`new` shouldn\'t add extra parens', ->
 
       ok new Date().constructor is Date
 
     # TODO: this test belongs with the operator tests
-    #test '`new` works against bare function', ->
-    #
-    #  eq Date, new ->
-    #    eq this, new => this
-    #    Date
+    test '`new` works against bare function', ->
+
+      eq Date, new ->
+        eq this, new => this
+        Date
 
 
   suite 'Inheritance and Super', ->
 
-    #test 'classes with a four-level inheritance chain', ->
+    test.skip 'classes with a four-level inheritance chain', -> # Currently syntax error.
     #
     #  class Base
     #    func: (string) ->
@@ -525,7 +525,7 @@ suite 'Classes', ->
     #
     #  ok (new ThirdChild).array.join(' ') is '1 2 3'
 
-    #test 'constructors with inheritance and super', ->
+    test.skip 'constructors with inheritance and super', -> # Currently syntax error.
     #
     #  identity = (f) -> f
     #
@@ -543,7 +543,7 @@ suite 'Classes', ->
     #
     #  ok (new SubClass).prop is 'top-super-sub'
 
-    #test 'super with plain ol' functions as the original constructors', ->
+    test.skip "super with plain ol' functions as the original constructors", -> # Currently syntax error.
     #
     #  TopClass = (arg) ->
     #    @prop = 'top-' + arg
@@ -562,7 +562,7 @@ suite 'Classes', ->
     #
     #  ok (new SubClass).prop is 'top-super-sub'
 
-    #test 'super() calls in constructors of classes that are defined as object properties', ->
+    test.skip 'super() calls in constructors of classes that are defined as object properties', -> # Currently syntax error.
     #
     #  class Hive
     #    constructor: (name) -> @name = name
@@ -573,7 +573,7 @@ suite 'Classes', ->
     #  maya = new Hive.Bee 'Maya'
     #  ok maya.name is 'Maya'
 
-    #test 'calling super and passing along all arguments', ->
+    test.skip 'calling super and passing along all arguments', -> # Currently syntax error.
     #
     #  class Parent
     #    method: (args...) -> @args = args
@@ -585,7 +585,7 @@ suite 'Classes', ->
     #  c.method 1, 2, 3, 4
     #  ok c.args.join(' ') is '1 2 3 4'
 
-    #test '`class extends this`', ->
+    test.skip '`class extends this`', -> # Currently syntax error.
     #
     #  class A
     #    func: -> 'A'
@@ -607,7 +607,7 @@ suite 'Classes', ->
         constructor: ->
       eq nonce, B::prop
 
-    #test 'jashkenas/coffee-script#1380: `super` with reserved names', ->
+    test.skip 'jashkenas/coffee-script#1380: `super` with reserved names', -> # Currently syntax error.
     #  class C
     #    do: -> super
     #  ok C::do
@@ -623,7 +623,7 @@ suite 'Classes', ->
       class B extends id A
       eq nonce, (new B).nonce
 
-    #test 'jashkenas/coffee-script#1598: super works for static methods too', ->
+    test.skip 'jashkenas/coffee-script#1598: super works for static methods too', -> # Currently syntax error.
     #
     #  class Parent
     #    method: ->

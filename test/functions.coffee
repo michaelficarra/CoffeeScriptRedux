@@ -125,11 +125,11 @@ suite 'Function Literals', ->
       eq a, obj.first
       eq b, obj.last
 
-    test.skip "destructuring splats", -> # Currently produces invalid JavaScript.
-    #  (([{a: [b], c}]...) ->
-    #    eq 1, b
-    #    eq 2, c
-    #  ) {a: [1], c: 2}
+    test.skip "destructuring splats", ->
+      (([{a: [b], c}]...) ->
+        eq 1, b
+        eq 2, c
+      ) {a: [1], c: 2}
 
     test "default values", ->
       nonceA = {}

@@ -113,11 +113,11 @@ suite 'Function Invocation', ->
       'orange'
     ok a is '13 apple orange'
 
-  test.skip "Ensure that empty functions don't return mistaken values.", -> # Currently produces invalid JavaScript.
-  #  obj = {func: (@param, @rest...) ->}
-  #  ok obj.func(101, 102, 103, 104) is undefined
-  #  ok obj.param is 101
-  #  ok obj.rest.join(' ') is '102 103 104'
+  test "Ensure that empty functions don't return mistaken values.", ->
+    obj = {func: (@param, @rest...) ->}
+    ok obj.func(101, 102, 103, 104) is undefined
+    ok obj.param is 101
+    ok obj.rest.join(' ') is '102 103 104'
 
   test.skip "Passing multiple functions without paren-wrapping is legal, and should compile.", -> # Currently syntax error.
   #  sum = (one, two) -> one() + two()

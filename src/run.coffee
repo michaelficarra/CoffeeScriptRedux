@@ -66,7 +66,10 @@ formatSourcePosition = (frame, getSourceMapping) ->
     source = getSourceMapping fileName, line, column
     fileLocation =
       if source
-        "#{fileName}:#{source.line}:#{source.column + 1}, <js>:#{line}:#{column}"
+        if source.line?
+          "#{fileName}:#{source.line}:#{source.column + 1}, <js>:#{line}:#{column}"
+        else
+          "#{fileName} <js>:#{line}:#{column}"
       else
         "#{fileName}:#{line}:#{column}"
 

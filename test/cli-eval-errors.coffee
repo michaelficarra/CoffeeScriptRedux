@@ -10,7 +10,7 @@ suite 'Command line execution', ->
       eq stdout, "1 is main true\n0 is main false\n"
 
       ok stderr.indexOf("cli-eval-errors-files/0.coffee:3:26, <js>:4:9)") > 0
-      ok stderr.indexOf("cli-eval-errors-files/1.coffee:4:6, <js>:6:9)") > 0
+      ok stderr.indexOf("cli-eval-errors-files/1.coffee:4:7, <js>:6:9)") > 0
 
       done()
 

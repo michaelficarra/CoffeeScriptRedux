@@ -851,7 +851,18 @@ class exports.Compiler
     ]
     [CS.MemberAccessOp, CS.SoakedMemberAccessOp, ({expression, compile}) ->
       if hasSoak this then expr compile generateSoak this
-      else memberAccess expression, @memberName
+      else
+        access = memberAccess expression, @memberName
+        # manually calculate raw/position info for member name
+        if @raw
+          access.property.raw = @memberName
+          access.property.line = @line
+          offset = @raw.length - @memberName.length
+          access.property.column = @column + offset - 1
+          access.property.offset = @offset + offset - 1
+          @column += @expression.raw.length
+          @offset += @expression.raw.length
+        access
     ]
     [CS.ProtoMemberAccessOp, CS.SoakedProtoMemberAccessOp, ({expression, compile}) ->
       if hasSoak this then expr compile generateSoak this

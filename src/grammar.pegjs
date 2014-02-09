@@ -214,7 +214,7 @@ var CS = require("./nodes"),
       var o = new F;
       // rather safely assumes access.op is returning non-Object
       access.op.apply(o, [left].concat(access.operands));
-      return c(o.r(left.raw + access.raw), access);
+      return c(o.r(left.raw + access.raw), e);
     }, e, accesses);
   },
 

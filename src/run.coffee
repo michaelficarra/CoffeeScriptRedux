@@ -34,7 +34,7 @@ patchStackTrace = ->
       mapString = Module._sourceMaps[filename]?()
       if mapString
         sourceMap = sourceFiles[filename] ?= new SourceMapConsumer mapString
-        sourceMap.originalPositionFor {line, column}
+        sourceMap.originalPositionFor {line, column: column - 1}
 
     frames = for frame in stack
       break if frame.getFunction() is exports.runMain

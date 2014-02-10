@@ -1,7 +1,5 @@
 suite 'Range Literals', ->
 
-# TODO: add indexing and method invocation tests: [1..4][0] is 1, [0...3].toString()
-
   test "basic inclusive ranges", ->
     arrayEq [1, 2, 3] , [1..3]
     arrayEq [0, 1, 2] , [0..2]
@@ -83,3 +81,48 @@ suite 'Range Literals', ->
   test '#257: do not reference `arguments` outside of function context', ->
     eq -1, (CoffeeScript.cs2js 'f [a..b]').indexOf 'arguments'
     neq -1, ((CoffeeScript.cs2js 'fn -> f arguments, [a..b]').replace 'arguments', 'a').indexOf 'arguments'
+
+  test "indexing inclusive ranges", ->
+    eq [1..4][0], 1
+    eq [1..4][1], 2
+    eq [1..4][2], 3
+    eq [1..4][3], 4
+
+    eq [-4..-1][0], -4
+    eq [-4..-1][1], -3
+    eq [-4..-1][2], -2
+    eq [-4..-1][3], -1
+
+    eq [1..10][-1], undefined
+    eq [1..10][10], undefined
+
+    eq [0..0][0], 0
+
+  test "indexing exclusive ranges", ->
+    eq [1...4][0], 1
+    eq [1...4][1], 2
+    eq [1...4][2], 3
+    eq [1...4][3], undefined
+
+    eq [-4...-1][0], -4
+    eq [-4...-1][1], -3
+    eq [-4...-1][2], -2
+    eq [-4...-1][3], undefined
+
+    eq [1...10][-1], undefined
+    eq [1...10][10], undefined
+
+    eq [0...0][0], undefined
+
+  test "toString method invocation on ranges", ->
+    eq [1..3].toString(), "1,2,3"
+    eq [3..1].toString(), "3,2,1"
+    eq [1..4].toString(), "1,2,3,4"
+    eq [4..1].toString(), "4,3,2,1"
+    
+    eq [1...3].toString(), "1,2"
+    eq [3...1].toString(), "3,2"
+    eq [1...4].toString(), "1,2,3"
+    eq [4...1].toString(), "4,3,2"
+
+    eq [0..0].toString(), "0"

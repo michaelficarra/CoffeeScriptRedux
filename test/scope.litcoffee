@@ -7,7 +7,7 @@ with external scopes.
 
 Import the helpers we plan to use.
 
-    {extend, last} = require './helpers'
+    #{extend, last} = require './helpers'
 
     exports.Scope = class Scope
 
@@ -114,3 +114,4 @@ of this scope.
 
       assignedVariables: ->
         "#{v.name} = #{v.type.value}" for v in @variables when v.type.assigned
+

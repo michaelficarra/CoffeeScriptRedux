@@ -42,9 +42,17 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   # set the column number to the position of the error in the cleaned string
   column = (cleanMarkers "#{lines[currentLineOffset]}\n"[...column]).length
   padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
+
+  marker = '^'
+  if supportsColors()
+      # colorize error line
+      preLines[preLines.length - 1] = colorize 'yellow', preLines[preLines.length - 1]
+      # colorize the pointer
+      marker = colorize 'red', marker
+
   [
     preLines...
-    "#{(Array padSize + 1).join '^'} :~#{(Array column).join '~'}^"
+    "#{(Array padSize + 1).join '^'} : #{(Array column).join ' '}#{marker}"
     postLines...
   ].join '\n'
 
@@ -128,3 +136,17 @@ envEnrichments_ = (inScope = []) ->
 
 @envEnrichments = envEnrichments = (node, args...) ->
   if node? then envEnrichments_.apply node, args else []
+
+@colors = colors =
+    'red'     : ['\x1B[31m', '\x1B[39m']
+    'yellow'  : ['\x1B[33m', '\x1B[39m']
+    'blue'    : ['\x1B[34m', '\x1B[39m']
+    'cyan'    : ['\x1B[36m', '\x1B[39m']
+    'green'   : ['\x1B[32m', '\x1B[39m']
+    'magenta' : ['\x1B[35m', '\x1B[39m']
+
+@colorize = colorize = (color, str) ->
+    colors[color][0] + str + colors[color][1]
+
+@supportsColors = supportsColors = ->
+    process? and process.stdout.isTTY and not process.env.NODE_DISABLE_COLORS

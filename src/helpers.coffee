@@ -43,6 +43,7 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 
 @pointToErrorLocation = pointToErrorLocation = (source, line, column, numLinesOfContext = 3) ->
   lines = source.split '\n'
+  lines.pop() unless lines[lines.length - 1]
   # figure out which lines are needed for context
   currentLineOffset = line - 1
   startLine = currentLineOffset - numLinesOfContext

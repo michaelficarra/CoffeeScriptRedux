@@ -2,6 +2,20 @@
 CS = require './nodes'
 
 
+COLOURS =
+  red: '\x1B[31m'
+  green: '\x1B[32m'
+  yellow: '\x1B[33m'
+  blue: '\x1B[34m'
+  magenta: '\x1B[35m'
+  cyan: '\x1B[36m'
+
+SUPPORTS_COLOUR =
+  process?.stderr?.isTTY and not process.env.NODE_DISABLE_COLORS
+
+colourise = (colour, str) -> "#{COLOURS[colour]}#{str}\x1B[39m"
+
+
 @numberLines = numberLines = (input, startLine = 1) ->
   lines = input.split '\n'
   padSize = "#{lines.length + startLine - 1}".length
@@ -44,11 +58,10 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
 
   marker = '^'
-  if supportsColors()
-      # colorize error line
-      preLines[preLines.length - 1] = colorize 'yellow', preLines[preLines.length - 1]
-      # colorize the pointer
-      marker = colorize 'red', marker
+  if SUPPORTS_COLOUR
+    # colourise error line and pointer
+    preLines[preLines.length - 1] = colourise 'yellow', preLines[preLines.length - 1]
+    marker = colourise 'red', marker
 
   [
     preLines...
@@ -136,17 +149,3 @@ envEnrichments_ = (inScope = []) ->
 
 @envEnrichments = envEnrichments = (node, args...) ->
   if node? then envEnrichments_.apply node, args else []
-
-@colors = colors =
-    'red'     : ['\x1B[31m', '\x1B[39m']
-    'yellow'  : ['\x1B[33m', '\x1B[39m']
-    'blue'    : ['\x1B[34m', '\x1B[39m']
-    'cyan'    : ['\x1B[36m', '\x1B[39m']
-    'green'   : ['\x1B[32m', '\x1B[39m']
-    'magenta' : ['\x1B[35m', '\x1B[39m']
-
-@colorize = colorize = (color, str) ->
-    colors[color][0] + str + colors[color][1]
-
-@supportsColors = supportsColors = ->
-    process? and process.stdout.isTTY and not process.env.NODE_DISABLE_COLORS

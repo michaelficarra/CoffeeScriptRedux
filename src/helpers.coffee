@@ -13,7 +13,8 @@ COLOURS =
 SUPPORTS_COLOUR =
   process?.stderr?.isTTY and not process.env.NODE_DISABLE_COLORS
 
-colourise = (colour, str) -> "#{COLOURS[colour]}#{str}\x1B[39m"
+colourise = (colour, str) ->
+  if SUPPORTS_COLOUR then "#{COLOURS[colour]}#{str}\x1B[39m" else str
 
 
 @numberLines = numberLines = (input, startLine = 1) ->
@@ -50,6 +51,7 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   if startLine < 0 then startLine = 0
   # get the context lines
   preLines = lines[startLine..currentLineOffset]
+  preLines[preLines.length - 1] = colourise 'yellow', preLines[preLines.length - 1]
   postLines = lines[currentLineOffset + 1 .. currentLineOffset + numLinesOfContext]
   numberedLines = (numberLines (cleanMarkers [preLines..., postLines...].join '\n'), startLine + 1).split '\n'
   preLines = numberedLines[0...preLines.length]
@@ -57,16 +59,9 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   # set the column number to the position of the error in the cleaned string
   column = (cleanMarkers "#{lines[currentLineOffset]}\n"[...column]).length
   padSize = ((currentLineOffset + 1 + postLines.length).toString 10).length
-
-  marker = '^'
-  if SUPPORTS_COLOUR
-    # colourise error line and pointer
-    preLines[preLines.length - 1] = colourise 'yellow', preLines[preLines.length - 1]
-    marker = colourise 'red', marker
-
   [
     preLines...
-    "#{(Array padSize + 1).join '^'} : #{(Array column).join ' '}#{marker}"
+    "#{colourise 'red', (Array padSize + 1).join '^'} : #{(Array column).join ' '}#{colourise 'red', '^'}"
     postLines...
   ].join '\n'
 

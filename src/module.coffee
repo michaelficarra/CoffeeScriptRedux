@@ -77,3 +77,9 @@ module.exports = CoffeeScript
 
 if require.extensions?['.node']?
   CoffeeScript.register = -> require './register'
+  # Throw error with deprecation warning when depending upon implicit `require.extensions` registration
+  for ext in ['.coffee', '.litcoffee']
+    require.extensions[ext] ?= ->
+      throw new Error """
+      Use CoffeeScript.register() or require the coffee-script-redux/register module to require #{ext} files.
+      """

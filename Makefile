@@ -62,7 +62,7 @@ lib/%.min.js: lib/%.js lib/coffee-script
 	$(MINIFIER) <"$<" >"$@"
 
 
-.PHONY: test coverage install loc clean
+.PHONY: default all build parser browser min minify test coverage install loc clean
 
 test:
 	$(MOCHA) -R dot test/*.coffee

@@ -33,3 +33,5 @@ unless fork.coffeePatched
       options.execPath or= coffeeBinary
     fork file, args, options
   child_process.fork.coffeePatched = yes
+
+delete require.cache[__filename]

@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "mocha": "~1.12.0",
-    "pegjs": "git://github.com/dmajda/pegjs.git#bea6b1fde74c8aebf802f9bcc3380c65b241e1b7",
+    "pegjs": "git+https://github.com/dmajda/pegjs.git#bea6b1fde74c8aebf802f9bcc3380c65b241e1b7",
     "commonjs-everywhere": "~0.9.0",
     "cluster": "~0.7.7",
     "semver": "~2.1.0"
@@ -38,7 +38,7 @@
     "esmangle": "~1.0.0",
     "source-map": "0.1.x",
     "escodegen": "~1.2.0",
-    "cscodegen": "git://github.com/michaelficarra/cscodegen.git#73fd7202ac086c26f18c9d56f025b18b3c6f5383"
+    "cscodegen": "git+https://github.com/michaelficarra/cscodegen.git#73fd7202ac086c26f18c9d56f025b18b3c6f5383"
   },
   "engines": {
     "node": "0.8.x || 0.10.x"

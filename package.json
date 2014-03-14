@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "StringScanner": "~0.0.3",
-    "nopt": "~2.1.2"
+    "optionator": "~0.2.1"
   },
   "optionalDependencies": {
     "esmangle": "~1.0.0",

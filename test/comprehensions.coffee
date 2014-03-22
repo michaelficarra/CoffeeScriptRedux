@@ -24,13 +24,13 @@ suite 'Comprehensions', ->
 
   test 'filtered comprehensions', ->
     list = [0..5]
-    filtered = (a for a in list when a & 1)
-    arrayEq filtered, [1, 3, 5]
-    filtered = (a for a in list when a < 4)
-    arrayEq filtered, [0..3]
+    arrayEq [1, 3, 5], (a for a in list when a & 1)
+    arrayEq [0..3], (a for a in list when a < 4)
 
   test '#285: filtered comprehensions over ranges', ->
-    filtered = (a for a in [0..5] when a & 1)
-    arrayEq filtered, [1, 3, 5]
-    filtered = (a for a in [0..5] when a < 4)
-    arrayEq filtered, [0..3]
+    arrayEq [1, 3, 5], (a for a in [0..5] when a & 1)
+    arrayEq [0..3], (a for a in [0..5] when a < 4)
+
+  test 'comprehension over range with index', ->
+    arrayEq [0..3], (k for v, k in [5..8])
+    arrayEq [5..8], (v for v, k in [5..8])

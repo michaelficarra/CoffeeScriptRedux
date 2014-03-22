@@ -21,3 +21,16 @@ suite 'Comprehensions', ->
     arrayEq [a..b], (fn() for in [a..b])
     c = 0
     arrayEq [a...b], (fn() for in [a...b])
+
+  test 'filtered comprehensions', ->
+    list = [0..5]
+    filtered = (a for a in list when a & 1)
+    arrayEq filtered, [1, 3, 5]
+    filtered = (a for a in list when a < 4)
+    arrayEq filtered, [0..3]
+
+  test '#285: filtered comprehensions over ranges', ->
+    filtered = (a for a in [0..5] when a & 1)
+    arrayEq filtered, [1, 3, 5]
+    filtered = (a for a in [0..5] when a < 4)
+    arrayEq filtered, [0..3]

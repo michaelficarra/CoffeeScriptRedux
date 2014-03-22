@@ -452,6 +452,8 @@ class exports.Compiler
       ((@target.right.instanceof CS.Int) or ((@target.right.instanceof CS.UnaryNegateOp) and @target.right.expression.instanceof CS.Int))
         varDeclaration = new JS.AssignmentExpression '=', i, compile @target.left
         update = new JS.UpdateExpression '++', yes, i
+        if @filter?
+          block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filter), new JS.ContinueStatement
         if keyAssignee?
           k = genSym 'k'
           varDeclaration = new JS.SequenceExpression [(new JS.AssignmentExpression '=', k, new JS.Literal 0), varDeclaration]

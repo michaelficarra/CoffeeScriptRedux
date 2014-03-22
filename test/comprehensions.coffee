@@ -34,3 +34,12 @@ suite 'Comprehensions', ->
   test 'comprehension over range with index', ->
     arrayEq [0..3], (k for v, k in [5..8])
     arrayEq [5..8], (v for v, k in [5..8])
+
+  test '#286: stepped loops', ->
+    list = [1..7]
+    arrayEq [1, 4, 7], (v for v in list by 3)
+    arrayEq [1, 4, 7], (v for v in [1..7] by 3)
+    arrayEq [0, 3, 6], (k for v, k in list by 3)
+    arrayEq [0, 3, 6], (k for v, k in [1..7] by 3)
+    arrayEq [0, 0, 0], (0 for in list by 3)
+    arrayEq [0, 0, 0], (0 for in [1..7] by 3)

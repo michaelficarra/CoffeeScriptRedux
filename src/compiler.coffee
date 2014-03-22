@@ -445,19 +445,25 @@ class exports.Compiler
       block = forceBlock body
       block.body.push stmt helpers.undef() unless block.body.length
 
+      increment =
+        if @step? and not ((@step.instanceof CS.Int) and @step.data is 1)
+          (x) -> new JS.AssignmentExpression '+=', x, step
+        else
+          (x) -> new JS.UpdateExpression '++', yes, x
+
       # optimise loops over static, integral ranges
       if (@target.instanceof CS.Range) and
       # TODO: extract this test to some "static, integral range" helper
       ((@target.left.instanceof CS.Int) or ((@target.left.instanceof CS.UnaryNegateOp) and @target.left.expression.instanceof CS.Int)) and
       ((@target.right.instanceof CS.Int) or ((@target.right.instanceof CS.UnaryNegateOp) and @target.right.expression.instanceof CS.Int))
-        varDeclaration = new JS.AssignmentExpression '=', i, compile @target.left
-        update = new JS.UpdateExpression '++', yes, i
+        varDeclaration = new JS.VariableDeclaration 'var', [new JS.VariableDeclarator i, compile @target.left]
+        update = increment i
         if @filter?
           block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filter), new JS.ContinueStatement
         if keyAssignee?
           k = genSym 'k'
-          varDeclaration = new JS.SequenceExpression [(new JS.AssignmentExpression '=', k, new JS.Literal 0), varDeclaration]
-          update = new JS.SequenceExpression [(new JS.UpdateExpression '++', yes, k), update]
+          varDeclaration.declarations.unshift new JS.VariableDeclarator k, new JS.Literal 0
+          update = new JS.SequenceExpression [(increment k), update]
           block.body.unshift stmt new JS.AssignmentExpression '=', keyAssignee, k
         if valAssignee?
           block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, i
@@ -478,7 +484,7 @@ class exports.Compiler
         block.body.unshift stmt assignment keyAssignee, i
       if valAssignee?
         block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, i
-      new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (new JS.UpdateExpression '++', yes, i), block
+      new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (increment i), block
     ]
     [CS.ForOf, ({keyAssignee, valAssignee, target, filter, body}) ->
       block = forceBlock body

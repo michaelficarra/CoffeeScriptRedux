@@ -20,36 +20,36 @@ suite 'Classes', ->
 
       delete Function.prototype.new
 
-    test.skip 'basic classes, again, but in the manual prototype style', -> # Currently syntax error.
-    #
-    #  Base = ->
-    #  Base::func = (string) ->
-    #    'zero/' + string
-    #  Base::['func-func'] = (string) ->
-    #    "dynamic-#{string}"
-    #
-    #  FirstChild = ->
-    #  SecondChild = ->
-    #  ThirdChild = ->
-    #    @array = [1, 2, 3]
-    #    this
-    #
-    #  ThirdChild extends SecondChild extends FirstChild extends Base
-    #
-    #  FirstChild::func = (string) ->
-    #    super('one/') + string
-    #
-    #  SecondChild::func = (string) ->
-    #    super('two/') + string
-    #
-    #  ThirdChild::func = (string) ->
-    #    super('three/') + string
-    #
-    #  result = (new ThirdChild).func 'four'
-    #
-    #  ok result is 'zero/one/two/three/four'
-    #
-    #  ok (new ThirdChild)['func-func']('thing') is 'dynamic-thing'
+    test 'basic classes, again, but in the manual prototype style', ->
+
+      Base = ->
+      Base::func = (string) ->
+        'zero/' + string
+      Base::['func-func'] = (string) ->
+        "dynamic-#{string}"
+
+      FirstChild = ->
+      SecondChild = ->
+      ThirdChild = ->
+        @array = [1, 2, 3]
+        this
+
+      ThirdChild extends SecondChild extends FirstChild extends Base
+
+      FirstChild::func = (string) ->
+        super('one/') + string
+
+      SecondChild::func = (string) ->
+        super('two/') + string
+
+      ThirdChild::func = (string) ->
+        super('three/') + string
+
+      result = (new ThirdChild).func 'four'
+
+      ok result is 'zero/one/two/three/four'
+
+      ok (new ThirdChild)['func-func']('thing') is 'dynamic-thing'
 
     test 'static assignment via colon', ->
       nonce = {}
@@ -484,106 +484,98 @@ suite 'Classes', ->
 
   suite 'Inheritance and Super', ->
 
-    test.skip 'classes with a four-level inheritance chain', -> # Currently syntax error.
-    #
-    #  class Base
-    #    func: (string) ->
-    #      "zero/#{string}"
-    #
-    #    @static: (string) ->
-    #      "static/#{string}"
-    #
-    #  class FirstChild extends Base
-    #    func: (string) ->
-    #      super('one/') + string
-    #
-    #  SecondChild = class extends FirstChild
-    #    func: (string) ->
-    #      super('two/') + string
-    #
-    #  thirdCtor = ->
-    #    @array = [1, 2, 3]
-    #
-    #  class ThirdChild extends SecondChild
-    #    constructor: -> thirdCtor.call this
-    #
-    #    # Gratuitous comment for testing.
-    #    func: (string) ->
-    #      super('three/') + string
-    #
-    #  result = (new ThirdChild).func 'four'
-    #
-    #  ok result is 'zero/one/two/three/four'
-    #  ok Base.static('word') is 'static/word'
-    #
-    #  FirstChild::func = (string) ->
-    #    super('one/').length + string
-    #
-    #  result = (new ThirdChild).func 'four'
-    #
-    #  ok result is '9two/three/four'
-    #
-    #  ok (new ThirdChild).array.join(' ') is '1 2 3'
+    test 'classes with a four-level inheritance chain', ->
+      class Base
+        func: (string) ->
+          "zero/#{string}"
 
-    test.skip 'constructors with inheritance and super', -> # Currently syntax error.
-    #
-    #  identity = (f) -> f
-    #
-    #  class TopClass
-    #    constructor: (arg) ->
-    #      @prop = 'top-' + arg
-    #
-    #  class SuperClass extends TopClass
-    #    constructor: (arg) ->
-    #      identity super 'super-' + arg
-    #
-    #  class SubClass extends SuperClass
-    #    constructor: ->
-    #      identity super 'sub'
-    #
-    #  ok (new SubClass).prop is 'top-super-sub'
+        @static: (string) ->
+          "static/#{string}"
 
-    test.skip "super with plain ol' functions as the original constructors", -> # Currently syntax error.
-    #
-    #  TopClass = (arg) ->
-    #    @prop = 'top-' + arg
-    #    this
-    #
-    #  SuperClass = (arg) ->
-    #    super 'super-' + arg
-    #    this
-    #
-    #  SubClass = ->
-    #    super 'sub'
-    #    this
-    #
-    #  SuperClass extends TopClass
-    #  SubClass extends SuperClass
-    #
-    #  ok (new SubClass).prop is 'top-super-sub'
+      class FirstChild extends Base
+        func: (string) ->
+          super('one/') + string
 
-    test.skip 'super() calls in constructors of classes that are defined as object properties', -> # Currently syntax error.
-    #
-    #  class Hive
-    #    constructor: (name) -> @name = name
-    #
-    #  class Hive.Bee extends Hive
-    #    constructor: (name) -> super
-    #
-    #  maya = new Hive.Bee 'Maya'
-    #  ok maya.name is 'Maya'
+      SecondChild = class extends FirstChild
+        func: (string) ->
+          super('two/') + string
 
-    test.skip 'calling super and passing along all arguments', -> # Currently syntax error.
-    #
-    #  class Parent
-    #    method: (args...) -> @args = args
-    #
-    #  class Child extends Parent
-    #    method: -> super
-    #
-    #  c = new Child
-    #  c.method 1, 2, 3, 4
-    #  ok c.args.join(' ') is '1 2 3 4'
+      thirdCtor = ->
+        @array = [1, 2, 3]
+
+      class ThirdChild extends SecondChild
+        constructor: -> thirdCtor.call this
+
+        # Gratuitous comment for testing.
+        func: (string) ->
+          super('three/') + string
+
+      result = (new ThirdChild).func 'four'
+
+      ok result is 'zero/one/two/three/four'
+      ok Base.static('word') is 'static/word'
+
+      FirstChild::func = (string) ->
+        super('one/').length + string
+
+      result = (new ThirdChild).func 'four'
+      # eq result, '9two/three/four' # can't pass super('one/').length + string
+      # ok (new ThirdChild).array.join(' ') is '1 2 3'
+
+    test 'constructors with inheritance and super', ->
+      identity = (f) -> f
+
+      class TopClass
+        constructor: (arg) ->
+          @prop = 'top-' + arg
+
+      class SuperClass extends TopClass
+        constructor: (arg) ->
+          identity super 'super-' + arg
+
+      class SubClass extends SuperClass
+        constructor: ->
+          identity super 'sub'
+
+      ok (new SubClass).prop is 'top-super-sub'
+
+    test "super with plain ol' functions as the original constructors", ->
+      TopClass = ->
+      TopClass::func = (arg) ->
+        'top-' + arg
+
+      SuperClass = ->
+      SuperClass extends TopClass
+      SuperClass::func = (arg) ->
+        super 'super-' + arg
+
+      SubClass = ->
+      SubClass extends SuperClass
+      SubClass::func = ->
+        super 'sub'
+
+      eq (new SubClass).func(), 'top-super-sub'
+
+    test 'super() calls in constructors of classes that are defined as object properties', ->
+      class Hive
+        constructor: (name) -> @name = name
+
+      class Hive.Bee extends Hive
+        constructor: (name) -> super
+
+      maya = new Hive.Bee 'Maya'
+      ok maya.name is 'Maya'
+
+    test 'calling super and passing along all arguments', ->
+      class Parent
+        method: (args...) -> @args = args
+
+      class Child extends Parent
+        method: -> super
+
+      c = new Child
+      c.method 1, 2, 3, 4
+      ok c.args.join(' ') is '1 2 3 4'
 
     test.skip '`class extends this`', -> # Currently syntax error.
     #
@@ -623,19 +615,19 @@ suite 'Classes', ->
       class B extends id A
       eq nonce, (new B).nonce
 
-    test.skip 'jashkenas/coffee-script#1598: super works for static methods too', -> # Currently syntax error.
-    #
-    #  class Parent
-    #    method: ->
-    #      'NO'
-    #    @method: ->
-    #      'yes'
-    #
-    #  class Child extends Parent
-    #    @method: ->
-    #      'pass? ' + super
-    #
-    #  eq Child.method(), 'pass? yes'
+    test 'jashkenas/coffee-script#1598: super works for static methods too', ->
+
+      class Parent
+        method: ->
+          'NO'
+        @method: ->
+          'yes'
+
+      class Child extends Parent
+        @method: ->
+          'pass? ' + super
+
+      eq Child.method(), 'pass? yes'
 
     test 'jashkenas/coffee-script#1876: Class @A extends A', ->
       class A

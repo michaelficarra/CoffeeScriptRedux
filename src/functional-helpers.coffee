@@ -8,6 +8,11 @@
     return no unless fn e
   yes
 
+@find = (list, fn) ->
+  for e in list
+    return e if fn(e)
+  null
+
 @foldl = foldl = (memo, list, fn) ->
   for i in list
     memo = fn memo, i

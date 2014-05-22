@@ -1,4 +1,4 @@
-{any, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union} = require './functional-helpers'
+{find, any, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -809,6 +809,73 @@ class exports.Compiler
         else lhs.right = new JS.AssignmentExpression '=', left, lhs.right
       new JS.LogicalExpression '&&', lhs, new JS.BinaryExpression expression.operator, left, expression.right
     ]
+
+    [CS.Super, ({arguments: args, compile, inScope, ancestry}) ->
+
+      classNode = find ancestry, (node) =>
+        (node instanceof CS.Class) or (node.assignee instanceof CS.ProtoMemberAccessOp)
+
+      classPositionInAncestry = ancestry.indexOf(classNode)
+      classAssignNode = ancestry[ ancestry.indexOf(classNode) - 1]
+
+      className = null
+      functionName = null
+      isStatic = false
+      isProtoMemberAccess = classNode.assignee instanceof CS.ProtoMemberAccessOp
+
+      switch
+        when classNode instanceof CS.Class
+          className = classNode.name.data
+          functionName = do ->
+            searchableNodes = [];
+            for i, n in ancestry
+              break if n is classPositionInAncestry
+              searchableNodes.unshift i
+            assignableNode = find searchableNodes, (node) => node.assignee?
+            return 'constructor' unless assignableNode?
+
+            switch
+              when assignableNode.assignee instanceof CS.MemberAccessOp
+                isStatic = true
+                assignableNode.assignee.memberName
+              when assignableNode.assignee instanceof CS.Identifier
+                assignableNode.assignee.data
+
+        when classNode instanceof CS.AssignOp
+          isStatic = false
+          className = classNode.assignee.expression.data
+          functionName = classNode.assignee.memberName
+
+      if className is 'class'
+        if args.length > 0
+          calledExprs = [new JS.ThisExpression].concat (map args, expr)
+          return new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier classNode.parent.data) , 'prototype'), functionName), 'call'), calledExprs
+        else
+          return new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier classNode.parent.data) , 'prototype'), functionName), 'apply'), [
+            new JS.ThisExpression
+            new JS.Identifier 'arguments'
+          ]
+
+      if isStatic
+        if args.length is 0
+          new JS.CallExpression (memberAccess (memberAccess (memberAccess (memberAccess (new JS.Identifier className) , '__super__'), 'constructor'),  functionName), 'apply'), [
+            new JS.ThisExpression
+            new JS.Identifier 'arguments'
+          ]
+        else
+          calledExprs = [new JS.ThisExpression].concat (map args, expr)
+          new JS.CallExpression (memberAccess (memberAccess (memberAccess (memberAccess (new JS.Identifier className) , '__super__'), 'constructor'), functionName), 'call'), calledExprs
+      else
+        if args.length is 0
+          new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier className) , '__super__'), functionName), 'apply'), [
+            new JS.ThisExpression
+            new JS.Identifier 'arguments'
+          ]
+        else
+          calledExprs = [new JS.ThisExpression].concat (map args, expr)
+          new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier className) , '__super__'), functionName), 'call'), calledExprs
+    ]
+
     [CS.FunctionApplication, ({function: fn, arguments: args, compile}) ->
       if any args, (m) -> m.spread
         lhs = @function

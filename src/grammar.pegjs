@@ -589,7 +589,12 @@ leftHandSideExpressionNoImplicitObjectCall = callExpressionNoImplicitObjectCall 
     / secondaryExpressionNoImplicitObjectCall
 
 callExpression
-  = fn:memberExpression accesses:callExpressionAccesses? secondaryArgs:("?"? secondaryArgumentList)? {
+  = SUPER accesses:callExpressionAccesses? secondaryArgs:secondaryArgumentList?{
+      if(accesses)
+        return rp(new CS.Super(accesses[0].operands[0]));
+      return rp(new CS.Super(secondaryArgs || [] ));
+    }
+  / fn:memberExpression accesses:callExpressionAccesses? secondaryArgs:("?"? secondaryArgumentList)? {
       if(accesses) fn = createMemberExpression(fn, accesses);
       var soaked, secondaryCtor;
       if(secondaryArgs) {
@@ -603,7 +608,12 @@ callExpression
     = TERMINDENT as:callExpressionAccesses DEDENT { return as; }
     / as:(argumentList / MemberAccessOps)+ bs:callExpressionAccesses? { return as.concat(bs || []); }
 callExpressionNoImplicitObjectCall
-  = fn:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
+  = SUPER accesses:callExpressionAccesses? secondaryArgs:secondaryArgumentList?{
+      if(accesses)
+        return rp(new CS.Super(accesses[0].operands[0]));
+      return rp(new CS.Super(secondaryArgs || [] ));
+    }
+  / fn:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
       if(accesses) fn = createMemberExpression(fn, accesses);
       var soaked, secondaryCtor;
       if(secondaryArgs) {
@@ -1217,6 +1227,7 @@ UNTIL = $("until" !identifierPart)
 WHEN = $("when" !identifierPart)
 WHILE = $("while" !identifierPart)
 YES = $("yes" !identifierPart)
+SUPER = $("super" !identifierPart)
 
 SharedKeywords
   = ("true" / "false" / "null" / "this" / "new" / "delete" / "typeof" /

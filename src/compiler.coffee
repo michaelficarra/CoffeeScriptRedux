@@ -1,4 +1,4 @@
-{any, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union} = require './functional-helpers'
+{find, any, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'

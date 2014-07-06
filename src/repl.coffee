@@ -8,8 +8,10 @@ CS = require './nodes'
 
 addMultilineHandler = (repl) ->
   {rli, inputStream, outputStream} = repl
-  initialPrompt = repl.prompt.replace /^[^> ]*/, (x) -> x.replace /./g, '-'
-  continuationPrompt = repl.prompt.replace /^[^> ]*>?/, (x) -> x.replace /./g, '.'
+  # Node 0.11.12 changed API, prompt is now _prompt.
+  origPrompt = repl._prompt ? repl.prompt
+  initialPrompt = origPrompt.replace /^[^> ]*/, (x) -> x.replace /./g, '-'
+  continuationPrompt = origPrompt.replace /^[^> ]*>?/, (x) -> x.replace /./g, '.'
 
   enabled = no
   buffer = ''
@@ -23,6 +25,7 @@ addMultilineHandler = (repl) ->
       rli.setPrompt continuationPrompt
       rli.prompt true
     else
+      rli.setPrompt origPrompt
       nodeLineListener cmd
     return
 
@@ -33,7 +36,7 @@ addMultilineHandler = (repl) ->
       # allow arbitrarily switching between modes any time before multiple lines are entered
       unless buffer.match /\n/
         enabled = not enabled
-        rli.setPrompt repl.prompt
+        rli.setPrompt origPrompt
         rli.prompt true
         return
       # no-op unless the current line is empty
@@ -86,8 +89,8 @@ addHistory = (repl, filename, maxSize) ->
   repl.rli.on 'exit', -> fs.closeSync fd
 
   # .clear should also clear history
-  original_clear = repl.commands['.clear'].action
-  repl.commands['.clear'].action = ->
+  original_clear = repl.commands[getCommandId(repl, 'clear')].action
+  repl.commands[getCommandId(repl, 'clear')].action = ->
     repl.outputStream.write 'Clearing history...\n'
     repl.rli.history = []
     fs.closeSync fd
@@ -96,11 +99,16 @@ addHistory = (repl, filename, maxSize) ->
     original_clear.call this
 
   # add a command to show the history stack
-  repl.commands['.history'] =
+  repl.commands[getCommandId(repl, 'history')] =
     help: 'Show command history'
     action: ->
       repl.outputStream.write "#{repl.rli.history[..].reverse().join '\n'}\n"
       do repl.displayPrompt
+
+
+getCommandId = (repl, commandName) ->
+  # Node 0.11 changed API, a command such as '.help' is now stored as 'help'
+  if repl.commands['.help']? then ".#{commandName}" else commandName
 
 module.exports =
   start: (opts = {}) ->
@@ -132,4 +140,6 @@ module.exports =
     addMultilineHandler repl
     if opts.historyFile
       addHistory repl, opts.historyFile, opts.historyMaxInputSize
+    # Adapt help inherited from the node REPL
+    repl.commands[getCommandId(repl, 'load')].help = 'Load code from a file into this REPL session'
     repl

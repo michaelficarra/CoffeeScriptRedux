@@ -25,6 +25,7 @@ suite 'REPL', ->
       @written[@written.length - 1 - fromEnd].replace /\n$/, ''
 
   historyFile = path.join __dirname, 'coffee_history_test'
+  console.dir historyFile
   process.on 'exit', -> fs.unlinkSync historyFile
 
   testRepl = (desc, fn, testFn = test) ->

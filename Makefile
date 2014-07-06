@@ -8,7 +8,7 @@ TEST = $(wildcard test/*.coffee | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare
-PEGJS = node_modules/.bin/pegjs --cache --export-var 'module.exports'
+PEGJS = node_modules/.bin/pegjs --cache
 MOCHA = node_modules/.bin/mocha --compilers coffee:./register -u tdd
 CJSIFY = node_modules/.bin/cjsify --export CoffeeScript
 MINIFIER = node_modules/.bin/esmangle

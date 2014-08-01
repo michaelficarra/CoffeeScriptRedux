@@ -1,43 +1,44 @@
 {
-  @CS = require('./nodes')
+  CS = require('./nodes')
 
-  @constructorLookup =
-    '||': @CS.LogicalOrOp
-    'or': @CS.LogicalOrOp
-    '&&': @CS.LogicalAndOp
-    'and': @CS.LogicalAndOp
-    '|': @CS.BitOrOp
-    '^': @CS.BitXorOp
-    '&': @CS.BitAndOp
-    '?': @CS.ExistsOp
-    '==': @CS.EQOp
-    'is': @CS.EQOp
-    '!=': @CS.NEQOp
-    'isnt': @CS.NEQOp
-    '<=': @CS.LTEOp
-    '>=': @CS.GTEOp
-    '<': @CS.LTOp
-    '>': @CS.GTOp
-    'extends': @CS.ExtendsOp
-    'instanceof': @CS.InstanceofOp
-    'in': @CS.InOp
-    'of': @CS.OfOp
-    '<<': @CS.LeftShiftOp
-    '>>': @CS.SignedRightShiftOp
-    '>>>': @CS.UnsignedRightShiftOp
-    '+': @CS.PlusOp
-    '-': @CS.SubtractOp
-    '*': @CS.MultiplyOp
-    '/': @CS.DivideOp
-    '%': @CS.RemOp
-    '**': @CS.ExpOp
+  constructorLookup =
+    '||': CS.LogicalOrOp
+    'or': CS.LogicalOrOp
+    '&&': CS.LogicalAndOp
+    'and': CS.LogicalAndOp
+    '|': CS.BitOrOp
+    '^': CS.BitXorOp
+    '&': CS.BitAndOp
+    '?': CS.ExistsOp
+    '==': CS.EQOp
+    'is': CS.EQOp
+    '!=': CS.NEQOp
+    'isnt': CS.NEQOp
+    '<=': CS.LTEOp
+    '>=': CS.GTEOp
+    '<': CS.LTOp
+    '>': CS.GTOp
+    'extends': CS.ExtendsOp
+    'instanceof': CS.InstanceofOp
+    'in': CS.InOp
+    'of': CS.OfOp
+    '<<': CS.LeftShiftOp
+    '>>': CS.SignedRightShiftOp
+    '>>>': CS.UnsignedRightShiftOp
+    '+': CS.PlusOp
+    '-': CS.SubtractOp
+    '*': CS.MultiplyOp
+    '/': CS.DivideOp
+    '%': CS.RemOp
+    '**': CS.ExpOp
 
   negatableOps = ['instanceof', 'in', 'of']
   chainableComparisonOps = ['<=', '>=', '<', '>', '==', 'is', '!=', 'isnt']
 
   rightAssocOps = [';', '=', '?', '**']
   precedenceHierarchy =
-    [ ['or', '||']
+    [
+      ['or', '||']
       ['and', '&&']
       ['|']
       ['^']
@@ -69,44 +70,46 @@
       result[rightAssocOp] = RIGHT_ASSOCIATIVE
     result
 
-  for op in negatableOps then do (op) =>
-    fn = (a, b) => new @CS.LogicalNotOp new @constructorLookup[op] a, b
-    fn.prototype = @constructorLookup[op].prototype
+  for op in negatableOps then do (op) ->
+    fn = (a, b) -> new CS.LogicalNotOp new constructorLookup[op] a, b
+    fn.prototype = constructorLookup[op].prototype
     negatedOp = "not #{op}"
-    @constructorLookup[negatedOp] = fn
+    constructorLookup[negatedOp] = fn
     precedenceTable[negatedOp] = precedenceTable[op]
     associativities[negatedOp] = associativities[op]
 
 
-  @prefixConstructorLookup =
-    '++': @CS.PreIncrementOp
-    '--': @CS.PreDecrementOp
-    '+': @CS.UnaryPlusOp
-    '-': @CS.UnaryNegateOp
-    '!': @CS.LogicalNotOp
-    'not': @CS.LogicalNotOp
-    '~': @CS.BitNotOp
-    'do': @CS.DoOp
-    'typeof': @CS.TypeofOp
-    'delete': @CS.DeleteOp
+  prefixConstructorLookup =
+    '++': CS.PreIncrementOp
+    '--': CS.PreDecrementOp
+    '+': CS.UnaryPlusOp
+    '-': CS.UnaryNegateOp
+    '!': CS.LogicalNotOp
+    'not': CS.LogicalNotOp
+    '~': CS.BitNotOp
+    'do': CS.DoOp
+    'typeof': CS.TypeofOp
+    'delete': CS.DeleteOp
 
-  @postfixConstructorLookup =
-    '?': @CS.UnaryExistsOp
-    '[..]': @CS.ShallowCopyArray
-    '++': @CS.PostIncrementOp
-    '--': @CS.PostDecrementOp
+  postfixConstructorLookup =
+    '?': CS.UnaryExistsOp
+    '[..]': CS.ShallowCopyArray
+    '++': CS.PostIncrementOp
+    '--': CS.PostDecrementOp
 
-  @foldl = (fn, memo, list) ->
+  foldl = (fn, memo, list) ->
     for item in list
       memo = fn memo, item
     memo
-  @foldr = (fn, memo, list) ->
-    for item in list by -1
+  foldr = (fn, memo, list) ->
+    i = list.length
+    while i--
+      item = list[i]
       memo = fn memo, item
     memo
 
   # TODO: clean up and use a functional approach; stack === recursion
-  @foldBinaryExpr = (parts, ignoreChains) =>
+  foldBinaryExpr = (parts, ignoreChains) ->
     return parts[0] if parts.length < 3 # should never happen
     stack = [].slice.call(parts, 0, 3)
     parts = [].slice.call(parts, 3)
@@ -129,24 +132,23 @@
               prec = precedenceTable[operator]
             # TODO: I would love `a < b is c < d` to instead denote `(a < b) is (c < d)`
             break unless nextOp? and (nextPrec > prec or nextOp in chainableComparisonOps)
-          stack.push new @CS.ChainedComparisonOp @foldBinaryExpr chainStack, true
+          stack.push new CS.ChainedComparisonOp foldBinaryExpr chainStack, true
           continue
 
       # reduce
-      while \
-          stack.length > 2 and \
-          ( \
-          operator = stack[stack.length - 2]
-          prec = precedenceTable[operator]
-          nextPrec = precedenceTable[nextOp]
-          nextPrec < prec or
-          operator in chainableComparisonOps and nextOp in chainableComparisonOps or
-          nextPrec is prec and associativities[operator] is LEFT_ASSOCIATIVE
-          )
+      while stack.length > 2 and
+      (
+        operator = stack[stack.length - 2];
+        prec = precedenceTable[operator];
+        nextPrec = precedenceTable[nextOp];
+        nextPrec < prec or
+        operator in chainableComparisonOps and nextOp in chainableComparisonOps or
+        nextPrec is prec and associativities[operator] is LEFT_ASSOCIATIVE
+      )
         rightOperand = stack.pop()
         stack.pop() # operator
         leftOperand = stack.pop()
-        stack.push new @constructorLookup[operator] leftOperand, rightOperand
+        stack.push new constructorLookup[operator] leftOperand, rightOperand
 
       # shift
       stack.push parts.shift() # operator
@@ -155,40 +157,40 @@
     # reduce the rest of the stack
     expr = stack.pop()
     while stack.length > 0
-      expr = new @constructorLookup[stack.pop()] stack.pop(), expr
+      expr = new constructorLookup[stack.pop()] stack.pop(), expr
 
     expr
 
-  @createInterpolation = (es) =>
-    init = new @CS.String('').g()
-    @foldl (memo, s) =>
-      if s instanceof @CS.String
+  createInterpolation = (es) ->
+    init = new CS.String('').g()
+    foldl ((memo, s) ->
+      if s instanceof CS.String
         left = memo
         while left
-          if left instanceof @CS.String
+          if left instanceof CS.String
             if left is init
-              @c left, s
+              c left, s
               delete left.generated
             left.data = "#{left.data}#{s.data}"
             return memo
-          else if left instanceof @CS.ConcatOp
+          else if left instanceof CS.ConcatOp
             left = left.right
           else
             break
-      new @CS.ConcatOp memo, s
-    , init, es
+      new CS.ConcatOp memo, s
+    ), init, es
 
-  @createMemberExpression = (e, accesses) =>
-    @foldl (left, access) =>
+  createMemberExpression = (e, accesses) ->
+    foldl ((left, access) ->
       F = ->
       F.prototype = access.op.prototype
       o = new F
       # rather safely assumes access.op is returning non-Object
       access.op.call o, left, access.operands...
-      @c (o.r left.raw + access.raw), e
-    , e, accesses
+      c (o.r left.raw + access.raw), e
+    ), e, accesses
 
-  @isValidRegExpFlags = (flags) ->
+  isValidRegExpFlags = (flags) ->
     return true unless flags
     return false if flags.length > 4
     flags.sort()
@@ -199,7 +201,7 @@
     true
 
   # TODO: refactor this
-  @stripLeadingWhitespace = (str) ->
+  stripLeadingWhitespace = (str) ->
     str = str.trimRight()
     matchStr = str
     indent = null
@@ -213,10 +215,10 @@
     str
 
   # TODO: remove mutation?
-  @stripLeadingWhitespaceInterpolation = (pieces) =>
+  stripLeadingWhitespaceInterpolation = (pieces) ->
     indent = null
     for piece, index in pieces
-      if piece instanceof @CS.String
+      if piece instanceof CS.String
         piece.data = piece.data.replace /\s+$/, '' if index is pieces.length - 1
         matchStr = piece.data
         while match = /\n+([^\n\S]*)/.exec matchStr
@@ -226,26 +228,26 @@
             indent = attempt
     if indent
       for piece, index in pieces
-        if piece instanceof @CS.String
+        if piece instanceof CS.String
           piece.data = piece.data.replace ///\n#{indent}///g, '\n'
           piece.data = piece.data.replace /(\n\s*)+$/, '' if index is pieces.length - 1
           piece.data = piece.data.replace /^\n/, '' if index is 0
     pieces
 
   # store raw parse information
-  @r = (node) ->
+  r = (node) ->
     node.raw = text().replace /[\uEFEF\uEFFE\uEFFF]/g, ''
     node
   # store position information
-  @p = (node) ->
+  p = (node) ->
     node.line = line()
     node.column = column()
     node.offset = offset()
     node
   # composition of r and p
-  @rp = (node) => @r @p node
+  rp = (node) -> r p node
   # copy position information
-  @c = (to, from) ->
+  c = (to, from) ->
     to.line = from.line
     to.column = from.column
     to.offset = from.offset
@@ -253,65 +255,60 @@
   # the identity function
   id = (x) -> x
   unless options.raw
-    @r = @p = @rp = id
+    r = p = rp = id
 
-  return this
-).call({})
+  `
+  // XXX: this overrides the function with the same name generated by PEGjs; see comment within
+  function peg$computePosDetails() {
+    function advanceCachedReportedPos() {
+      var ch;
 
-`
-// XXX: this overrides the function with the same name generated by PEGjs; see comment within
-function peg$computePosDetails() {
-  function advanceCachedReportedPos() {
-    var ch;
-
-    for (; peg$cachedPos < peg$reportedPos; peg$cachedPos++) {
-      ch = input.charAt(peg$cachedPos);
-      if (ch === "\n") {
-        if (!peg$cachedPosDetails.seenCR) { peg$cachedPosDetails.line++; }
-        peg$cachedPosDetails.column = 1;
-        peg$cachedPosDetails.seenCR = false;
-      } else if (ch === "\r" || ch === "\u2028" || ch === "\u2029") {
-        peg$cachedPosDetails.line++;
-        peg$cachedPosDetails.column = 1;
-        peg$cachedPosDetails.seenCR = true;
-      // XXX: strip control characters when calculating position information; see #117
-      } else if(!/[\uEFEF\uEFFE\uEFFF]/.test(ch)) {
-        peg$cachedPosDetails.column++;
-        peg$cachedPosDetails.seenCR = false;
+      for (; peg$cachedPos < peg$reportedPos; peg$cachedPos++) {
+        ch = input.charAt(peg$cachedPos);
+        if (ch === "\n") {
+          if (!peg$cachedPosDetails.seenCR) { peg$cachedPosDetails.line++; }
+          peg$cachedPosDetails.column = 1;
+          peg$cachedPosDetails.seenCR = false;
+        } else if (ch === "\r" || ch === "\u2028" || ch === "\u2029") {
+          peg$cachedPosDetails.line++;
+          peg$cachedPosDetails.column = 1;
+          peg$cachedPosDetails.seenCR = true;
+        // XXX: strip control characters when calculating position information; see #117
+        } else if(!/[\uEFEF\uEFFE\uEFFF]/.test(ch)) {
+          peg$cachedPosDetails.column++;
+          peg$cachedPosDetails.seenCR = false;
+        }
       }
     }
-  }
 
-  if (peg$cachedPos !== peg$reportedPos) {
-    if (peg$cachedPos > peg$reportedPos) {
-      peg$cachedPos = 0;
-      peg$cachedPosDetails = { line: 1, column: 1, seenCR: false };
+    if (peg$cachedPos !== peg$reportedPos) {
+      if (peg$cachedPos > peg$reportedPos) {
+        peg$cachedPos = 0;
+        peg$cachedPosDetails = { line: 1, column: 1, seenCR: false };
+      }
+      advanceCachedReportedPos();
     }
-    advanceCachedReportedPos();
+
+    return peg$cachedPosDetails;
   }
-
-  return peg$cachedPosDetails;
-}
-`
-
-(->
+  `
 }
 
 
 program
   = leader:TERMINATOR? _ b:toplevelBlock? {
-      @rp new @CS.Program b
+      rp new CS.Program b
     }
 
 toplevelBlock
   = s:toplevelStatement ss:(_ TERMINATOR _ s:toplevelStatement { s })* TERMINATOR? {
-      @rp new @CS.Block [s, ss...]
+      rp new CS.Block [s, ss...]
     }
   toplevelStatement = !(return / continue / break) s:statement { s }
 
 block
   = s:statement ss:(_ TERMINATOR _ s:statement { s })* TERMINATOR? {
-      @rp new @CS.Block [s, ss...]
+      rp new CS.Block [s, ss...]
     }
 
 
@@ -352,28 +349,28 @@ expressionworthy
 seqExpression
   = left:postfixControlFlowExpression right:(_ ";" TERMINATOR? _ e:expression { e })? {
       return left unless right
-      @rp new @CS.SeqOp left, right
+      rp new CS.SeqOp left, right
     }
 
 postfixControlFlowExpression
   = expr:secondaryStatement postfixes:(_ postfixControlFlowOp)* {
-      @foldl (expr, postfixContainer) =>
+      foldl ((expr, postfixContainer) ->
         postfix = postfixContainer[1]
         indicator = postfix.type
         switch indicator
           when 'if'
-            @rp new @CS.Conditional postfix.cond, expr, null
+            rp new CS.Conditional postfix.cond, expr, null
           when 'unless'
-            @rp new @CS.NegatedConditional new @CS.LogicalNotOp(postfix.cond).g(), expr, null
+            rp new CS.NegatedConditional new CS.LogicalNotOp(postfix.cond).g(), expr, null
           when 'while'
-            @rp new @CS.While postfix.cond, expr
+            rp new CS.While postfix.cond, expr
           when 'until'
-            @rp new @CS.NegatedWhile new @CS.LogicalNotOp(postfix.cond).g(), expr
+            rp new CS.NegatedWhile new CS.LogicalNotOp(postfix.cond).g(), expr
           when 'for-in'
-            @rp new @CS.ForIn postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, expr
+            rp new CS.ForIn postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, expr
           when 'for-of'
-            @rp new @CS.ForOf postfix.own, postfix.key, postfix.val, postfix.obj, postfix.filter, expr
-      , expr, postfixes
+            rp new CS.ForOf postfix.own, postfix.key, postfix.val, postfix.obj, postfix.filter, expr
+      ), expr, postfixes
     }
   postfixControlFlowOp
     = kw:(IF / UNLESS) _ e:assignmentExpression { type: kw, cond: e }
@@ -383,7 +380,8 @@ postfixControlFlowExpression
       step:(_ BY _ a:assignmentExpression { a })?
       filter:(_ WHEN _ a:assignmentExpression { a })? {
         [val, key] = valKey ? [null, null]
-        { type: 'for-in', val, key, list, step: step ? new @CS.Int(1).r('1').g(), filter }
+        step ?= new CS.Int(1).r('1').g()
+        { type: 'for-in', val, key, list, step, filter }
       }
     / FOR _ own:(OWN _)? key:Assignable _ val:("," _ a:Assignable _ { a })?
       OF _ obj:assignmentExpression
@@ -401,14 +399,14 @@ assignmentExpression
       ( TERMINDENT e:secondaryExpression DEDENT { e }
       / TERMINATOR? _ e:secondaryExpression { e }
       ) {
-        @rp new @CS.AssignOp left, right
+        rp new CS.AssignOp left, right
       }
   compoundAssignmentOp
     = left:CompoundAssignable _ !"?" op:CompoundAssignmentOperators "=" right:
       ( TERMINDENT e:secondaryExpression DEDENT { e }
       / TERMINATOR? _ e:secondaryExpression { e }
       ) {
-        @rp new @CS.CompoundAssignOp @constructorLookup[op].prototype.className, left, right
+        rp new CS.CompoundAssignOp constructorLookup[op].prototype.className, left, right
       }
   CompoundAssignmentOperators
     = $("&&" / AND / "||" / OR / "**" / [?&^|*/%] / "+" !"+" / "-" !"-" / "<<" / ">>>" / ">>")
@@ -417,7 +415,7 @@ assignmentExpression
       ( TERMINDENT e:secondaryExpression DEDENT { e }
       / TERMINATOR? _ e:secondaryExpression { e }
       ) {
-        @rp new @CS.CompoundAssignOp @constructorLookup['?'].prototype.className, left, right
+        rp new CS.CompoundAssignOp constructorLookup['?'].prototype.className, left, right
       }
 assignmentExpressionNoImplicitObjectCall
   = assignmentOpNoImplicitObjectCall
@@ -429,21 +427,21 @@ assignmentExpressionNoImplicitObjectCall
       ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { e }
       / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { e }
       ) {
-        @rp new @CS.AssignOp left, right
+        rp new CS.AssignOp left, right
       }
   compoundAssignmentOpNoImplicitObjectCall
     = left:CompoundAssignable _ !"?" op:CompoundAssignmentOperators "=" right:
       ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { e }
       / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { e }
       ) {
-        @rp new @CS.CompoundAssignOp @constructorLookup[op].prototype.className, left, right
+        rp new CS.CompoundAssignOp constructorLookup[op].prototype.className, left, right
       }
   existsAssignmentOpNoImplicitObjectCall
     = left:ExistsAssignable _ "?=" _ right:
       ( TERMINDENT e:secondaryExpressionNoImplicitObjectCall DEDENT { e }
       / TERMINATOR? _ e:secondaryExpressionNoImplicitObjectCall { e }
       ) {
-        @rp new @CS.CompoundAssignOp @constructorLookup['?'].prototype.className, left, right
+        rp new CS.CompoundAssignOp constructorLookup['?'].prototype.className, left, right
       }
 
 binaryExpression
@@ -453,8 +451,8 @@ binaryExpression
     )* {
       switch rights.length
         when 0 then left
-        when 1 then [op, expr] = rights[0]; @rp new @constructorLookup[op](left, expr)
-        else @rp @foldBinaryExpr [left].concat(rights...)
+        when 1 then [op, expr] = rights[0]; rp new constructorLookup[op](left, expr)
+        else rp foldBinaryExpr [left].concat(rights...)
     }
   binaryOperator
     = $(CompoundAssignmentOperators !"=")
@@ -468,51 +466,51 @@ binaryExpressionNoImplicitObjectCall
     )* {
       switch rights.length
         when 0 then left
-        when 1 then [op, expr] = rights[0]; @rp new @constructorLookup[op](left, expr)
-        else @rp @foldBinaryExpr [left].concat(rights...)
+        when 1 then [op, expr] = rights[0]; rp new constructorLookup[op](left, expr)
+        else rp foldBinaryExpr [left].concat(rights...)
     }
 
 prefixExpression
   = postfixExpression
-  / DO _ e:(nfe / expressionworthy / prefixExpression) { @rp new @CS.DoOp e }
+  / DO _ e:(nfe / expressionworthy / prefixExpression) { rp new CS.DoOp e }
   / ops:(o:PrefixOperators _ { o })+ e:(expressionworthy / prefixExpression) {
-      @rp @foldr (e, op) =>
-        new @prefixConstructorLookup[op] e
-      , e, ops
+      rp foldr ((e, op) ->
+        new prefixConstructorLookup[op] e
+      ), e, ops
     }
   PrefixOperators
     = "++" / "--" / "+" / "-" / "!" / NOT / "~" / DO / TYPEOF / DELETE
   nfe
-    = !unassignable a:Assignable _ "=" _ f:functionLiteral { @rp new @CS.AssignOp a, f }
+    = !unassignable a:Assignable _ "=" _ f:functionLiteral { rp new CS.AssignOp a, f }
 prefixExpressionNoImplicitObjectCall
   = postfixExpressionNoImplicitObjectCall
-  / DO _ e:(nfe / expressionworthy / prefixExpressionNoImplicitObjectCall) { @rp new @CS.DoOp e }
+  / DO _ e:(nfe / expressionworthy / prefixExpressionNoImplicitObjectCall) { rp new CS.DoOp e }
   / ops:(o:PrefixOperators _ { o })+ e:(expressionworthy / prefixExpressionNoImplicitObjectCall) {
-      @rp @foldr (e, op) =>
-        new @prefixConstructorLookup[op] e
-      , e, ops
+      rp foldr ((e, op) ->
+        new prefixConstructorLookup[op] e
+      ), e, ops
     }
 
 postfixExpression
   = e:leftHandSideExpression ops:PostfixOperators* {
-      @rp @foldl (e, op) =>
-        new @postfixConstructorLookup[op] e
-      , e, ops
+      rp foldl ((e, op) ->
+        new postfixConstructorLookup[op] e
+      ), e, ops
     }
   PostfixOperators
     = "?" / "[..]" / "++" / "--"
 postfixExpressionNoImplicitObjectCall
   = e:leftHandSideExpressionNoImplicitObjectCall ops:PostfixOperators* {
-      @rp @foldl (e, op) =>
-        new @postfixConstructorLookup[op] e
-      , e, ops
+      rp foldl ((e, op) ->
+        new postfixConstructorLookup[op] e
+      ), e, ops
     }
 
 leftHandSideExpression = callExpression / newExpression
   argumentList
     = soaked:"?"? "(" _ a:argumentListContents? _ ")" {
-        @rp
-          op: if soaked then @CS.SoakedFunctionApplication else @CS.FunctionApplication
+        rp
+          op: if soaked then CS.SoakedFunctionApplication else CS.FunctionApplication
           operands: [a ? []]
       }
   argumentListContents
@@ -549,82 +547,82 @@ leftHandSideExpressionNoImplicitObjectCall = callExpressionNoImplicitObjectCall 
     / secondaryExpressionNoImplicitObjectCall
 
 callExpression
-  = e:memberExpression accesses:callExpressionAccesses? secondaryArgs:("?"? secondaryArgumentList)? {
-      fn = if accesses? then @createMemberExpression e, accesses else e
+  = fn:memberExpression accesses:callExpressionAccesses? secondaryArgs:("?"? secondaryArgumentList)? {
+      fn = createMemberExpression fn, accesses if accesses?
       if secondaryArgs?
         [ soaked, list ] = secondaryArgs
-        secondaryCtor = if soaked then @CS.SoakedFunctionApplication else @CS.FunctionApplication
-        fn = @rp new secondaryCtor fn, list
+        secondaryCtor = if soaked then CS.SoakedFunctionApplication else CS.FunctionApplication
+        fn = rp new secondaryCtor fn, list
       fn
     }
   callExpressionAccesses
     = TERMINDENT as:callExpressionAccesses DEDENT { as }
     / as:(argumentList / MemberAccessOps)+ bs:callExpressionAccesses? { [as..., (bs ? [])...] }
 callExpressionNoImplicitObjectCall
-  = e:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
-      fn = if accesses? then @createMemberExpression e, accesses else e
+  = fn:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
+      fn = createMemberExpression fn, accesses if accesses?
       if secondaryArgs?
         [ soaked, list ] = secondaryArgs
-        secondaryCtor = if soaked then @CS.SoakedFunctionApplication else @CS.FunctionApplication
-        fn = @rp new secondaryCtor fn, list
+        secondaryCtor = if soaked then CS.SoakedFunctionApplication else CS.FunctionApplication
+        fn = rp new secondaryCtor fn, list
       fn
     }
 
 newExpression
   = memberExpression
   / NEW __ e:(expressionworthy / newExpression / prefixExpression) {
-      @rp new @CS.NewOp e, []
+      rp new CS.NewOp e, []
     }
 newExpressionNoImplicitObjectCall
   = memberExpressionNoImplicitObjectCall
   / NEW __ e:(expressionworthy / newExpressionNoImplicitObjectCall / prefixExpressionNoImplicitObjectCall) {
-      @rp new @CS.NewOp e, []
+      rp new CS.NewOp e, []
     }
 
 memberExpression
   = e:
     ( primaryExpression
-    / NEW __ e:memberExpression args:argumentList { @rp new @CS.NewOp e, args.operands[0] }
+    / NEW __ e:memberExpression args:argumentList { rp new CS.NewOp e, args.operands[0] }
     ) accesses:MemberAccessOps* {
-      @createMemberExpression e, accesses
+      createMemberExpression e, accesses
     }
   / NEW __ e:memberExpression args:secondaryArgumentList {
-      @rp new @CS.NewOp e, args
+      rp new CS.NewOp e, args
     }
   memberAccess
     = e:
       ( primaryExpression
-      / NEW __ e:memberExpression args:argumentList { @rp new @CS.NewOp e, args.operands[0] }
+      / NEW __ e:memberExpression args:argumentList { rp new CS.NewOp e, args.operands[0] }
       ) accesses:(argumentList MemberAccessOps / MemberAccessOps)+ {
-        acc = @foldl ((memo, a) -> memo.concat a), [], accesses
-        @createMemberExpression e, acc
+        acc = foldl ((memo, a) -> memo.concat a), [], accesses
+        createMemberExpression e, acc
       }
     / contextVar
 
   MemberNames
     = identifierName
   MemberAccessOps
-    = TERMINDENT "." _ e:MemberNames MemberAccessOps* DEDENT { @rp op: @CS.MemberAccessOp, operands: [e] }
-    / TERMINATOR? _ "." TERMINATOR? _ e:MemberNames { @rp op: @CS.MemberAccessOp, operands: [e] }
-    / "?." _ e:MemberNames { @rp op: @CS.SoakedMemberAccessOp, operands: [e] }
-    / "[" _ e:expression _ "]" { @rp op: @CS.DynamicMemberAccessOp, operands: [e] }
-    / "?[" _ e:expression _ "]" { @rp op: @CS.SoakedDynamicMemberAccessOp, operands: [e] }
-    / "::" _ e:MemberNames { @rp op: @CS.ProtoMemberAccessOp, operands: [e] }
-    / "::[" _ e:expression _ "]" { @rp op: @CS.DynamicProtoMemberAccessOp, operands: [e] }
-    / "?::" _ e:MemberNames { @rp op: @CS.SoakedProtoMemberAccessOp, operands: [e] }
-    / "?::[" _ e:expression _ "]" { @rp op: @CS.SoakedDynamicProtoMemberAccessOp, operands: [e] }
+    = TERMINDENT "." _ e:MemberNames MemberAccessOps* DEDENT { rp op: CS.MemberAccessOp, operands: [e] }
+    / TERMINATOR? _ "." TERMINATOR? _ e:MemberNames { rp op: CS.MemberAccessOp, operands: [e] }
+    / "?." _ e:MemberNames { rp op: CS.SoakedMemberAccessOp, operands: [e] }
+    / "[" _ e:expression _ "]" { rp op: CS.DynamicMemberAccessOp, operands: [e] }
+    / "?[" _ e:expression _ "]" { rp op: CS.SoakedDynamicMemberAccessOp, operands: [e] }
+    / "::" _ e:MemberNames { rp op: CS.ProtoMemberAccessOp, operands: [e] }
+    / "::[" _ e:expression _ "]" { rp op: CS.DynamicProtoMemberAccessOp, operands: [e] }
+    / "?::" _ e:MemberNames { rp op: CS.SoakedProtoMemberAccessOp, operands: [e] }
+    / "?::[" _ e:expression _ "]" { rp op: CS.SoakedDynamicProtoMemberAccessOp, operands: [e] }
     / "[" _ left:assignmentExpression? _ ".." exclusive:"."? _ right:assignmentExpression? _ "]" {
-        @rp op: @CS.Slice, operands: [not exclusive, left, right]
+        rp op: CS.Slice, operands: [not exclusive, left, right]
       }
 memberExpressionNoImplicitObjectCall
   = e:
     ( primaryExpression
-    / NEW __ e:memberExpressionNoImplicitObjectCall args:argumentList { @rp new @CS.NewOp e, args.operands[0] }
+    / NEW __ e:memberExpressionNoImplicitObjectCall args:argumentList { rp new CS.NewOp e, args.operands[0] }
     ) accesses:MemberAccessOps* {
-      @createMemberExpression e, accesses
+      createMemberExpression e, accesses
     }
   / NEW __ e:memberExpressionNoImplicitObjectCall args:secondaryArgumentListNoImplicitObjectCall {
-      @rp new @CS.NewOp e, args
+      rp new CS.NewOp e, args
     }
 
 primaryExpression
@@ -634,7 +632,7 @@ primaryExpression
   / null
   / undefined
   / contextVar
-  / (THIS / "@") { @rp new @CS.This }
+  / (THIS / "@") { rp new CS.This }
   / identifier
   / range
   / arrayLiteral
@@ -643,28 +641,28 @@ primaryExpression
   / JSLiteral
   / string
   / regexp
-  / "(" TERMINDENT e:expression DEDENT TERMINATOR? ")" { @r e.clone() }
-  / "(" _ e:expression _ TERMINATOR? _ ")" { @r e.clone() }
+  / "(" TERMINDENT e:expression DEDENT TERMINATOR? ")" { r e.clone() }
+  / "(" _ e:expression _ TERMINATOR? _ ")" { r e.clone() }
   contextVar
-    = a:("@" { @rp new @CS.This }) m:MemberNames {
-        @rp new @CS.MemberAccessOp a, m
+    = a:("@" { rp new CS.This }) m:MemberNames {
+        rp new CS.MemberAccessOp a, m
       }
-  JSLiteral = "`" d:$([^`]*) "`" { @rp new @CS.JavaScript d }
+  JSLiteral = "`" d:$([^`]*) "`" { rp new CS.JavaScript d }
 
 
 spread
-  = e:postfixExpression "..." { @rp new @CS.Spread e }
+  = e:postfixExpression "..." { rp new CS.Spread e }
 spreadNoImplicitObjectCall
-  = e:postfixExpressionNoImplicitObjectCall "..." { @rp new @CS.Spread e }
+  = e:postfixExpressionNoImplicitObjectCall "..." { rp new CS.Spread e }
 
 
 conditional
   = kw:(IF / UNLESS) _ cond:assignmentExpressionNoImplicitObjectCall body:conditionalBody elseClause:elseClause? {
       switch kw
         when 'if'
-          @rp new @CS.Conditional cond, body.block, elseClause
+          rp new CS.Conditional cond, body.block, elseClause
         when 'unless'
-          @rp new @CS.NegatedConditional (new @CS.LogicalNotOp cond).g(), body.block, elseClause
+          rp new CS.NegatedConditional (new CS.LogicalNotOp cond).g(), body.block, elseClause
     }
   conditionalBody
     = _ TERMINDENT b:block DEDENT { block: b }
@@ -678,31 +676,31 @@ while
   = kw:(WHILE / UNTIL) _ cond:assignmentExpressionNoImplicitObjectCall body:whileBody {
       switch kw
         when 'while'
-          @rp new @CS.While cond, body.block
+          rp new CS.While cond, body.block
         when 'until'
-          @rp new @CS.NegatedWhile (new @CS.LogicalNotOp cond).g(), body.block
+          rp new CS.NegatedWhile (new CS.LogicalNotOp cond).g(), body.block
     }
   whileBody = conditionalBody
 
 
 loop
   = LOOP body:whileBody {
-      @rp new @CS.Loop body.block
+      rp new CS.Loop body.block
     }
 
 
 try
   = TRY body:tryBody c:catchClause? f:finallyClause? {
-      @rp new @CS.Try body.block, c?.assignee ? null, c?.block ? null, f?.block ? null
+      rp new CS.Try body.block, c?.assignee ? null, c?.block ? null, f?.block ? null
     }
   tryBody = b:functionBody { block: b }
   catchClause
     = TERMINATOR? _ CATCH _ e:Assignable? body:conditionalBody? {
-      @r block: (if body? then body.block else (new @CS.Block [])), assignee: e
+      r block: (if body? then body.block else (new CS.Block [])), assignee: e
     }
   finallyClause
     = TERMINATOR? _ FINALLY body:tryBody? {
-      @r block: body?.block ? null
+      r block: body?.block ? null
     }
 
 
@@ -712,11 +710,11 @@ class
       boundMembers = []
       stmts = if body? then body.statements ? [body] else []
       for m in stmts
-        if m.instanceof @CS.Constructor
+        if m.instanceof CS.Constructor
           ctor = m
-        else if (m.instanceof @CS.ClassProtoAssignOp) and (m.expression.instanceof @CS.BoundFunction)
+        else if (m.instanceof CS.ClassProtoAssignOp) and (m.expression.instanceof CS.BoundFunction)
           boundMembers.push m
-      @rp new @CS.Class name, parent, ctor, body, boundMembers
+      rp new CS.Class name, parent, ctor, body, boundMembers
     }
   extendee = secondaryExpressionNoImplicitObjectCall
   classBody
@@ -725,7 +723,7 @@ class
     / (_ THEN)?
   classBlock
     = s:classStatement ss:(_ TERMINATOR _ s:classStatement { s })* TERMINATOR? {
-        @rp new @CS.Block [s, ss...]
+        rp new CS.Block [s, ss...]
       }
   classStatement
     = constructor
@@ -733,30 +731,30 @@ class
     / staticAssignment
     / expression
   constructor
-    = (key:ObjectInitialiserKeys &{ (key.instanceof @CS.String, @CS.Identifier) and key.data is 'constructor' }) _ ":" _ e:
+    = (key:ObjectInitialiserKeys &{ (key.instanceof CS.String, CS.Identifier) and key.data is 'constructor' }) _ ":" _ e:
       ( TERMINDENT e:expression DEDENT { e }
       / TERMINATOR? _ e:expression { e }
       ) {
-        fn = if e.instanceof @CS.BoundFunction
-          @c new @CS.Function(e.parameters, e.body).r(e.raw), e
+        fn = if e.instanceof CS.BoundFunction
+          c new CS.Function(e.parameters, e.body).r(e.raw), e
         else
           e
-        @rp new @CS.Constructor fn
+        rp new CS.Constructor fn
       }
   staticAssignment
     = key:contextVar _ ":" _ e:
-      ( TERMINDENT e:expression DEDENT { @r expr: e }
-      / TERMINATOR? _ e:expression { @r expr: e }
+      ( TERMINDENT e:expression DEDENT { r expr: e }
+      / TERMINATOR? _ e:expression { r expr: e }
       ) {
-        @rp new @CS.AssignOp key, e.expr
+        rp new CS.AssignOp key, e.expr
       }
   classProtoAssignment
     = key:ObjectInitialiserKeys _ ":" _ e:
-      ( TERMINDENT e:expression DEDENT { @r expr: e }
-      / e:singleLineImplicitObjectLiteral { @r expr: e }
-      / TERMINATOR? _ e:secondaryExpression { @r expr: e }
+      ( TERMINDENT e:expression DEDENT { r expr: e }
+      / e:singleLineImplicitObjectLiteral { r expr: e }
+      / TERMINATOR? _ e:secondaryExpression { r expr: e }
       ) {
-        @rp new @CS.ClassProtoAssignOp key, e.expr
+        rp new CS.ClassProtoAssignOp key, e.expr
       }
 
 
@@ -766,7 +764,7 @@ forOf
     OF _ obj:assignmentExpressionNoImplicitObjectCall _
     filter:(WHEN _ e:assignmentExpressionNoImplicitObjectCall _ { e })?
     body:forBody {
-      @rp new @CS.ForOf (Boolean own), key, val, obj, filter, body.block
+      rp new CS.ForOf (Boolean own), key, val, obj, filter, body.block
     }
 forIn
   = FOR _ valKey:(val:Assignable _ key:("," _ a:Assignable _ { a })? { [val, key] })?
@@ -775,25 +773,26 @@ forIn
     filter:(WHEN _ e:assignmentExpressionNoImplicitObjectCall _ { e })?
     body:forBody {
       [val, key] = valKey ? [null, null]
-      @rp new @CS.ForIn val, key, list, step ? new @CS.Int(1).r('1').g(), filter, body.block
+      step ?= new CS.Int(1).r('1').g()
+      rp new CS.ForIn val, key, list, step, filter, body.block
     }
 
 
 switch
   = SWITCH _ e:(expressionworthy / assignmentExpression)? body:switchBody {
-      @rp new @CS.Switch e, body.cases, body.else ? null
+      rp new CS.Switch e, body.cases, body.else ? null
     }
   switchBody
-    = _ TERMINDENT b:switchBlock DEDENT { @r cases: b.cases, else: b.else }
-    / _ THEN _ c:case { @r cases: [c] }
-    / _ THEN { @r cases: [] }
+    = _ TERMINDENT b:switchBlock DEDENT { r cases: b.cases, else: b.else }
+    / _ THEN _ c:case { r cases: [c] }
+    / _ THEN { r cases: [] }
   switchBlock
     = c:case cs:(_ TERMINATOR _ c:case { c })* elseClause:(_ TERMINATOR _ e:elseClause { e })? TERMINATOR? {
-        @r cases: [c, cs...], else: elseClause
+        r cases: [c, cs...], else: elseClause
       }
   case
     = WHEN _ conditions:caseConditions body:caseBody {
-        @rp new @CS.SwitchCase conditions, body.block
+        rp new CS.SwitchCase conditions, body.block
       }
   caseCondition = assignmentExpressionNoImplicitObjectCall
   caseConditions
@@ -807,21 +806,21 @@ functionLiteral
   = params:("(" _ p:(TERMINDENT p:parameterList DEDENT TERMINATOR { p } / parameterList)? _ ")" _ { p })?
     arrow:("->" / "=>") body:functionBody? {
       constructor = switch arrow
-        when '->' then @CS.Function
-        when '=>' then @CS.BoundFunction
-      @rp new constructor params ? [], body
+        when '->' then CS.Function
+        when '=>' then CS.BoundFunction
+      rp new constructor params ? [], body
     }
   functionBody
     = _ TERMINDENT b:block DEDENT { b }
     / _ s:statement { s }
   parameter
     = param:Assignable _ "=" _ default_:secondaryExpression {
-        @rp new @CS.DefaultParam param, default_
+        rp new CS.DefaultParam param, default_
       }
     / rest
     rest
       = a:Assignable rest:"..."? {
-          @rp if rest? then new @CS.Rest a else a
+          rp if rest? then new CS.Rest a else a
         }
   parameterList
     = e:parameter es:(_ ("," TERMINATOR? / TERMINATOR) _ e:parameter { e })* {
@@ -832,13 +831,13 @@ functionLiteral
 range
   = "[" _ left:secondaryExpression _ ".." exclusiveDot:"."? _ right:secondaryExpression _ "]" {
       inclusive = not exclusiveDot
-      @rp new @CS.Range inclusive, left, right
+      rp new CS.Range inclusive, left, right
     }
 
 
 arrayLiteral
   = "[" members:arrayLiteralBody TERMINATOR? _ "]" {
-      @rp new @CS.ArrayInitialiser members
+      rp new CS.ArrayInitialiser members
     }
   arrayLiteralBody
     = TERMINDENT members:arrayLiteralMemberList DEDENT { members }
@@ -860,7 +859,7 @@ arrayLiteral
 
 objectLiteral
   = "{" members:objectLiteralBody TERMINATOR? _ "}" {
-    @rp new @CS.ObjectInitialiser members
+    rp new CS.ObjectInitialiser members
   }
   objectLiteralBody
     = TERMINDENT members:objectLiteralMemberList DEDENT { members }
@@ -873,20 +872,20 @@ objectLiteral
   objectLiteralMember
     = implicitObjectLiteralMember
     / v:contextVar {
-        key = @p new @CS.String(v.memberName).g()
-        @rp new @CS.ObjectInitialiserMember key, v
+        key = p new CS.String(v.memberName).g()
+        rp new CS.ObjectInitialiserMember key, v
       }
     / v:ObjectInitialiserKeys {
-        @rp new @CS.ObjectInitialiserMember v, v
+        rp new CS.ObjectInitialiserMember v, v
       }
   ObjectInitialiserKeys
-    = i:identifierName { @rp new @CS.Identifier i }
+    = i:identifierName { rp new CS.Identifier i }
     / string
     / Numbers
 
 implicitObjectLiteral
   = members:implicitObjectLiteralMemberList {
-    @rp new @CS.ObjectInitialiser members
+    rp new CS.ObjectInitialiser members
   }
   implicitObjectLiteralMemberList
     = e:implicitObjectLiteralMember es:(implicitObjectLiteralMemberSeparator e:implicitObjectLiteralMember { e })* {
@@ -897,7 +896,7 @@ implicitObjectLiteral
     / _ "," TERMINATOR? _
   implicitObjectLiteralMember
     = key:ObjectInitialiserKeys _ ":" _ val:implicitObjectLiteralMemberValue {
-        @rp new @CS.ObjectInitialiserMember key, val
+        rp new CS.ObjectInitialiserMember key, val
       }
   implicitObjectLiteralMemberValue
     = singleLineImplicitObjectLiteral
@@ -905,7 +904,7 @@ implicitObjectLiteral
     / TERMINDENT o:expression DEDENT { o }
 singleLineImplicitObjectLiteral
   = members:singleLineImplicitObjectLiteralMemberList {
-    @rp new @CS.ObjectInitialiser members
+    rp new CS.ObjectInitialiser members
   }
   singleLineImplicitObjectLiteralMemberList
     = e:implicitObjectLiteralMember es:(singleLineImplicitObjectLiteralMemberSeparator e:implicitObjectLiteralMember { e })* {
@@ -916,25 +915,25 @@ singleLineImplicitObjectLiteral
 
 
 macro
-  = "__LINE__" { @rp new @CS.Int line() }
-  / "__FILENAME__" { @rp new @CS.String options.inputSource ? "" }
-  / "__DATE__" { @rp new @CS.String (new Date).toDateString()[4..] }
-  / "__TIME__" { @rp new @CS.String (new Date).toTimeString()[0...8] }
-  / "__DATETIMEMS__" { @rp new @CS.Int +new Date }
-  / "__COFFEE_VERSION__" { @rp new @CS.String (require '../package.json').version }
+  = "__LINE__" { rp new CS.Int line() }
+  / "__FILENAME__" { rp new CS.String options.inputSource ? "" }
+  / "__DATE__" { rp new CS.String (new Date).toDateString()[4..] }
+  / "__TIME__" { rp new CS.String (new Date).toTimeString()[0...8] }
+  / "__DATETIMEMS__" { rp new CS.Int +new Date }
+  / "__COFFEE_VERSION__" { rp new CS.String (require '../package.json').version }
 
 
 bool
-  = (TRUE / YES / ON) { @rp new @CS.Bool true }
-  / (FALSE / NO / OFF) { @rp new @CS.Bool false }
+  = (TRUE / YES / ON) { rp new CS.Bool true }
+  / (FALSE / NO / OFF) { rp new CS.Bool false }
 
 
 Numbers
-  = "0b" bs:$(bit+) { @rp new @CS.Int parseInt bs, 2 }
-  / "0o" os:$(octalDigit+) { @rp new @CS.Int parseInt os, 8 }
-  / "0x" hs:$(hexDigit+) { @rp new @CS.Int parseInt hs, 16 }
+  = "0b" bs:$(bit+) { rp new CS.Int parseInt bs, 2 }
+  / "0o" os:$(octalDigit+) { rp new CS.Int parseInt os, 8 }
+  / "0x" hs:$(hexDigit+) { rp new CS.Int parseInt hs, 16 }
   / base:decimal e:[eE] sign:[+-]? exponent:decimal {
-      @rp new @CS.Float parseFloat "#{base.data}#{e}#{sign ? ''}#{exponent.data}"
+      rp new CS.Float parseFloat "#{base.data}#{e}#{sign ? ''}#{exponent.data}"
     }
   / decimal
 
@@ -942,9 +941,9 @@ decimal
   // trailing and leading radix points are discouraged anyway
   = integral:integer fractional:$("." decimalDigit+)? {
       if fractional
-        @rp new @CS.Float parseFloat integral + fractional
+        rp new CS.Float parseFloat integral + fractional
       else
-        @rp new @CS.Int +integral
+        rp new CS.Int +integral
     }
 
 integer
@@ -959,13 +958,13 @@ bit = [01]
 
 string
   = "\"\"\"" d:(stringData / "'" / $("\"" "\""? !"\""))+ "\"\"\"" {
-      @rp new @CS.String @stripLeadingWhitespace d.join ''
+      rp new CS.String stripLeadingWhitespace d.join ''
     }
   / "'''" d:(stringData / "\"" / "#" / $("'" "'"? !"'"))+ "'''" {
-      @rp new @CS.String @stripLeadingWhitespace d.join ''
+      rp new CS.String stripLeadingWhitespace d.join ''
     }
-  / "\"" d:(stringData / "'")* "\"" { @rp new @CS.String d.join '' }
-  / "'" d:(stringData / "\"" / "#")* "'" { @rp new @CS.String d.join '' }
+  / "\"" d:(stringData / "'")* "\"" { rp new CS.String d.join '' }
+  / "'" d:(stringData / "\"" / "#")* "'" { rp new CS.String d.join '' }
   stringData
     = [^"'\\#]
     / UnicodeEscapeSequence
@@ -983,35 +982,35 @@ string
 
 interpolation
   = "\"\"\"" es:
-    ( d:(stringData / "'" / s:$("\"" "\""? !"\""))+ { @rp new @CS.String d.join '' }
+    ( d:(stringData / "'" / s:$("\"" "\""? !"\""))+ { rp new CS.String d.join '' }
     / "#{" _ e:expression _ "}" { e }
     )+ "\"\"\"" {
-      @rp @createInterpolation @stripLeadingWhitespaceInterpolation es
+      rp createInterpolation stripLeadingWhitespaceInterpolation es
     }
   / "\"" es:
-    ( d:(stringData / "'")+ { @rp new @CS.String d.join '' }
+    ( d:(stringData / "'")+ { rp new CS.String d.join '' }
     / "#{" _ e:expression _ "}" { e }
     )+ "\"" {
-      @rp @createInterpolation es
+      rp createInterpolation es
     }
 
 
 regexp
   = "///" es:
-    ( [ \r\n]+ { [@rp new @CS.String('').g()] }
-    / s:$[^\\/#[ \r\n]+ { [@rp (new @CS.String s).g()] }
+    ( [ \r\n]+ { [rp new CS.String('').g()] }
+    / s:$[^\\/#[ \r\n]+ { [rp (new CS.String s).g()] }
     / hereregexpData
     )+ "///" flags:[gimy]* {
-      unless @isValidRegExpFlags flags
+      unless isValidRegExpFlags flags
         throw new SyntaxError ['regular expression flags'], 'regular expression flags', offset(), line(), column()
-      interp = @createInterpolation @foldl ((memo, e) -> memo.concat(e)), [], es
-      return @p new @CS.RegExp interp.data, flags if interp instanceof @CS.String
-      @rp new @CS.HeregExp interp, flags
+      interp = createInterpolation foldl ((memo, e) -> memo.concat(e)), [], es
+      return p new CS.RegExp interp.data, flags if interp instanceof CS.String
+      rp new CS.HeregExp interp, flags
     }
   / "/" d:$(regexpData / [^/\\[\n]+)* "/" flags:[gimy]* {
-      unless @isValidRegExpFlags flags
+      unless isValidRegExpFlags flags
         throw new SyntaxError ['regular expression flags'], 'regular expression flags', offset(), line(), column()
-      @rp new @CS.RegExp d, flags
+      rp new CS.RegExp d, flags
     }
   regexpData
     = "[" ([^\\\]\n] / regexpData)* "]"
@@ -1019,24 +1018,24 @@ regexp
   hereregexpData
     = "[" d:
       ( h:hereregexpData { h[0] }
-      / s:[^\\/\]] { @p new @CS.String s }
+      / s:[^\\/\]] { p new CS.String s }
       )* "]" {
-        [(@p new @CS.String "["), d..., (@p new @CS.String "]")]
+        [(p new CS.String "["), d..., (p new CS.String "]")]
       }
-    / d:$("\\" .) { [@rp new @CS.String d] }
-    / s:$("/" "/"? !"/") { [@rp new @CS.String s] }
-    / c:"#" !"{" { [@rp new @CS.String c] }
+    / d:$("\\" .) { [rp new CS.String d] }
+    / s:$("/" "/"? !"/") { [rp new CS.String s] }
+    / c:"#" !"{" { [rp new CS.String c] }
     / "#{" _ e:expression _ "}" { [e] }
 
 
-throw = THROW _ e:secondaryExpression { @rp new @CS.Throw e }
-return = RETURN _ e:secondaryExpression? { @rp new @CS.Return e }
-continue = CONTINUE { @rp new @CS.Continue }
-break = BREAK { @rp new @CS.Break }
-debugger = DEBUGGER { @rp new @CS.Debugger }
+throw = THROW _ e:secondaryExpression { rp new CS.Throw e }
+return = RETURN _ e:secondaryExpression? { rp new CS.Return e }
+continue = CONTINUE { rp new CS.Continue }
+break = BREAK { rp new CS.Break }
+debugger = DEBUGGER { rp new CS.Debugger }
 
-undefined = UNDEFINED { @rp new @CS.Undefined }
-null = NULL { @rp new @CS.Null }
+undefined = UNDEFINED { rp new CS.Undefined }
+null = NULL { rp new CS.Null }
 
 
 unassignable = ("arguments" / "eval") !identifierPart
@@ -1053,7 +1052,7 @@ Assignable
 
 positionalDestructuring
   = "[" members:positionalDestructuringBody  TERMINATOR? _ "]" {
-      @rp new @CS.ArrayInitialiser members
+      rp new CS.ArrayInitialiser members
     }
   positionalDestructuringBody
     = TERMINDENT members:positionalDestructuringMemberList DEDENT { members }
@@ -1066,7 +1065,7 @@ positionalDestructuring
 
 namedDestructuring
   = "{" members:namedDestructuringBody TERMINATOR? _ "}" {
-    @rp new @CS.ObjectInitialiser members
+    rp new CS.ObjectInitialiser members
   }
   namedDestructuringBody
     = TERMINDENT members:namedDestructuringMemberList DEDENT { members }
@@ -1077,18 +1076,18 @@ namedDestructuring
       }
   namedDestructuringMember
     = key:ObjectInitialiserKeys _ ":" _ val:Assignable {
-        @rp new @CS.ObjectInitialiserMember key, val
+        rp new CS.ObjectInitialiserMember key, val
       }
     / v:contextVar {
-        key = @rp new @CS.String v.memberName
-        @rp new @CS.ObjectInitialiserMember key, v
+        key = rp new CS.String v.memberName
+        rp new CS.ObjectInitialiserMember key, v
       }
     / !unassignable i:identifier {
-        @rp new @CS.ObjectInitialiserMember i, i
+        rp new CS.ObjectInitialiserMember i, i
       }
 
 
-identifier = !reserved i:identifierName { @rp new @CS.Identifier i }
+identifier = !reserved i:identifierName { rp new CS.Identifier i }
 identifierName = $(identifierStart identifierPart*)
 identifierStart
   = UnicodeLetter

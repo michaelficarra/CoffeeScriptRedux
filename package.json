@@ -26,7 +26,7 @@
   "devDependencies": {
     "mocha": "~1.12.0",
     "pegjs": "~0.8.0",
-    "pegjs-coffee-plugin": "~0.2.2",
+    "pegjs-each-code": "~0.2.0",
     "commonjs-everywhere": "~0.9.0",
     "cluster": "~0.7.7",
     "semver": "~2.1.0"

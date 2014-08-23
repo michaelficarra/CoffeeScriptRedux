@@ -8,7 +8,7 @@ TEST = $(wildcard test/*.coffee | sort)
 ROOT = $(shell pwd)
 
 COFFEE = bin/coffee --js --bare
-PEGJS = node_modules/.bin/pegjs --cache
+PEGJS = node_modules/.bin/pegjs --cache --plugin ./lib/pegjs-coffee-plugin
 MOCHA = node_modules/.bin/mocha --compilers coffee:./register -u tdd
 CJSIFY = node_modules/.bin/cjsify --export CoffeeScript
 MINIFIER = node_modules/.bin/esmangle
@@ -30,9 +30,9 @@ lib/bootstrap: lib
 	mkdir -p lib/bootstrap
 
 
-lib/parser.js: src/grammar.pegjs bootstraps lib
+lib/parser.js: src/grammar.pegcoffee bootstraps lib lib/pegjs-coffee-plugin.js
 	$(PEGJS) <"$<" >"$@.tmp" && mv "$@.tmp" "$@"
-lib/bootstrap/parser.js: src/grammar.pegjs lib/bootstrap
+lib/bootstrap/parser.js: src/grammar.pegcoffee lib/bootstrap lib/pegjs-coffee-plugin.js
 	$(PEGJS) <"$<" >"$@"
 lib/bootstrap/%.js: src/%.coffee lib/bootstrap
 	$(COFFEE) -i "$<" >"$@"

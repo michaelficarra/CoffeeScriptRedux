@@ -361,11 +361,11 @@ postfixControlFlowExpression
           when 'if'
             rp new CS.Conditional postfix.cond, expr, null
           when 'unless'
-            rp new CS.NegatedConditional new CS.LogicalNotOp(postfix.cond).g(), expr, null
+            rp new CS.NegatedConditional (new CS.LogicalNotOp postfix.cond).g(), expr, null
           when 'while'
             rp new CS.While postfix.cond, expr
           when 'until'
-            rp new CS.NegatedWhile new CS.LogicalNotOp(postfix.cond).g(), expr
+            rp new CS.NegatedWhile (new CS.LogicalNotOp postfix.cond).g(), expr
           when 'for-in'
             rp new CS.ForIn postfix.val, postfix.key, postfix.list, postfix.step, postfix.filter, expr
           when 'for-of'
@@ -380,7 +380,7 @@ postfixControlFlowExpression
       step:(_ BY _ a:assignmentExpression { a })?
       filter:(_ WHEN _ a:assignmentExpression { a })? {
         [val, key] = valKey ? [null, null]
-        step ?= new CS.Int(1).r('1').g()
+        step ?= (new CS.Int 1).r('1').g()
         { type: 'for-in', val, key, list, step, filter }
       }
     / FOR _ own:(OWN _)? key:Assignable _ val:("," _ a:Assignable _ { a })?
@@ -451,8 +451,8 @@ binaryExpression
     )* {
       switch rights.length
         when 0 then left
-        when 1 then [op, expr] = rights[0]; rp new constructorLookup[op](left, expr)
-        else rp foldBinaryExpr [left].concat(rights...)
+        when 1 then [op, expr] = rights[0]; rp new constructorLookup[op] left, expr
+        else rp foldBinaryExpr [left].concat rights...
     }
   binaryOperator
     = $(CompoundAssignmentOperators !"=")
@@ -466,8 +466,8 @@ binaryExpressionNoImplicitObjectCall
     )* {
       switch rights.length
         when 0 then left
-        when 1 then [op, expr] = rights[0]; rp new constructorLookup[op](left, expr)
-        else rp foldBinaryExpr [left].concat(rights...)
+        when 1 then [op, expr] = rights[0]; rp new constructorLookup[op] left, expr
+        else rp foldBinaryExpr [left].concat rights...
     }
 
 prefixExpression
@@ -526,7 +526,7 @@ leftHandSideExpression = callExpression / newExpression
       e:secondaryArgument
       es:(_ "," _ TERMINATOR? _ a:secondaryArgument { a })*
       obj:(","? TERMINDENT o:implicitObjectLiteral DEDENT { o })? {
-        es.unshift(e)
+        es.unshift e
         es.push obj if obj?
         es
       }
@@ -731,14 +731,12 @@ class
     / staticAssignment
     / expression
   constructor
-    = (key:ObjectInitialiserKeys &{ (key.instanceof CS.String, CS.Identifier) and key.data is 'constructor' }) _ ":" _ e:
+    = (key:ObjectInitialiserKeys &{ (key.instanceof CS.String, CS.Identifier) and key.data is 'constructor' }) _ ":" _ fn:
       ( TERMINDENT e:expression DEDENT { e }
       / TERMINATOR? _ e:expression { e }
       ) {
-        fn = if e.instanceof CS.BoundFunction
-          c new CS.Function(e.parameters, e.body).r(e.raw), e
-        else
-          e
+        if fn.instanceof CS.BoundFunction
+          fn = c (new CS.Function fn.parameters, fn.body).r(fn.raw), fn
         rp new CS.Constructor fn
       }
   staticAssignment
@@ -773,7 +771,7 @@ forIn
     filter:(WHEN _ e:assignmentExpressionNoImplicitObjectCall _ { e })?
     body:forBody {
       [val, key] = valKey ? [null, null]
-      step ?= new CS.Int(1).r('1').g()
+      step ?= (new CS.Int 1).r('1').g()
       rp new CS.ForIn val, key, list, step, filter, body.block
     }
 
@@ -872,7 +870,7 @@ objectLiteral
   objectLiteralMember
     = implicitObjectLiteralMember
     / v:contextVar {
-        key = p new CS.String(v.memberName).g()
+        key = p (new CS.String v.memberName).g()
         rp new CS.ObjectInitialiserMember key, v
       }
     / v:ObjectInitialiserKeys {
@@ -997,13 +995,13 @@ interpolation
 
 regexp
   = "///" es:
-    ( [ \r\n]+ { [rp new CS.String('').g()] }
+    ( [ \r\n]+ { [rp (new CS.String '').g()] }
     / s:$[^\\/#[ \r\n]+ { [rp (new CS.String s).g()] }
     / hereregexpData
     )+ "///" flags:[gimy]* {
       unless isValidRegExpFlags flags
         throw new SyntaxError ['regular expression flags'], 'regular expression flags', offset(), line(), column()
-      interp = createInterpolation foldl ((memo, e) -> memo.concat(e)), [], es
+      interp = createInterpolation foldl ((memo, e) -> memo.concat e), [], es
       return p new CS.RegExp interp.data, flags if interp instanceof CS.String
       rp new CS.HeregExp interp, flags
     }

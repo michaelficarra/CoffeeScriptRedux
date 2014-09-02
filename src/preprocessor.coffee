@@ -173,6 +173,8 @@ StringScanner = require 'StringScanner'
             @introduceContext()
 
         when '\\'
+          # skip CR for Windows compatibility
+          @ss.scan /[\r]/
           if (@scan /[\s\S]/) then @observe 'end-\\'
           # TODO: somehow prevent indent tokens from being inserted after these newlines
         when '"""'

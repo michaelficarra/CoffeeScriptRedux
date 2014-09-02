@@ -61,6 +61,9 @@ suite 'Parser', ->
   test 'windows line endings', ->
     @shouldParse 'if test\r\n  fn a\r\n\r\n  fn b'
 
+  test 'indentation on explicit continuation line in array literal after windows line ending', ->
+    @shouldParse 'call 1, [2, \\\r\n  3]'
+
   test 'strip leading spaces in heredocs', ->
     eq 'a\n  b\nc', '''
       a

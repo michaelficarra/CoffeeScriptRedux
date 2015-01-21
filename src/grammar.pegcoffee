@@ -170,6 +170,7 @@
           if left instanceof CS.String
             if left is init
               c left, s
+              left.raw = s.raw
               delete left.generated
             left.data = "#{left.data}#{s.data}"
             return memo

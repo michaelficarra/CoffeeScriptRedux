@@ -164,6 +164,11 @@ suite 'Parser', ->
       ast = parse '0x0', raw: yes
       eq '0x0', ast.body.statements[0].raw
 
+    test 'strings', ->
+      ast = parse '"aaaaaa#{bbbbbb}cccccc"', raw: yes
+      eq 'aaaaaa', ast.body.statements[0].left.left.raw
+      eq 'cccccc', ast.body.statements[0].right.raw
+
   suite 'position/offset preservation', ->
 
     test 'basic indentation', ->

@@ -162,7 +162,7 @@
     expr
 
   createInterpolation = (es) ->
-    init = new CS.String('').g()
+    init = new CS.String('').g().r('')
     foldl ((memo, s) ->
       if s instanceof CS.String
         left = memo

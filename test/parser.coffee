@@ -3,6 +3,15 @@ suite 'Parser', ->
   setup ->
     @shouldParse = (input) -> doesNotThrow -> parse input
     @shouldNotParse = (input) -> throws -> parse input
+    @checkNodeRaw = (node, source) =>
+      rawAtOffset = source[node.offset...(node.offset + node.raw.length)]
+      if node.raw isnt rawAtOffset
+        fail "expected #{node.className} raw to equal #{JSON.stringify(rawAtOffset)}, but was #{JSON.stringify(node.raw)}"
+      for own prop, child of node
+        if Array.isArray child
+          @checkNodeRaw element, source for element in child
+        else if child instanceof CoffeeScript.Nodes.Nodes
+          @checkNodeRaw child, source
 
 
   test 'empty program', -> @shouldParse ''
@@ -172,9 +181,9 @@ suite 'Parser', ->
   suite 'position/offset preservation', ->
 
     test 'basic indentation', ->
-      ast = parse '''
+      source = '''
       fn = ->
         body
-      ''', raw: yes
-      eq 3, ast.body.statements[0].expression.body.statements[0].column
-      eq 11, ast.body.statements[0].expression.body.statements[0].offset
+      '''
+      ast = parse source, raw: yes
+      @checkNodeRaw ast, source

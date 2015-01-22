@@ -169,6 +169,10 @@ suite 'Parser', ->
       eq 'aaaaaa', ast.body.statements[0].left.left.raw
       eq 'cccccc', ast.body.statements[0].right.raw
 
+    test 'empty string interpolation prefix', ->
+      ast = parse '"#{0}"', raw: yes
+      eq '', ast.body.statements[0].left.raw
+
   suite 'position/offset preservation', ->
 
     test 'basic indentation', ->

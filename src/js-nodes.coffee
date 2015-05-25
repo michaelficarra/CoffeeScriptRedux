@@ -36,6 +36,7 @@ createNode = (type, props) ->
 nodeData = [
   # constructor name, isStatement, construction parameters
   ['ArrayExpression'      , no , ['elements']]
+  ['ArrowFunctionExpression',no, ['params', 'defaults', 'rest', 'body']]
   ['AssignmentExpression' , no , ['operator', 'left', 'right']]
   ['BinaryExpression'     , no , ['operator', 'left', 'right']]
   ['BlockStatement'       , yes, ['body']]
@@ -90,7 +91,7 @@ for [node, isStatement, params] in nodeData
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
   MemberExpression, UpdateExpression, AssignmentExpression, LogicalExpression,
   GenSym, FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
-  TryStatement
+  TryStatement, ArrowFunctionExpression
 } = exports
 
 ## Nodes that contain primitive properties
@@ -119,6 +120,7 @@ handlePrimitives VariableDeclaration, ['kind']
 handleLists = (ctor, listProps) -> ctor::listMembers = listProps
 
 handleLists ArrayExpression, ['elements']
+handleLists ArrowFunctionExpression, ['params', 'defaults']
 handleLists BlockStatement, ['body']
 handleLists CallExpression, ['arguments']
 handleLists FunctionDeclaration, ['params']

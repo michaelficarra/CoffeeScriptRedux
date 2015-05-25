@@ -671,14 +671,17 @@ class exports.Compiler
 
         performedRewrite = no
         if @instanceof CS.BoundFunction
-          newThis = genSym 'this'
-          rewriteThis = generateMutatingWalker ->
-            if @instanceof JS.ThisExpression
-              performedRewrite = yes
-              newThis
-            else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
-            else rewriteThis this
-          rewriteThis block
+          if options.targetES6
+            return new JS.ArrowFunctionExpression parameters, [], rest, body
+          else
+            newThis = genSym 'this'
+            rewriteThis = generateMutatingWalker ->
+              if @instanceof JS.ThisExpression
+                performedRewrite = yes
+                newThis
+              else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
+              else rewriteThis this
+            rewriteThis block
 
         fn = new JS.FunctionExpression null, parameters, block, rest
         if performedRewrite

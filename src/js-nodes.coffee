@@ -17,7 +17,6 @@ createNode = (type, props) ->
     no
   toBasicObject: ->
     obj = {@type}
-    obj.leadingComments = @leadingComments if @leadingComments?
     for child in @childNodes
       if child in @listMembers
         obj[child] = (p?.toBasicObject() for p in this[child])
@@ -30,7 +29,10 @@ createNode = (type, props) ->
         @offset
         if @raw? then @offset + @raw.length else undefined
       ]
-    if @raw? then obj.raw = @raw
+
+    for property in ['leadingComments', 'raw', 'expression', 'generator']
+      if this[property]?
+        obj[property] = this[property]
     obj
 
 nodeData = [

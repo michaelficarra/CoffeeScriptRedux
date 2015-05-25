@@ -672,7 +672,12 @@ class exports.Compiler
         performedRewrite = no
         if @instanceof CS.BoundFunction
           if options.targetES6
-            return new JS.ArrowFunctionExpression parameters, [], rest, body
+            if block.body.length == 1 && block.body[0] instanceof JS.ReturnStatement
+              fn = new JS.ArrowFunctionExpression parameters, [], rest, block.body[0].argument
+              fn.expression = true
+              return fn
+            else
+              return new JS.ArrowFunctionExpression parameters, [], rest, block
           else
             newThis = genSym 'this'
             rewriteThis = generateMutatingWalker ->

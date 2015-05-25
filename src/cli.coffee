@@ -33,7 +33,7 @@ optAliases =
   v: '--version'
   w: '--watch'
 
-option 'parse', 'compile', 'optimise', 'debug', 'literate', 'raw', 'version', 'help'
+option 'parse', 'compile', 'optimise', 'debug', 'literate', 'raw', 'version', 'help', 'target-es6'
 parameter 'cli', 'input', 'nodejs', 'output', 'watch'
 
 if escodegen?
@@ -55,6 +55,7 @@ options.optimise ?= yes
 
 options.sourceMap = options['source-map']
 options.sourceMapFile = options['source-map-file']
+options.targetES6 = options['target-es6']
 
 
 # input validation
@@ -245,7 +246,7 @@ else
         process.exit 1
 
     # compile
-    jsAST = CoffeeScript.compile result, bare: options.bare
+    jsAST = CoffeeScript.compile result, bare: options.bare, targetES6: options.targetES6
 
     # --compile
     if options.compile

@@ -620,7 +620,7 @@ class exports.Compiler
           p
         else throw new Error "Unsupported parameter type: #{original.className}"
 
-      ({parameters, body, ancestry, inScope}) ->
+      ({parameters, body, ancestry, inScope, options}) ->
         unless ancestry[0]?.instanceof CS.Constructor
           body = makeReturn body
         block = forceBlock body
@@ -638,14 +638,17 @@ class exports.Compiler
 
         if parameters.length > 0
           if parameters[-1..][0].rest
-            paramName = parameters.pop().expression
-            numParams = parameters.length
-            test = new JS.BinaryExpression '>', (memberAccess (new JS.Identifier 'arguments'), 'length'), new JS.Literal numParams
-            consequent = helpers.slice (new JS.Identifier 'arguments'), new JS.Literal numParams
-            alternate = new JS.ArrayExpression []
-            if (paramName.instanceof JS.Identifier) and paramName.name in inScope
-              block.body.unshift makeVarDeclaration [paramName]
-            block.body.unshift stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
+            if options.targetES6
+              rest = new JS.Identifier(parameters.pop().expression.name)
+            else
+              paramName = parameters.pop().expression
+              numParams = parameters.length
+              test = new JS.BinaryExpression '>', (memberAccess (new JS.Identifier 'arguments'), 'length'), new JS.Literal numParams
+              consequent = helpers.slice (new JS.Identifier 'arguments'), new JS.Literal numParams
+              alternate = new JS.ArrayExpression []
+              if (paramName.instanceof JS.Identifier) and paramName.name in inScope
+                block.body.unshift makeVarDeclaration [paramName]
+              block.body.unshift stmt new JS.AssignmentExpression '=', paramName, new JS.ConditionalExpression test, consequent, alternate
           else if any parameters, (p) -> p.rest
             paramName = index = null
             for p, i in parameters when p.rest
@@ -677,14 +680,16 @@ class exports.Compiler
             else rewriteThis this
           rewriteThis block
 
-        fn = new JS.FunctionExpression null, parameters, block
+        fn = new JS.FunctionExpression null, parameters, block, rest
         if performedRewrite
           new JS.CallExpression (new JS.FunctionExpression null, [newThis], new JS.BlockStatement [
             new JS.ReturnStatement fn
           ]), [new JS.ThisExpression]
         else fn
     ]
-    [CS.Rest, ({expression}) -> {rest: yes, expression, isExpression: yes, isStatement: yes}]
+    [CS.Rest, ({expression, options}) ->
+      {rest: yes, expression, isExpression: yes, isStatement: yes}
+    ]
 
     # TODO: comment
     [CS.Class, ({nameAssignee, parent, name, ctor, body, compile}) ->
@@ -1038,12 +1043,12 @@ class exports.Compiler
         children[childName] =
           if childName in @listMembers
             for member in this[childName]
-              jsNode = walk.call member, fn, inScope, ancestry
+              jsNode = walk.call member, fn, inScope, ancestry, options
               inScope = union inScope, envEnrichments member, inScope
               jsNode
           else
             child = this[childName]
-            jsNode = walk.call child, fn, inScope, ancestry
+            jsNode = walk.call child, fn, inScope, ancestry, options
             inScope = union inScope, envEnrichments child, inScope
             jsNode
 
@@ -1051,7 +1056,7 @@ class exports.Compiler
       children.ancestry = ancestry
       children.options = options
       children.compile = (node) ->
-        walk.call node, fn, inScope, ancestry
+        walk.call node, fn, inScope, ancestry, options
 
       do ancestry.shift
       jsNode = fn.call this, children

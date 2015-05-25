@@ -31,7 +31,7 @@ createNode = (type, props) ->
       ]
 
     for property in ['leadingComments', 'raw', 'expression', 'generator']
-      if this[property]?
+      if this[property]? && property not in @childNodes
         obj[property] = this[property]
     obj
 

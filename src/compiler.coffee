@@ -1,4 +1,4 @@
-{find, any, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union, zip} = require './functional-helpers'
+{find, any, all, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union, zip} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -188,12 +188,21 @@ dynamicMemberAccess = (e, index) ->
   then memberAccess e, index.value
   else new JS.MemberExpression yes, (expr e), expr index
 
+es6AssignmentPattern = (assignee) ->
+  # ES6 has a RestElement but it is not implemented yet in escodegen, so for now we only emit ES6 patterns that don't need it
+  if (assignee.instanceof JS.ArrayExpression) and all(assignee.elements, (elt) -> elt instanceof JS.Identifier)
+    new JS.ArrayPattern(assignee.elements)
+
 # TODO: rewrite this whole thing using the CS AST nodes
-assignment = (assignee, expression, valueUsed = no) ->
+assignment = (assignee, expression, options, valueUsed = no) ->
   assignments = []
   expression = expr expression
   switch
     when assignee.rest then # do nothing for right now
+
+    when options.targetES6 and (es6Pattern = es6AssignmentPattern(assignee))
+      assignments.push new JS.AssignmentExpression '=', es6Pattern, expression
+
     when assignee.instanceof JS.ArrayExpression
       e = expression
       # TODO: only cache expression when it needs it
@@ -206,7 +215,7 @@ assignment = (assignee, expression, valueUsed = no) ->
 
       for m, i in elements
         break if m.rest
-        assignments.push assignment m, (dynamicMemberAccess e, new JS.Literal i), valueUsed
+        assignments.push assignment m, (dynamicMemberAccess e, new JS.Literal i), options, valueUsed
 
       if elements.length > 0
         # TODO: see if this logic can be combined with rest-parameter handling
@@ -245,7 +254,7 @@ assignment = (assignee, expression, valueUsed = no) ->
 
       for m in assignee.properties
         propName = if m.key.instanceof JS.Identifier then new JS.Literal m.key.name else m.key
-        assignments.push assignment m.value, (dynamicMemberAccess e, propName), valueUsed
+        assignments.push assignment m.value, (dynamicMemberAccess e, propName), options, valueUsed
 
     when assignee.instanceof JS.Identifier, JS.GenSym, JS.MemberExpression
       assignments.push new JS.AssignmentExpression '=', assignee, expr expression
@@ -463,7 +472,7 @@ class exports.Compiler
         consequent = forceBlock consequent
       new JS.IfStatement (expr condition), (forceBlock consequent), alternate
     ]
-    [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body, compile}) ->
+    [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body, compile, options}) ->
       i = genSym 'i'
       length = genSym 'length'
       block = forceBlock body
@@ -505,12 +514,12 @@ class exports.Compiler
         # TODO: if block only has a single statement, wrap it instead of continuing
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filter), new JS.ContinueStatement
       if keyAssignee?
-        block.body.unshift stmt assignment keyAssignee, i
+        block.body.unshift stmt assignment keyAssignee, i, options
       if valAssignee?
-        block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, i
+        block.body.unshift stmt assignment valAssignee, (new JS.MemberExpression yes, e, i), options
       new JS.ForStatement varDeclaration, (new JS.BinaryExpression '<', i, length), (increment i), block
     ]
-    [CS.ForOf, ({keyAssignee, valAssignee, target, filter, body}) ->
+    [CS.ForOf, ({keyAssignee, valAssignee, target, filter, body, options}) ->
       block = forceBlock body
       block.body.push stmt helpers.undef() unless block.body.length
       e = if @isOwn and needsCaching @target then genSym 'cache' else expr target
@@ -518,7 +527,7 @@ class exports.Compiler
         # TODO: if block only has a single statement, wrap it instead of continuing
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', filter), new JS.ContinueStatement
       if valAssignee?
-        block.body.unshift stmt assignment valAssignee, new JS.MemberExpression yes, e, keyAssignee
+        block.body.unshift stmt assignment valAssignee, (new JS.MemberExpression yes, e, keyAssignee), options
       if @isOwn
         block.body.unshift stmt new JS.IfStatement (new JS.UnaryExpression '!', helpers.isOwn e, keyAssignee), new JS.ContinueStatement
       right = if e is target then e else new JS.AssignmentExpression '=', e, target
@@ -547,13 +556,13 @@ class exports.Compiler
       cases[cases.length - 1].consequent = block
       cases
     ]
-    [CS.Try, ({body, catchAssignee, catchBody, finallyBody}) ->
+    [CS.Try, ({body, catchAssignee, catchBody, finallyBody, options}) ->
       finallyBlock = if @finallyBody? then forceBlock finallyBody else null
       if @catchBody? or not @finallyBody?
         e = genSym 'e'
         catchBlock = forceBlock catchBody
         if catchAssignee?
-          catchBlock.body.unshift stmt assignment catchAssignee, e
+          catchBlock.body.unshift stmt assignment catchAssignee, e, options
         handlers = [new JS.CatchClause e, catchBlock]
       else
         handlers = []
@@ -635,13 +644,13 @@ class exports.Compiler
         when original.instanceof CS.MemberAccessOps, CS.ObjectInitialiser, CS.ArrayInitialiser
           p = genSym 'param'
           decls = map (intersect inScope, beingDeclared original), (i) -> new JS.Identifier i
-          block.body.unshift stmt assignment param, p
+          block.body.unshift stmt assignment param, p, options
           block.body.unshift makeVarDeclaration decls if decls.length
           p
         when original.instanceof CS.DefaultParam
           p = handleParam.call this, param.param, original.param, block, inScope, options
           if !options.targetES6
-            block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), p), stmt assignment p, param.default
+            block.body.unshift new JS.IfStatement (new JS.BinaryExpression '==', (new JS.Literal null), p), stmt assignment p, param.default, options
           p
         else throw new Error "Unsupported parameter type: #{original.className}"
 
@@ -803,7 +812,7 @@ class exports.Compiler
       rewriteThis block
 
       iife = new JS.CallExpression (funcExpr params: params, body: block).g(), args
-      if nameAssignee? then assignment nameAssignee, iife else iife
+      if nameAssignee? then assignment nameAssignee, iife, options else iife
     ]
     [CS.Constructor, ({expression}) ->
       tmpName = genSym 'class'
@@ -822,8 +831,8 @@ class exports.Compiler
     ]
 
     # more complex operations
-    [CS.AssignOp, ({assignee, expression, ancestry}) ->
-      assignment assignee, expression, usedAsExpression this, ancestry
+    [CS.AssignOp, ({assignee, expression, ancestry, options}) ->
+      assignment assignee, expression, options, usedAsExpression this, ancestry
     ]
     [CS.CompoundAssignOp, ({assignee, expression, inScope}) ->
       op = switch @op

@@ -38,6 +38,7 @@ createNode = (type, props) ->
 nodeData = [
   # constructor name, isStatement, construction parameters
   ['ArrayExpression'      , no , ['elements']]
+  ['ArrayPattern'         , no , ['elements']]
   ['ArrowFunctionExpression',no, ['params', 'defaults', 'rest', 'body']]
   ['AssignmentExpression' , no , ['operator', 'left', 'right']]
   ['BinaryExpression'     , no , ['operator', 'left', 'right']]
@@ -92,7 +93,7 @@ for [node, isStatement, params] in nodeData
 
 {
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
-  CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
+  CallExpression, SequenceExpression, ArrayExpression, ArrayPattern, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
   MemberExpression, UpdateExpression, AssignmentExpression, LogicalExpression,
   GenSym, FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
@@ -125,6 +126,7 @@ handlePrimitives VariableDeclaration, ['kind']
 handleLists = (ctor, listProps) -> ctor::listMembers = listProps
 
 handleLists ArrayExpression, ['elements']
+handleLists ArrayPattern, ['elements']
 handleLists ArrowFunctionExpression, ['params', 'defaults']
 handleLists BlockStatement, ['body']
 handleLists CallExpression, ['arguments']

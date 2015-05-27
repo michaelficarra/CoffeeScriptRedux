@@ -388,7 +388,8 @@ findES6Methods = (classIdentifier, body) ->
   methods = []
   properties = []
   rest = []
-  for expression in body.expressions
+  for statement in body.body
+    expression = statement.expression
     if (expression instanceof JS.AssignmentExpression) and (expression.operator == '=') and (expression.left instanceof JS.MemberExpression)
       if (expression.left.object instanceof JS.MemberExpression) and (expression.left.object.property.name == 'prototype')
         if expression.right instanceof JS.FunctionExpression
@@ -397,13 +398,9 @@ findES6Methods = (classIdentifier, body) ->
           properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, new JS.MemberExpression(false, classIdentifier, new JS.Identifier('prototype')), expression.left.property), expression.right)
       else if expression.left.object instanceof JS.ThisExpression
         properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, classIdentifier, expression.left.property), expression.right)
-    else if expression instanceof JS.SequenceExpression
-      inner = findES6Methods(classIdentifier, expression)
-      methods = methods.concat(inner.methods)
-      properties = properties.concat(inner.properties)
-      rest = rest.concat(inner.rest)
     else
-      rest.push(expression)
+      debugger
+      rest.push(statement)
   { methods, properties, rest }
 
 
@@ -725,7 +722,7 @@ class exports.Compiler
         debugger
         if parent
           parentIdentifier = new JS.Identifier(parent.name)
-        { methods, properties, classProperties, rest } = findES6Methods(classIdentifier, body)
+        { methods, properties, classProperties, rest } = findES6Methods(classIdentifier, forceBlock body)
         if ctor
           for c, i in rest when c.instanceof JS.FunctionDeclaration
             ctorIndex = i

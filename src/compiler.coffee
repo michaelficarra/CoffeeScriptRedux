@@ -110,11 +110,28 @@ generateMutatingWalker = (fn) -> (node, args...) ->
         fn.apply node[childName], args
   node
 
+
+
+declaredIdentifiers = (node) ->
+  return [] unless node?
+  if node.instanceof JS.Identifier
+    [node]
+  else if node.instanceof JS.MemberExpression
+    []
+  else
+    concatMap node.childNodes, (childName) ->
+      return [] unless node[childName]?
+      if childName in node.listMembers
+        concatMap node[childName], declaredIdentifiers
+      else
+        declaredIdentifiers node[childName]
+
 declarationsNeeded = (node) ->
   return [] unless node?
-  if (node.instanceof JS.AssignmentExpression) and node.operator is '=' and node.left.instanceof JS.Identifier then [node.left]
-  else if (node.instanceof JS.ForInStatement) and node.left.instanceof JS.Identifier then [node.left]
-  else []
+  if ((node.instanceof JS.AssignmentExpression) and node.operator is '=') or (node.instanceof JS.ForInStatement)
+    declaredIdentifiers(node.left)
+  else
+    []
 
 declarationsNeededRecursive = (node) ->
   return [] unless node?

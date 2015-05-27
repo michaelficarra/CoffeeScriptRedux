@@ -206,9 +206,17 @@ dynamicMemberAccess = (e, index) ->
   else new JS.MemberExpression yes, (expr e), expr index
 
 es6AssignmentPattern = (assignee) ->
-  # ES6 has a RestElement but it is not implemented yet in escodegen, so for now we only emit ES6 patterns that don't need it
-  if (assignee.instanceof JS.ArrayExpression) and all(assignee.elements, (elt) -> elt instanceof JS.Identifier)
-    new JS.ArrayPattern(assignee.elements)
+  if assignee instanceof JS.ArrayExpression
+    # ES6 has a RestElement but it is not implemented yet in
+    # escodegen, so for now we only emit ES6 patterns that don't need
+    # it.
+    elements = assignee.elements.map (elt) ->
+      if elt instanceof JS.Identifier
+        elt
+      else
+        es6AssignmentPattern(elt)
+    if all(elements, (elt) -> elt?)
+      new JS.ArrayPattern(elements)
 
 # TODO: rewrite this whole thing using the CS AST nodes
 assignment = (assignee, expression, options, valueUsed = no) ->

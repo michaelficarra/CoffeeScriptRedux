@@ -384,6 +384,27 @@ inlineHelpers =
 for own h, fn of inlineHelpers
   helpers[h] = fn
 
+findES6Methods = (classIdentifier, body) ->
+  methods = []
+  properties = []
+  rest = []
+  for expression in body.expressions
+    if (expression instanceof JS.AssignmentExpression) and (expression.operator == '=') and (expression.left instanceof JS.MemberExpression)
+      if (expression.left.object instanceof JS.MemberExpression) and (expression.left.object.property.name == 'prototype')
+        if expression.right instanceof JS.FunctionExpression
+          methods.push(new JS.MethodDefinition(new JS.Identifier(expression.left.property.name), expression.right))
+        else
+          properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, new JS.MemberExpression(false, classIdentifier, new JS.Identifier('prototype')), expression.left.property), expression.right)
+      else if expression.left.object instanceof JS.ThisExpression
+        properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, classIdentifier, expression.left.property), expression.right)
+    else if expression instanceof JS.SequenceExpression
+      inner = findES6Methods(classIdentifier, expression)
+      methods = methods.concat(inner.methods)
+      properties = properties.concat(inner.properties)
+      rest = rest.concat(inner.rest)
+    else
+      rest.push(expression)
+  { methods, properties, rest }
 
 
 class exports.Compiler
@@ -695,12 +716,26 @@ class exports.Compiler
           ]), [new JS.ThisExpression]
         else fn
     ]
-    [CS.Rest, ({expression, options}) ->
-      {rest: yes, expression, isExpression: yes, isStatement: yes}
-    ]
+    [CS.Rest, ({expression, options}) -> {rest: yes, expression, isExpression: yes, isStatement: yes}]
 
     # TODO: comment
-    [CS.Class, ({nameAssignee, parent, name, ctor, body, compile}) ->
+    [CS.Class, ({nameAssignee, parent, name, ctor, body, compile, options}) ->
+      if options.targetES6
+        classIdentifier = new JS.Identifier(name.name)
+        debugger
+        if parent
+          parentIdentifier = new JS.Identifier(parent.name)
+        { methods, properties, classProperties, rest } = findES6Methods(classIdentifier, body)
+        if ctor
+          for c, i in rest when c.instanceof JS.FunctionDeclaration
+            ctorIndex = i
+            break
+          rest.splice(ctorIndex, 1)
+          methods.unshift new JS.MethodDefinition(new JS.Identifier('constructor'), new JS.FunctionExpression(ctor.id, ctor.params, ctor.body, ctor.rest))
+        # Emit our ES6 class if we were able to account for everything in its definition. Otherwise, fall through to the non-ES6 emulation
+        if rest.length == 0
+          return new JS.SequenceExpression([new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))].concat(properties))
+
       args = []
       params = []
       parentRef = genSym 'super'
@@ -823,8 +858,7 @@ class exports.Compiler
       new JS.LogicalExpression '&&', lhs, new JS.BinaryExpression expression.operator, left, expression.right
     ]
 
-    [CS.Super, ({arguments: args, compile, inScope, ancestry}) ->
-
+    [CS.Super, ({arguments: args, compile, inScope, ancestry, options}) ->
       classNode = find ancestry, (node) =>
         (node instanceof CS.Class) or (node.assignee instanceof CS.ProtoMemberAccessOp)
 
@@ -858,6 +892,12 @@ class exports.Compiler
           isStatic = false
           className = classNode.assignee.expression.data
           functionName = classNode.assignee.memberName
+
+      if options.targetES6
+        if functionName == 'constructor'
+          return new JS.CallExpression new JS.Identifier('super'), (map args, expr)
+        else
+          return new JS.CallExpression (memberAccess new JS.Identifier('super'), functionName), (map args, expr)
 
       if className is 'class'
         if args.length > 0

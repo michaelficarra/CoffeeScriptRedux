@@ -45,6 +45,8 @@ nodeData = [
   ['BreakStatement'       , yes, ['label']]
   ['CallExpression'       , no , ['callee', 'arguments']]
   ['CatchClause'          , yes, ['param', 'body']]
+  ['ClassBody'            , yes, ['body']]
+  ['ClassDeclaration'     , yes, ['id', 'superClass', 'body']]
   ['ConditionalExpression', no , ['test', 'consequent', 'alternate']]
   ['ContinueStatement'    , yes, ['label']]
   ['DebuggerStatement'    , yes, []]
@@ -62,6 +64,7 @@ nodeData = [
   ['Literal'              , no , ['value']]
   ['LogicalExpression'    , no , ['operator', 'left', 'right']]
   ['MemberExpression'     , no , ['computed', 'object', 'property']]
+  ['MethodDefinition'     , no , ['key', 'value']]
   ['NewExpression'        , no , ['callee', 'arguments']]
   ['ObjectExpression'     , no , ['properties']]
   ['Program'              , yes, ['body']]
@@ -93,7 +96,7 @@ for [node, isStatement, params] in nodeData
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
   MemberExpression, UpdateExpression, AssignmentExpression, LogicalExpression,
   GenSym, FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
-  TryStatement, ArrowFunctionExpression
+  TryStatement, ArrowFunctionExpression, ClassBody
 } = exports
 
 ## Nodes that contain primitive properties
@@ -125,6 +128,7 @@ handleLists ArrayExpression, ['elements']
 handleLists ArrowFunctionExpression, ['params', 'defaults']
 handleLists BlockStatement, ['body']
 handleLists CallExpression, ['arguments']
+handleLists ClassBody, ['body']
 handleLists FunctionDeclaration, ['params']
 handleLists FunctionExpression, ['params']
 handleLists NewExpression, ['arguments']

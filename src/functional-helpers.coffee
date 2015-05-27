@@ -61,3 +61,8 @@
   result = [[], []]
   result[+!fn item].push item for item in list
   result
+
+@zip = (listA, listB) ->
+  len = Math.max listA.length, listB.length
+  for i in [0...len]
+    [listA[i], listB[i]]

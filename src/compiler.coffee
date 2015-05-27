@@ -136,7 +136,7 @@ declarationsNeeded = (node) ->
 declarationsNeededRecursive = (node) ->
   return [] unless node?
   # don't cross scope boundaries
-  if (node.instanceof JS.FunctionExpression, JS.FunctionDeclaration) and not node.generated then []
+  if (node.instanceof JS.FunctionExpression, JS.FunctionDeclaration, JS.ArrowFunctionExpression) and not node.generated then []
   else union (declarationsNeeded node), concatMap node.childNodes, (childName) ->
     # TODO: this should make use of an fmap method
     return [] unless node[childName]?
@@ -1253,7 +1253,7 @@ class exports.Compiler
           newNode = new JS.Identifier generateName this, state
           usedSymbols.push newNode.name
           newNode
-        else if (@instanceof JS.FunctionExpression, JS.FunctionDeclaration) and not @generated
+        else if (@instanceof JS.FunctionExpression, JS.FunctionDeclaration, JS.ArrowFunctionExpression) and not @generated
           params = concatMap @params, collectIdentifiers
           nsCounters_ = {}
           nsCounters_[k] = v for own k, v of nsCounters

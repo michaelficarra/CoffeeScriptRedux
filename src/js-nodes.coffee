@@ -8,7 +8,7 @@ createNode = (type, props) ->
     type: type
     childNodes: props
 
-@Nodes = class Nodes
+exports.Nodes = class Nodes
   listMembers: []
   instanceof: (ctors...) ->
     # not a fold for efficiency's sake

@@ -17,7 +17,7 @@ colourise = (colour, str) ->
   if SUPPORTS_COLOUR then "#{COLOURS[colour]}#{str}\x1B[39m" else str
 
 
-@numberLines = numberLines = (input, startLine = 1) ->
+exports.numberLines = numberLines = (input, startLine = 1) ->
   lines = input.split '\n'
   padSize = "#{lines.length + startLine - 1}".length
   numbered = for line, i in lines
@@ -28,10 +28,10 @@ colourise = (colour, str) ->
 
 cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 
-@humanReadable = humanReadable = (str) ->
+exports.humanReadable = humanReadable = (str) ->
   ((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE/g, '(DEDENT)').replace /\uEFFF/g, '(TERM)'
 
-@formatParserError = (input, e) ->
+exports.formatParserError = (input, e) ->
   lines = input.split('\n')
   line = e.line - 1 # switch to zero-indexed
   column = e.column
@@ -54,7 +54,7 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   message = "Syntax error on line #{line}, column #{realColumn}: unexpected '#{found}' (#{unicode})"
   "#{message}\n#{pointToErrorLocation input, line, realColumn}"
 
-@pointToErrorLocation = pointToErrorLocation = (source, line, column, numLinesOfContext = 3) ->
+exports.pointToErrorLocation = pointToErrorLocation = (source, line, column, numLinesOfContext = 3) ->
   lines = source.split '\n'
   lines.pop() unless lines[lines.length - 1]
   # figure out which lines are needed for context
@@ -79,7 +79,7 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
 
 # these are the identifiers that need to be declared when the given value is
 # being used as the target of an assignment
-@beingDeclared = beingDeclared = (assignment) -> switch
+exports.beingDeclared = beingDeclared = (assignment) -> switch
   when not assignment? then []
   when assignment.instanceof CS.Identifiers then [assignment.data]
   when assignment.instanceof CS.Rest then beingDeclared assignment.expression
@@ -89,7 +89,7 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   when assignment.instanceof CS.ObjectInitialiser then concatMap assignment.vals(), beingDeclared
   else throw new Error "beingDeclared: Non-exhaustive patterns in case: #{assignment.className}"
 
-@declarationsFor = (node, inScope) ->
+exports.declarationsFor = (node, inScope) ->
   vars = envEnrichments node, inScope
   foldl (new CS.Undefined).g(), vars, (expr, v) ->
     (new CS.AssignOp (new CS.Identifier v).g(), expr).g()
@@ -113,7 +113,7 @@ usedAsExpression_ = (ancestors) ->
       no
     else yes
 
-@usedAsExpression = usedAsExpression = (node, ancestors) ->
+exports.usedAsExpression = usedAsExpression = (node, ancestors) ->
   usedAsExpression_.call node, ancestors
 
 # environment enrichments that occur when this node is evaluated
@@ -155,5 +155,5 @@ envEnrichments_ = (inScope = []) ->
         else envEnrichments this[child], inScope
   difference possibilities, inScope
 
-@envEnrichments = envEnrichments = (node, args...) ->
+exports.envEnrichments = envEnrichments = (node, args...) ->
   if node? then envEnrichments_.apply node, args else []

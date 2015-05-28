@@ -1,4 +1,4 @@
-{find, any, all, concat, concatMap, difference, divMod, foldl1, intersect, map, nub, owns, partition, span, union, zip} = require './functional-helpers'
+{find, any, all, concat, concatMap, difference, divMod, foldl, foldl1, intersect, map, nub, owns, partition, span, union, zip} = require './functional-helpers'
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
@@ -15,6 +15,29 @@ jsReserved = [
   'typeof', 'var', 'void', 'while', 'with', 'yield', 'arguments', 'eval'
 ]
 
+# mapper has type (node, nameInParent) -> A
+# reducer has type (B, A) -> B
+# identity has type B
+# opts contains optional overrides:
+#   listReducer
+#   listIdentity
+#
+# Runs the mapper over every child node, then folds them together with
+# the reducer & identity.
+#
+# listReducer and listIdentity are optional and let you use a different
+# reducing function for siblings in the same child listMember than you
+# use between disparate children.
+#
+mapChildNodes = (node, mapper, reducer, identity, opts={}) ->
+  opts.listReducer ?= reducer
+  opts.listIdentity ?= identity
+  foldl identity, (for childName in node.childNodes when node[childName]?
+    if childName in node.listMembers
+      foldl opts.listIdentity, (mapper(child, childName) for child in node[childName] when child?), opts.listReducer
+    else
+      mapper(node[childName], childName)
+  ), reducer
 
 genSym = do ->
   genSymCounter = 0
@@ -74,6 +97,9 @@ expr = (s) ->
     # TODO: comprehensive
     throw new Error "expr: Cannot use a #{s.type} as a value"
 
+isScopeBoundary = (node) ->
+  (node.instanceof JS.FunctionExpression, JS.FunctionDeclaration) and not node.generated
+
 makeReturn = (node) ->
   return new JS.ReturnStatement unless node?
   if node.instanceof JS.BlockStatement
@@ -99,16 +125,12 @@ makeReturn = (node) ->
 
 
 generateMutatingWalker = (fn) -> (node, args...) ->
-  for childName in node.childNodes
-    continue unless node[childName]?
-    node[childName] =
-      if childName in node.listMembers
-        for n in node[childName]
-          if n?
-            fn.apply n, args
-      else
-        fn.apply node[childName], args
-  node
+  mapper = (child, nameInParent) -> [nameInParent, fn.apply(child, args)]
+  reducer = (parent, [name, newChild]) -> parent[name] = newChild; parent
+  mapChildNodes node, mapper, reducer, node, {
+    listReducer: ([_, accum],[name, newChild]) -> [name, accum.concat(newChild) ]
+    listIdentity: [null, []]
+  }
 
 
 
@@ -135,45 +157,29 @@ declarationsNeeded = (node) ->
 
 declarationsNeededRecursive = (node) ->
   return [] unless node?
-  # don't cross scope boundaries
-  if (node.instanceof JS.FunctionExpression, JS.FunctionDeclaration, JS.ArrowFunctionExpression) and not node.generated then []
-  else union (declarationsNeeded node), concatMap node.childNodes, (childName) ->
-    # TODO: this should make use of an fmap method
-    return [] unless node[childName]?
-    if childName in node.listMembers then concatMap node[childName], declarationsNeededRecursive
-    else declarationsNeededRecursive node[childName]
+  if isScopeBoundary(node) then []
+  else union (declarationsNeeded node), mapChildNodes(node, declarationsNeededRecursive, ((a,b)->a.concat(b)), [])
 
 variableDeclarations = (node) ->
   return [] unless node?
-  # don't cross scope boundaries
   if node.instanceof JS.FunctionDeclaration then [node.id]
-  else if (node.instanceof JS.FunctionExpression) and not node.generated then []
+  else if isScopeBoundary(node) then []
   else if node.instanceof JS.VariableDeclarator then [node.id]
-  else concatMap node.childNodes, (childName) ->
-    # TODO: this should make use of an fmap method
-    return [] unless node[childName]?
-    if childName in node.listMembers then concatMap node[childName], variableDeclarations
-    else variableDeclarations node[childName]
+  else mapChildNodes(node, variableDeclarations, ((a,b)->a.concat(b)), [])
 
 collectIdentifiers = (node) -> nub switch
   when !node? then []
   when node.instanceof JS.Identifier then [node.name]
   when (node.instanceof JS.MemberExpression) and not node.computed
     collectIdentifiers node.object
-  else concatMap node.childNodes, (childName) ->
-    return [] unless node[childName]?
-    if childName in node.listMembers
-      concatMap node[childName], collectIdentifiers
-    else
-      collectIdentifiers node[childName]
+  else mapChildNodes node, collectIdentifiers, ((a,b)->a.concat(b)), []
 
 # TODO: something like Optimiser.mayHaveSideEffects
 needsCaching = (node) ->
   return no unless node?
   (envEnrichments node, []).length > 0 or
   (node.instanceof CS.FunctionApplications, CS.DoOp, CS.NewOp, CS.ArrayInitialiser, CS.ObjectInitialiser, CS.RegExp, CS.HeregExp, CS.PreIncrementOp, CS.PostIncrementOp, CS.PreDecrementOp, CS.PostDecrementOp, CS.Range) or
-  (any (difference node.childNodes, node.listMembers), (n) -> needsCaching node[n]) or
-  any node.listMembers, (n) -> any node[n], needsCaching
+  mapChildNodes node, needsCaching, ((a,b) -> a or b), false
 
 forceBlock = (node) ->
   return new JS.BlockStatement [] unless node?
@@ -1260,7 +1266,7 @@ class exports.Compiler
           newNode = new JS.Identifier generateName this, state
           usedSymbols.push newNode.name
           newNode
-        else if (@instanceof JS.FunctionExpression, JS.FunctionDeclaration, JS.ArrowFunctionExpression) and not @generated
+        else if isScopeBoundary(this)
           params = concatMap @params, collectIdentifiers
           nsCounters_ = {}
           nsCounters_[k] = v for own k, v of nsCounters

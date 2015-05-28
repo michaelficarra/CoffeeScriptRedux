@@ -672,11 +672,14 @@ class exports.Compiler
         when original.instanceof CS.Rest then param # keep these for special processing later
         when original.instanceof CS.Identifier then param
         when original.instanceof CS.MemberAccessOps, CS.ObjectInitialiser, CS.ArrayInitialiser
-          p = genSym 'param'
-          decls = map (intersect inScope, beingDeclared original), (i) -> new JS.Identifier i
-          block.body.unshift stmt assignment param, p, options
-          block.body.unshift makeVarDeclaration decls if decls.length
-          p
+          if options.targetES6 and (pattern = es6AssignmentPattern(param))
+            pattern
+          else
+            p = genSym 'param'
+            decls = map (intersect inScope, beingDeclared original), (i) -> new JS.Identifier i
+            block.body.unshift stmt assignment param, p, options
+            block.body.unshift makeVarDeclaration decls if decls.length
+            p
         when original.instanceof CS.DefaultParam
           p = handleParam.call this, param.param, original.param, block, inScope, options
           if !options.targetES6

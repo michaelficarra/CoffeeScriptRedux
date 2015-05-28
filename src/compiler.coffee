@@ -137,7 +137,7 @@ generateMutatingWalker = (fn) -> (node, args...) ->
 declaredIdentifiers = (node) ->
   return [] unless node?
   if node.instanceof JS.Identifier
-    [node]
+    [node.name]
   else if node.instanceof JS.MemberExpression
     []
   else
@@ -470,7 +470,7 @@ class exports.Compiler
       decls = nub concatMap block, declarationsNeededRecursive
       if decls.length > 0
         if options.bare
-          block.unshift makeVarDeclaration decls
+          block.unshift makeVarDeclaration decls.map (name) -> new JS.Identifier(name)
         else
           # add a function wrapper
           block = [stmt new JS.UnaryExpression 'void', new JS.CallExpression (memberAccess (funcExpr body: new JS.BlockStatement(block)), 'call'), [new JS.ThisExpression]]
@@ -1260,7 +1260,7 @@ class exports.Compiler
 
       # TODO: comments
       generateMutatingWalker (state) ->
-        state.declaredSymbols = union state.declaredSymbols, map (declarationsNeeded this), (id) -> id.name
+        state.declaredSymbols = union state.declaredSymbols, declarationsNeeded this
         {declaredSymbols, usedSymbols, nsCounters} = state
         newNode = if @instanceof JS.GenSym
           newNode = new JS.Identifier generateName this, state
@@ -1275,7 +1275,7 @@ class exports.Compiler
             usedSymbols: union usedSymbols, params
             nsCounters: nsCounters_
           newNode.body = forceBlock newNode.body
-          undeclared = map (declarationsNeededRecursive @body), (id) -> id.name
+          undeclared = declarationsNeededRecursive @body
           undeclared = difference undeclared, map (variableDeclarations @body), (id) -> id.name
           alreadyDeclared = union declaredSymbols, concatMap @params, collectIdentifiers
           declNames = nub difference undeclared, alreadyDeclared
@@ -1283,7 +1283,7 @@ class exports.Compiler
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
         else generateSymbols this, state
-        state.declaredSymbols = union declaredSymbols, map (declarationsNeededRecursive newNode), (id) -> id.name
+        state.declaredSymbols = union declaredSymbols, declarationsNeededRecursive newNode
         newNode
 
     defaultRule = ->

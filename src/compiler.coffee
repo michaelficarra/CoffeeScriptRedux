@@ -413,12 +413,9 @@ class exports.Compiler
       [].unshift.apply block, otherHelpers
 
       decls = nub concatMap block, declarationsNeededRecursive
-      if decls.length > 0
-        if options.bare
-          block.unshift makeVarDeclaration decls.map (name) -> new JS.Identifier(name)
-        else
-          # add a function wrapper
-          block = [stmt new JS.UnaryExpression 'void', new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
+      if decls.length and not options.bare
+        # add a function wrapper
+        block = [stmt new JS.UnaryExpression 'void', new JS.CallExpression (memberAccess (new JS.FunctionExpression null, [], new JS.BlockStatement block), 'call'), [new JS.ThisExpression]]
       # generate node
       pkg = require './../package.json'
       program = new JS.Program block
@@ -1094,7 +1091,7 @@ class exports.Compiler
           generatedSymbols[node.uniqueId] = formatted
 
       # TODO: comments
-      generateMutatingWalker (state) ->
+      generateChildSymbols = generateMutatingWalker (state) ->
         state.declaredSymbols = union state.declaredSymbols, declarationsNeeded this
         {declaredSymbols, usedSymbols, nsCounters} = state
         newNode = if @instanceof JS.GenSym
@@ -1105,7 +1102,7 @@ class exports.Compiler
           params = concatMap @params, collectIdentifiers
           nsCounters_ = {}
           nsCounters_[k] = v for own k, v of nsCounters
-          newNode = generateSymbols this,
+          newNode = generateChildSymbols this,
             declaredSymbols: union declaredSymbols, params
             usedSymbols: union usedSymbols, params
             nsCounters: nsCounters_
@@ -1117,9 +1114,18 @@ class exports.Compiler
           decls = map declNames, (name) -> new JS.Identifier name
           newNode.body.body.unshift makeVarDeclaration decls if decls.length > 0
           newNode
-        else generateSymbols this, state
+        else generateChildSymbols this, state
         state.declaredSymbols = union declaredSymbols, declarationsNeededRecursive newNode
         newNode
+
+      (jsAST, state) ->
+        inScope = (state.declaredSymbols ? []).slice()
+        program = generateChildSymbols(jsAST, state)
+        if program.instanceof JS.Program
+          needed = nub difference (concatMap program.body, declarationsNeededRecursive), inScope
+          if needed.length > 0
+            program.body.unshift makeVarDeclaration needed.map((n) -> new JS.Identifier(n))
+        program
 
     defaultRule = ->
       throw new Error "compile: Non-exhaustive patterns in case: #{@className}"
@@ -1133,3 +1139,4 @@ class exports.Compiler
         declaredSymbols: inScope
         usedSymbols: union jsReserved[..], collectIdentifiers jsAST
         nsCounters: {}
+

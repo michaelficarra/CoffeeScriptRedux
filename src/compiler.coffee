@@ -207,12 +207,11 @@ dynamicMemberAccess = (e, index) ->
 
 es6AssignmentPattern = (assignee) ->
   if assignee instanceof JS.ArrayExpression
-    # ES6 has a RestElement but it is not implemented yet in
-    # escodegen, so for now we only emit ES6 patterns that don't need
-    # it.
     elements = assignee.elements.map (elt) ->
       if elt instanceof JS.Identifier
         elt
+      else if elt.rest
+        new JS.RestElement elt.expression
       else
         es6AssignmentPattern(elt)
     if all(elements, (elt) -> elt?)

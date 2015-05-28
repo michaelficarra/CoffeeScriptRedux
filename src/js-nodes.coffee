@@ -70,6 +70,7 @@ nodeData = [
   ['ObjectExpression'     , no , ['properties']]
   ['Program'              , yes, ['body']]
   ['Property'             , yes, ['key', 'value']]
+  ['RestElement'          , yes, ['argument']]
   ['ReturnStatement'      , yes, ['argument']]
   ['SequenceExpression'   , no , ['expressions']]
   ['SwitchCase'           , yes, ['test', 'consequent']]

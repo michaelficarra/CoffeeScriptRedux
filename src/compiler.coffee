@@ -136,17 +136,9 @@ generateMutatingWalker = (fn) -> (node, args...) ->
 
 declaredIdentifiers = (node) ->
   return [] unless node?
-  if node.instanceof JS.Identifier
-    [node.name]
-  else if node.instanceof JS.MemberExpression
-    []
-  else
-    concatMap node.childNodes, (childName) ->
-      return [] unless node[childName]?
-      if childName in node.listMembers
-        concatMap node[childName], declaredIdentifiers
-      else
-        declaredIdentifiers node[childName]
+  if node.instanceof JS.Identifier then [node.name]
+  else if node.instanceof JS.MemberExpression then []
+  else mapChildNodes node, declaredIdentifiers, ((a,b) -> a.concat(b)), []
 
 declarationsNeeded = (node) ->
   return [] unless node?

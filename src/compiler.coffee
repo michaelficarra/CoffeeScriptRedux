@@ -2,6 +2,8 @@
 {beingDeclared, usedAsExpression, envEnrichments} = require './helpers'
 CS = require './nodes'
 JS = require './js-nodes'
+debugES6 = require('debug')('es6')
+
 exports = module?.exports ? this
 
 # TODO: this whole file could use a general cleanup
@@ -57,7 +59,7 @@ stmt = (e) ->
     # TODO: drop either the consequent or the alternate if they don't have side effects
     new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternate
   else if e.instanceof JS.ClassExpression
-    new JS.ClassDeclaration e.id, e.superclass, e.body
+    new JS.ClassDeclaration e.id, e.superClass, e.body
   else new JS.ExpressionStatement e
 
 expr = (s) ->
@@ -456,8 +458,47 @@ findES6Methods = (classIdentifier, body) ->
     else rewriteThis this
 
   properties = map properties, rewriteThis
-      
+
   { methods, properties, unmatched }
+
+
+es6SafeConstructor = (isDerivedClass, block) ->
+  return block unless isDerivedClass
+
+  either = (a,b) -> a or b
+
+  referencesThis = (node) ->
+    if node? and node instanceof JS.ThisExpression then true
+    else mapChildNodes(node, referencesThis, either, false)
+
+  callsSuper = (node) ->
+    if node? and node instanceof JS.CallExpression and \
+    node.callee instanceof JS.Identifier and \
+    node.callee.name == 'super'
+      true
+    else
+      mapChildNodes(node, callsSuper, either, false)
+
+  sawThis = calledSuper = false
+  for statement in block.body
+    sawThis = sawThis or referencesThis(statement)
+    if callsSuper(statement)
+      if sawThis
+        return null
+      else
+        calledSuper = true
+  if not calledSuper
+    block.body.unshift(stmt new JS.CallExpression(new JS.Identifier('super'), []))
+  block
+
+describeClass = (name, parentNode) ->
+  return "class #{name.name}" if name?.name
+  if parentNode instanceof CS.AssignOp and parentNode.assignee instanceof CS.Identifier
+    return "An anonymous class assigned to identifier #{parentNode.assignee.data}"
+  if parentNode instanceof CS.ObjectInitialiserMember
+    return "An anonymous class assigned to property #{parentNode.key.data}"
+  return "An anonymous class"
+
 
 funcExpr = ({id, params, defaults, rest, body}) ->
   new JS.FunctionExpression(id ? null, params ? [], defaults ? [], rest ? null, body)
@@ -779,6 +820,7 @@ class exports.Compiler
             rewriteThis block
 
         fn = funcExpr params:parameters, defaults:defaults, rest: rest, body: block
+
         if performedRewrite
           new JS.CallExpression (funcExpr params: [newThis], body: new JS.BlockStatement [
             new JS.ReturnStatement fn
@@ -788,7 +830,7 @@ class exports.Compiler
     [CS.Rest, ({expression, options}) -> {rest: yes, expression, isExpression: yes, isStatement: yes}]
 
     # TODO: comment
-    [CS.Class, ({nameAssignee, parent, name, ctor, body, compile, options}) ->
+    [CS.Class, ({nameAssignee, parent, name, ctor, body, compile, options, ancestry}) ->
       if options.targetES6
         classIdentifier = if name.name
           new JS.Identifier(name.name)
@@ -797,16 +839,30 @@ class exports.Compiler
         if parent
           parentIdentifier = new JS.Identifier(parent.name)
         { methods, properties, unmatched } = findES6Methods(classIdentifier, forceBlock body)
-        if ctor
+        if ctor and (safeCtor = es6SafeConstructor(parent?, ctor.body))
           for c, i in unmatched when c.instanceof JS.FunctionDeclaration
             ctorIndex = i
             break
           unmatched.splice(ctorIndex, 1)
-          methods.unshift new JS.MethodDefinition(new JS.Identifier('constructor'), funcExpr(id: ctor.id, params: ctor.params, body: ctor.body, defaults: ctor.defaults, rest: ctor.rest))
+          methods.unshift new JS.MethodDefinition(new JS.Identifier('constructor'), funcExpr(
+            id: ctor.id,
+            params: ctor.params,
+            body: safeCtor
+            defaults: ctor.defaults,
+            rest: ctor.rest
+          ))
         # Emit our ES6 class only if we were able to account for
         # everything in its definition. Otherwise, fall through to the
         # non-ES6 emulation
-        if unmatched.length == 0 and (!@ctor || @ctor.expression.instanceof CS.Functions) and (!nameAssignee or nameAssignee.instanceof JS.Identifier)
+        if @ctor and not @ctor.expression.instanceof CS.Functions
+          debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its constructor is not a function expression."
+        else if @ctor and not safeCtor
+          debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its constructor does not follow the ES6 rules for super."
+        else if nameAssignee and not nameAssignee.instanceof JS.Identifier
+          debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because it's being assigned to a compound name."
+        else if unmatched.length > 0
+          debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its body contains code that we couldn't map directly to methods, static methods, prototype properties, or class properties."
+        else
           return if properties.length == 0
             # Always return ClassExpressions. The `stmt` helper knows
             # how to conver them to ClassDeclarations if needed.
@@ -1340,4 +1396,3 @@ class exports.Compiler
         declaredSymbols: inScope
         usedSymbols: union jsReserved[..], collectIdentifiers jsAST
         nsCounters: {}
-

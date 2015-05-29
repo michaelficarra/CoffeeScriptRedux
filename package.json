@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "StringScanner": "~0.0.3",
+    "debug": "^2.2.0",
     "nopt": "~2.1.2"
   },
   "optionalDependencies": {

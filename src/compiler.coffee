@@ -421,17 +421,26 @@ findES6Methods = (classIdentifier, body) ->
   methods = []
   properties = []
   unmatched = []
+
+  methodIdentifier = (expression) ->
+    prop = expression.left.property
+    if prop instanceof JS.Identifier
+      new JS.Identifier(prop.name)
+    else if prop instanceof JS.Literal
+      # ES6 allows method names that are the same as reserved keywords
+      new JS.Identifier(prop.value)
+
   for statement in body.body
     expression = statement.expression
     if (expression instanceof JS.AssignmentExpression) and (expression.operator == '=') and (expression.left instanceof JS.MemberExpression)
       if (expression.left.object instanceof JS.MemberExpression) and (expression.left.object.property.name == 'prototype') and (expression.left.object.object.instanceof JS.ThisExpression)
         if expression.right instanceof JS.FunctionExpression
-          methods.push(new JS.MethodDefinition(new JS.Identifier(expression.left.property.name), expression.right))
+          methods.push(new JS.MethodDefinition(methodIdentifier(expression), expression.right))
         else
           properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, new JS.MemberExpression(false, classIdentifier, new JS.Identifier('prototype')), expression.left.property), expression.right)
       else if expression.left.object instanceof JS.ThisExpression
         if expression.right instanceof JS.FunctionExpression
-          m = new JS.MethodDefinition(new JS.Identifier(expression.left.property.name), expression.right)
+          m = new JS.MethodDefinition(methodIdentifier(expression), expression.right)
           m.static = true
           methods.push(m)
         else

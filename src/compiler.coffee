@@ -56,6 +56,8 @@ stmt = (e) ->
   else if e.instanceof JS.ConditionalExpression
     # TODO: drop either the consequent or the alternate if they don't have side effects
     new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternate
+  else if e.instanceof JS.ClassExpression
+    new JS.ClassDeclaration e.id, e.superclass, e.body
   else new JS.ExpressionStatement e
 
 expr = (s) ->
@@ -805,17 +807,19 @@ class exports.Compiler
         # everything in its definition. Otherwise, fall through to the
         # non-ES6 emulation
         if unmatched.length == 0 and (!@ctor || @ctor.expression.instanceof CS.Functions) and (!nameAssignee or nameAssignee.instanceof JS.Identifier)
-          return if classIdentifier.instanceof JS.GenSym
-            if properties.length == 0
+          return if properties.length == 0
+            # Always return ClassExpressions. The `stmt` helper knows
+            # how to conver them to ClassDeclarations if needed.
+            if classIdentifier.instanceof JS.GenSym
               new JS.ClassExpression(null, parentIdentifier, new JS.ClassBody(methods))
             else
-              block = new JS.BlockStatement([
-                new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
-                ].concat(map properties, stmt).concat(makeReturn classIdentifier)
-              )
-              new JS.CallExpression (funcExpr body: block).g(), []
+              new JS.ClassExpression(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
           else
-            new JS.SequenceExpression([new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))].concat(properties))
+            block = new JS.BlockStatement([
+              new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
+              ].concat(map properties, stmt).concat(makeReturn classIdentifier)
+            )
+            new JS.CallExpression (funcExpr body: block).g(), []
 
       args = []
       params = []

@@ -205,11 +205,12 @@ dynamicMemberAccess = (e, index) ->
 
 es6AssignmentPattern = (assignee) ->
   if assignee instanceof JS.ArrayExpression
-    elements = assignee.elements.map (elt) ->
+    elements = for elt, index in assignee.elements
       if elt instanceof JS.Identifier
         elt
       else if elt.rest
-        new JS.RestElement elt.expression
+        if index == assignee.elements.length - 1
+          new JS.RestElement elt.expression
       else
         es6AssignmentPattern(elt)
     if all(elements, (elt) -> elt?)

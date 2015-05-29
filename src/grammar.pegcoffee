@@ -548,24 +548,36 @@ leftHandSideExpressionNoImplicitObjectCall = callExpressionNoImplicitObjectCall 
     / secondaryExpressionNoImplicitObjectCall
 
 callExpression
-  = fn:memberExpression accesses:callExpressionAccesses? secondaryArgs:("?"? secondaryArgumentList)? {
-      fn = createMemberExpression fn, accesses if accesses?
-      if secondaryArgs?
-        [ soaked, list ] = secondaryArgs
+  = SUPER accesses:callExpressionAccesses? secondaryArgs:secondaryArgumentList?{
+      if accesses
+        rp(new CS.Super(accesses[0].operands[0]))
+      else
+        rp(new CS.Super(secondaryArgs || [] ))
+    }
+  / fn:memberExpression accesses:callExpressionAccesses? secondaryArgs:("?"? secondaryArgumentList)? {
+      fn = createMemberExpression(fn, accesses) if accesses?
+      if secondaryArgs
+        soaked = secondaryArgs[0]
         secondaryCtor = if soaked then CS.SoakedFunctionApplication else CS.FunctionApplication
-        fn = rp new secondaryCtor fn, list
+        fn = rp(new secondaryCtor(fn, secondaryArgs[1]))
       fn
     }
   callExpressionAccesses
     = TERMINDENT as:callExpressionAccesses DEDENT { as }
     / as:(argumentList / MemberAccessOps)+ bs:callExpressionAccesses? { [as..., (bs ? [])...] }
 callExpressionNoImplicitObjectCall
-  = fn:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
-      fn = createMemberExpression fn, accesses if accesses?
-      if secondaryArgs?
-        [ soaked, list ] = secondaryArgs
+  = SUPER accesses:callExpressionAccesses? secondaryArgs:secondaryArgumentList?{
+      if accesses
+        rp(new CS.Super(accesses[0].operands[0]))
+      else
+        rp(new CS.Super(secondaryArgs || [] ))
+    }
+  / fn:memberExpressionNoImplicitObjectCall accesses:(argumentList / MemberAccessOps)* secondaryArgs:("?"? secondaryArgumentListNoImplicitObjectCall)? {
+      fn = createMemberExpression(fn, accesses) if accesses?
+      if secondaryArgs
+        soaked = secondaryArgs[0]
         secondaryCtor = if soaked then CS.SoakedFunctionApplication else CS.FunctionApplication
-        fn = rp new secondaryCtor fn, list
+        fn = rp(new secondaryCtor(fn, secondaryArgs[1]))
       fn
     }
 
@@ -1169,6 +1181,7 @@ UNTIL = $("until" !identifierPart)
 WHEN = $("when" !identifierPart)
 WHILE = $("while" !identifierPart)
 YES = $("yes" !identifierPart)
+SUPER = $("super" !identifierPart)
 
 SharedKeywords
   = ("true" / "false" / "null" / "this" / "new" / "delete" / "typeof" /

@@ -17,7 +17,6 @@ createNode = (type, props) ->
     no
   toBasicObject: ->
     obj = {@type}
-    obj.leadingComments = @leadingComments if @leadingComments?
     for child in @childNodes
       if child in @listMembers
         obj[child] = (p?.toBasicObject() for p in this[child])
@@ -30,18 +29,25 @@ createNode = (type, props) ->
         @offset
         if @raw? then @offset + @raw.length else undefined
       ]
-    if @raw? then obj.raw = @raw
+
+    for property in ['leadingComments', 'raw', 'expression', 'generator']
+      if this[property]? && property not in @childNodes
+        obj[property] = this[property]
     obj
 
 nodeData = [
   # constructor name, isStatement, construction parameters
   ['ArrayExpression'      , no , ['elements']]
+  ['ArrayPattern'         , no , ['elements']]
+  ['ArrowFunctionExpression',no, ['params', 'defaults', 'rest', 'body']]
   ['AssignmentExpression' , no , ['operator', 'left', 'right']]
   ['BinaryExpression'     , no , ['operator', 'left', 'right']]
   ['BlockStatement'       , yes, ['body']]
   ['BreakStatement'       , yes, ['label']]
   ['CallExpression'       , no , ['callee', 'arguments']]
   ['CatchClause'          , yes, ['param', 'body']]
+  ['ClassBody'            , yes, ['body']]
+  ['ClassDeclaration'     , yes, ['id', 'superClass', 'body']]
   ['ConditionalExpression', no , ['test', 'consequent', 'alternate']]
   ['ContinueStatement'    , yes, ['label']]
   ['DebuggerStatement'    , yes, []]
@@ -50,8 +56,8 @@ nodeData = [
   ['ExpressionStatement'  , yes, ['expression']]
   ['ForInStatement'       , yes, ['left', 'right', 'body']]
   ['ForStatement'         , yes, ['init', 'test', 'update', 'body']]
-  ['FunctionDeclaration'  , yes, ['id', 'params', 'body']]
-  ['FunctionExpression'   , no , ['id', 'params', 'body']]
+  ['FunctionDeclaration'  , yes, ['id', 'params', 'defaults', 'rest', 'body']]
+  ['FunctionExpression'   , no , ['id', 'params', 'defaults', 'rest', 'body']]
   ['GenSym'               , no , ['ns', 'uniqueId']]
   ['Identifier'           , no , ['name']]
   ['IfStatement'          , yes, ['test', 'consequent', 'alternate']]
@@ -59,10 +65,12 @@ nodeData = [
   ['Literal'              , no , ['value']]
   ['LogicalExpression'    , no , ['operator', 'left', 'right']]
   ['MemberExpression'     , no , ['computed', 'object', 'property']]
+  ['MethodDefinition'     , no , ['key', 'value']]
   ['NewExpression'        , no , ['callee', 'arguments']]
   ['ObjectExpression'     , no , ['properties']]
   ['Program'              , yes, ['body']]
   ['Property'             , yes, ['key', 'value']]
+  ['RestElement'          , yes, ['argument']]
   ['ReturnStatement'      , yes, ['argument']]
   ['SequenceExpression'   , no , ['expressions']]
   ['SwitchCase'           , yes, ['test', 'consequent']]
@@ -86,11 +94,11 @@ for [node, isStatement, params] in nodeData
 
 {
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
-  CallExpression, SequenceExpression, ArrayExpression, BinaryExpression,
+  CallExpression, SequenceExpression, ArrayExpression, ArrayPattern, BinaryExpression,
   UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
   MemberExpression, UpdateExpression, AssignmentExpression, LogicalExpression,
   GenSym, FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
-  TryStatement
+  TryStatement, ArrowFunctionExpression, ClassBody
 } = exports
 
 ## Nodes that contain primitive properties
@@ -119,10 +127,13 @@ handlePrimitives VariableDeclaration, ['kind']
 handleLists = (ctor, listProps) -> ctor::listMembers = listProps
 
 handleLists ArrayExpression, ['elements']
+handleLists ArrayPattern, ['elements']
+handleLists ArrowFunctionExpression, ['params', 'defaults']
 handleLists BlockStatement, ['body']
 handleLists CallExpression, ['arguments']
-handleLists FunctionDeclaration, ['params']
-handleLists FunctionExpression, ['params']
+handleLists ClassBody, ['body']
+handleLists FunctionDeclaration, ['params', 'defaults']
+handleLists FunctionExpression, ['params', 'defaults']
 handleLists NewExpression, ['arguments']
 handleLists ObjectExpression, ['properties']
 handleLists Program, ['body']

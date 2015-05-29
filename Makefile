@@ -7,9 +7,10 @@ LIBMIN = $(LIB:lib/%.js=lib/%.min.js)
 TEST = $(wildcard test/*.coffee | sort)
 ROOT = $(shell pwd)
 
-COFFEE = bin/coffee --js --bare
-PEGJS = node_modules/.bin/pegjs --cache --plugin ./lib/pegjs-coffee-plugin
-MOCHA = node_modules/.bin/mocha --compilers coffee:./register -u tdd
+NODE = $(if ${ES6}, babel-node, node)
+COFFEE = ${NODE} bin/coffee --js --bare $(if ${ES6}, --target-es6)
+PEGJS = ${NODE} node_modules/.bin/pegjs --cache --plugin ./lib/pegjs-coffee-plugin
+MOCHA = ${NODE} node_modules/.bin/mocha --compilers coffee:./register -u tdd
 CJSIFY = node_modules/.bin/cjsify --export CoffeeScript
 MINIFIER = node_modules/.bin/esmangle
 

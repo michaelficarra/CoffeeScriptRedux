@@ -1,58 +1,69 @@
-@any = (list, fn) ->
-  for e in list
-    return yes if fn e
-  no
+module.exports =
+  any: (list, fn) ->
+    for e in list
+      return yes if fn e
+    no
 
-@all = (list, fn) ->
-  for e in list
-    return no unless fn e
-  yes
+  all: (list, fn) ->
+    for e in list
+      return no unless fn e
+    yes
 
-@foldl = foldl = (memo, list, fn) ->
-  for i in list
-    memo = fn memo, i
-  memo
+  find: (list, fn) ->
+    for e in list
+      return e if fn(e)
+    null
 
-@foldl1 = (list, fn) -> foldl list[0], list[1..], fn
+  foldl: foldl = (memo, list, fn) ->
+    for i in list
+      memo = fn memo, i
+    memo
 
-@map = map = (list, fn) -> fn e for e in list
+  foldl1: (list, fn) -> foldl list[0], list[1..], fn
 
-@concat = concat = (list) -> [].concat list...
+  map: map = (list, fn) -> fn e for e in list
 
-@concatMap = (list, fn) -> concat map list, fn
+  concat: concat = (list) -> [].concat list...
 
-@intersect = (listA, listB) -> a for a in listA when a in listB
+  concatMap: (list, fn) -> concat map list, fn
 
-@difference = (listA, listB) -> a for a in listA when a not in listB
+  intersect: (listA, listB) -> a for a in listA when a in listB
 
-@nub = nub = (list) ->
-  result = []
-  result.push i for i in list when i not in result
-  result
+  difference: (listA, listB) -> a for a in listA when a not in listB
 
-@union = (listA, listB) ->
-  listA.concat (b for b in (nub listB) when b not in listA)
+  nub: nub = (list) ->
+    result = []
+    result.push i for i in list when i not in result
+    result
 
-@flip = (fn) -> (b, a) -> fn.call this, a, b
+  union: (listA, listB) ->
+    listA.concat (b for b in (nub listB) when b not in listA)
 
-@owns = do (hop = {}.hasOwnProperty) -> (a, b) -> hop.call a, b
+  flip: (fn) -> (b, a) -> fn.call this, a, b
 
-@span = span = (list, f) ->
-  if list.length is 0 then [[], []]
-  else if f list[0]
-    [ys, zs] = span list[1..], f
-    [[list[0], ys...], zs]
-  else [[], list]
+  owns: do (hop = {}.hasOwnProperty) -> (a, b) -> hop.call a, b
 
-@divMod = (a, b) ->
-  c = a % b
-  mod = if c < 0 then c + b else c
-  div = Math.floor a / b
-  [div, mod]
+  span: span = (list, f) ->
+    if list.length is 0 then [[], []]
+    else if f list[0]
+      [ys, zs] = span list[1..], f
+      [[list[0], ys...], zs]
+    else [[], list]
 
-# The partition function takes a list and predicate fn and returns the pair of lists
-# of elements which do and do not satisfy the predicate, respectively.
-@partition = (list, fn) ->
-  result = [[], []]
-  result[+!fn item].push item for item in list
-  result
+  divMod: (a, b) ->
+    c = a % b
+    mod = if c < 0 then c + b else c
+    div = Math.floor a / b
+    [div, mod]
+
+  # The partition function takes a list and predicate fn and returns the pair of lists
+  # of elements which do and do not satisfy the predicate, respectively.
+  partition: (list, fn) ->
+    result = [[], []]
+    result[+!fn item].push item for item in list
+    result
+
+  zip: (listA, listB) ->
+    len = Math.max listA.length, listB.length
+    for i in [0...len]
+      [listA[i], listB[i]]

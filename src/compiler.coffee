@@ -47,6 +47,8 @@ genSym = do ->
 
 
 stmt = (e) ->
+  # TODO: move these special cases into type-specific
+  # `becomeStatement` methods.
   return e unless e?
   if e.isStatement then e
   else if e.instanceof JS.SequenceExpression
@@ -58,8 +60,8 @@ stmt = (e) ->
   else if e.instanceof JS.ConditionalExpression
     # TODO: drop either the consequent or the alternate if they don't have side effects
     new JS.IfStatement (expr e.test), (stmt e.consequent), stmt e.alternate
-  else if e.instanceof JS.ClassExpression
-    new JS.ClassDeclaration e.id, e.superClass, e.body
+  else if typeof e.becomeStatement == 'function'
+    e.becomeStatement()
   else new JS.ExpressionStatement e
 
 expr = (s) ->
@@ -851,6 +853,7 @@ class exports.Compiler
             defaults: ctor.defaults,
             rest: ctor.rest
           ))
+
         # Emit our ES6 class only if we were able to account for
         # everything in its definition. Otherwise, fall through to the
         # non-ES6 emulation
@@ -863,20 +866,36 @@ class exports.Compiler
         else if unmatched.length > 0
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its body contains code that we couldn't map directly to methods, static methods, prototype properties, or class properties."
         else
+          # Key difference between coffeescript and ES6: in
+          # coffeescript, you get a local binding to the class's name
+          # whether or not you use the class as an expression
+          # value. In ES6, a class used as an expression value does
+          # not create a local binding. So to mimic coffeescript
+          # semantics in ES6, we convert `a = class B` to:
+          #
+          #     var a, B;
+          #     a = B = class B {}
+          #
+          # This is analogous to the way `var x = function y(){}` works.
+          classExpression = new JS.ClassExpression((if (classIdentifier instanceof JS.GenSym) then null else classIdentifier), parentIdentifier, new JS.ClassBody(methods))
+          classAssignment = new JS.AssignmentExpression '=', classIdentifier, classExpression
+          
+            
           return if properties.length == 0
-            # Always return ClassExpressions. The `stmt` helper knows
-            # how to conver them to ClassDeclarations if needed.
-            if classIdentifier.instanceof JS.GenSym
-              new JS.ClassExpression(null, parentIdentifier, new JS.ClassBody(methods))
+            if classIdentifier instanceof JS.GenSym
+              # no properties, no name, so we can use just a bare anonymous expression
+              classExpression
             else
-              new JS.ClassExpression(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
+              # no properties, with name, so we use an assignment
+              # expression, and we provide the option to simply to a
+              # declaration if we're used in a statement context.
+              classAssignment.becomeStatement = -> new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
+              classAssignment
           else
-            block = new JS.BlockStatement([
-              new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
-              ].concat(map properties, stmt).concat(makeReturn classIdentifier)
-            )
-            new JS.CallExpression (funcExpr body: block).g(), []
-
+            # need to set properties, so create an IIFE
+            block = new JS.BlockStatement([ stmt classAssignment ].concat(map properties, stmt).concat(makeReturn classIdentifier))
+            new JS.CallExpression((funcExpr body: block).g(), [])
+          
       args = []
       params = []
       parentRef = genSym 'super'

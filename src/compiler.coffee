@@ -797,13 +797,12 @@ class exports.Compiler
           for c, i in unmatched when c.instanceof JS.FunctionDeclaration
             ctorIndex = i
             break
-          debugger
           unmatched.splice(ctorIndex, 1)
           methods.unshift new JS.MethodDefinition(new JS.Identifier('constructor'), funcExpr(id: ctor.id, params: ctor.params, body: ctor.body, defaults: ctor.defaults, rest: ctor.rest))
         # Emit our ES6 class only if we were able to account for
         # everything in its definition. Otherwise, fall through to the
         # non-ES6 emulation
-        if unmatched.length == 0 and (!@ctor || @ctor.expression.instanceof CS.Functions)
+        if unmatched.length == 0 and (!@ctor || @ctor.expression.instanceof CS.Functions) and (!nameAssignee or nameAssignee.instanceof JS.Identifier)
           return if classIdentifier.instanceof JS.GenSym
             if properties.length == 0
               new JS.ClassExpression(null, parentIdentifier, new JS.ClassBody(methods))
@@ -875,7 +874,6 @@ class exports.Compiler
     ]
     [CS.Constructor, ({expression}) ->
       tmpName = genSym 'class'
-      debugger
       if @expression.instanceof CS.Functions
         funcDecl id: tmpName, params: expression.params, defaults: expression.defaults, rest: expression.rest, body: (forceBlock expression.body)
       else

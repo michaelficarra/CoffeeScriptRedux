@@ -30,7 +30,7 @@ exports.Nodes = class Nodes
         if @raw? then @offset + @raw.length else undefined
       ]
 
-    for property in ['leadingComments', 'raw', 'expression', 'generator']
+    for property in ['leadingComments', 'raw', 'expression', 'generator', 'static']
       if this[property]? && property not in @childNodes
         obj[property] = this[property]
     obj

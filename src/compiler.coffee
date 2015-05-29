@@ -431,13 +431,18 @@ findES6Methods = (classIdentifier, body) ->
   for statement in body.body
     expression = statement.expression
     if (expression instanceof JS.AssignmentExpression) and (expression.operator == '=') and (expression.left instanceof JS.MemberExpression)
-      if (expression.left.object instanceof JS.MemberExpression) and (expression.left.object.property.name == 'prototype')
+      if (expression.left.object instanceof JS.MemberExpression) and (expression.left.object.property.name == 'prototype') and (expression.left.object.object.instanceof JS.ThisExpression)
         if expression.right instanceof JS.FunctionExpression
           methods.push(new JS.MethodDefinition(new JS.Identifier(expression.left.property.name), expression.right))
         else
           properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, new JS.MemberExpression(false, classIdentifier, new JS.Identifier('prototype')), expression.left.property), expression.right)
       else if expression.left.object instanceof JS.ThisExpression
-        properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, classIdentifier, expression.left.property), expression.right)
+        if expression.right instanceof JS.FunctionExpression
+          m = new JS.MethodDefinition(new JS.Identifier(expression.left.property.name), expression.right)
+          m.static = true
+          methods.push(m)
+        else
+          properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, classIdentifier, expression.left.property), expression.right)
     else
       rest.push(statement)
   { methods, properties, rest }

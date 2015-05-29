@@ -427,7 +427,7 @@ for own h, fn of inlineHelpers
 findES6Methods = (classIdentifier, body) ->
   methods = []
   properties = []
-  rest = []
+  unmatched = []
   for statement in body.body
     expression = statement.expression
     if (expression instanceof JS.AssignmentExpression) and (expression.operator == '=') and (expression.left instanceof JS.MemberExpression)
@@ -444,8 +444,16 @@ findES6Methods = (classIdentifier, body) ->
         else
           properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, classIdentifier, expression.left.property), expression.right)
     else
-      rest.push(statement)
-  { methods, properties, rest }
+      unmatched.push(statement)
+
+  rewriteThis = generateMutatingWalker ->
+    if @instanceof JS.ThisExpression then classIdentifier
+    else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
+    else rewriteThis this
+
+  properties = map properties, rewriteThis
+      
+  { methods, properties, unmatched }
 
 funcExpr = ({id, params, defaults, rest, body}) ->
   new JS.FunctionExpression(id ? null, params ? [], defaults ? [], rest ? null, body)
@@ -778,19 +786,35 @@ class exports.Compiler
     # TODO: comment
     [CS.Class, ({nameAssignee, parent, name, ctor, body, compile, options}) ->
       if options.targetES6
-        classIdentifier = new JS.Identifier(name.name)
+        classIdentifier = if name.name
+          new JS.Identifier(name.name)
+        else
+          genSym 'klass'
         if parent
           parentIdentifier = new JS.Identifier(parent.name)
-        { methods, properties, classProperties, rest } = findES6Methods(classIdentifier, forceBlock body)
+        { methods, properties, unmatched } = findES6Methods(classIdentifier, forceBlock body)
         if ctor
-          for c, i in rest when c.instanceof JS.FunctionDeclaration
+          for c, i in unmatched when c.instanceof JS.FunctionDeclaration
             ctorIndex = i
             break
-          rest.splice(ctorIndex, 1)
+          debugger
+          unmatched.splice(ctorIndex, 1)
           methods.unshift new JS.MethodDefinition(new JS.Identifier('constructor'), funcExpr(id: ctor.id, params: ctor.params, body: ctor.body, defaults: ctor.defaults, rest: ctor.rest))
-        # Emit our ES6 class if we were able to account for everything in its definition. Otherwise, fall through to the non-ES6 emulation
-        if rest.length == 0
-          return new JS.SequenceExpression([new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))].concat(properties))
+        # Emit our ES6 class only if we were able to account for
+        # everything in its definition. Otherwise, fall through to the
+        # non-ES6 emulation
+        if unmatched.length == 0 and (!@ctor || @ctor.expression.instanceof CS.Functions)
+          return if classIdentifier.instanceof JS.GenSym
+            if properties.length == 0
+              new JS.ClassExpression(null, parentIdentifier, new JS.ClassBody(methods))
+            else
+              block = new JS.BlockStatement([
+                new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
+                ].concat(map properties, stmt).concat(makeReturn classIdentifier)
+              )
+              new JS.CallExpression (funcExpr body: block).g(), []
+          else
+            new JS.SequenceExpression([new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))].concat(properties))
 
       args = []
       params = []

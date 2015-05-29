@@ -34,7 +34,7 @@ mapChildNodes = (node, mapper, reducer, identity, opts={}) ->
   opts.listIdentity ?= identity
   foldl identity, (for childName in node.childNodes when node[childName]?
     if childName in node.listMembers
-      foldl opts.listIdentity, (mapper(child, childName) for child in node[childName] when child?), opts.listReducer
+      foldl opts.listIdentity, (mapper(child, childName) for child in node[childName]), opts.listReducer
     else
       mapper(node[childName], childName)
   ), reducer
@@ -125,7 +125,7 @@ makeReturn = (node) ->
 
 
 generateMutatingWalker = (fn) -> (node, args...) ->
-  mapper = (child, nameInParent) -> [nameInParent, fn.apply(child, args)]
+  mapper = (child, nameInParent) -> [nameInParent, (if child? then fn.apply(child, args) else child)]
   reducer = (parent, [name, newChild]) -> parent[name] = newChild; parent
   mapChildNodes node, mapper, reducer, node, {
     listReducer: ([_, accum],[name, newChild]) -> [name, accum.concat(newChild) ]

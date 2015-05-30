@@ -490,6 +490,7 @@ es6SafeConstructor = (isDerivedClass, block) ->
       else
         calledSuper = true
   if not calledSuper
+    block = new JS.BlockStatement(block.body.slice())
     block.body.unshift(stmt new JS.CallExpression(new JS.Identifier('super'), []))
   block
 

@@ -456,7 +456,7 @@ findES6Methods = (classIdentifier, body) ->
 
   rewriteThis = generateMutatingWalker ->
     if @instanceof JS.ThisExpression then classIdentifier
-    else if @instanceof JS.FunctionExpression, JS.FunctionDeclaration then this
+    else if isScopeBoundary(this) then this
     else rewriteThis this
 
   properties = map properties, rewriteThis
@@ -493,6 +493,37 @@ es6SafeConstructor = (isDerivedClass, block) ->
     block = new JS.BlockStatement(block.body.slice())
     block.body.unshift(stmt new JS.CallExpression(new JS.Identifier('super'), []))
   block
+
+es6SafeArrowExpression = (parameters, defaults, rest, block) ->
+  # A coffeescript bound function is *almost* the same as an ES6 arrow
+  # function, but they have a different meaning for the "arguments"
+  # keyword. In ES6, arguments still refers to the outer scope.
+
+  usesArguments = (node) ->
+    if node instanceof JS.Identifier
+      node.name == 'arguments'
+    else
+      mapChildNodes node, usesArguments, ((a,b) -> a or b), false
+
+  if any block.body, usesArguments
+    if parameters.length > 0
+      debugES6("Skipping arrow function conversion because your bound function refers to the 'arguments' keyword and has regular positional arguments")
+      return null
+    rest ?= genSym 'arguments'
+    rewriteArguments = generateMutatingWalker ->
+      if (@instanceof JS.Identifier) and @name == 'arguments' then rest
+      else if isScopeBoundary(this) then this
+      else rewriteArguments this
+    for statement in block.body
+      rewriteArguments(statement)
+
+  if block.body.length == 1 && block.body[0] instanceof JS.ReturnStatement
+    fn = new JS.ArrowFunctionExpression parameters, defaults, rest, block.body[0].argument
+    fn.expression = true
+    return fn
+  else
+    return new JS.ArrowFunctionExpression parameters, defaults, rest, block
+
 
 describeClass = (name, parentNode) ->
   return "class #{name.name}" if name?.name
@@ -805,13 +836,8 @@ class exports.Compiler
 
         performedRewrite = no
         if @instanceof CS.BoundFunction
-          if options.targetES6
-            if block.body.length == 1 && block.body[0] instanceof JS.ReturnStatement
-              fn = new JS.ArrowFunctionExpression parameters, defaults, rest, block.body[0].argument
-              fn.expression = true
-              return fn
-            else
-              return new JS.ArrowFunctionExpression parameters, defaults, rest, block
+          if options.targetES6 and (arrow = es6SafeArrowExpression(parameters, defaults, rest, block))
+            return arrow
           else
             newThis = genSym 'this'
             rewriteThis = generateMutatingWalker ->
@@ -880,15 +906,13 @@ class exports.Compiler
           # This is analogous to the way `var x = function y(){}` works.
           classExpression = new JS.ClassExpression((if (classIdentifier instanceof JS.GenSym) then null else classIdentifier), parentIdentifier, new JS.ClassBody(methods))
           classAssignment = new JS.AssignmentExpression '=', classIdentifier, classExpression
-          
-            
           return if properties.length == 0
             if classIdentifier instanceof JS.GenSym
               # no properties, no name, so we can use just a bare anonymous expression
               classExpression
             else
               # no properties, with name, so we use an assignment
-              # expression, and we provide the option to simply to a
+              # expression, and we provide the option to simplify to a
               # declaration if we're used in a statement context.
               classAssignment.becomeStatement = -> new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
               classAssignment
@@ -896,6 +920,7 @@ class exports.Compiler
             # need to set properties, so create an IIFE
             block = new JS.BlockStatement([ stmt classAssignment ].concat(map properties, stmt).concat(makeReturn classIdentifier))
             new JS.CallExpression((funcExpr body: block).g(), [])
+
           
       args = []
       params = []

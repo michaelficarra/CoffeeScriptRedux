@@ -500,10 +500,9 @@ es6SafeArrowExpression = (parameters, defaults, rest, block) ->
   # keyword. In ES6, arguments still refers to the outer scope.
 
   usesArguments = (node) ->
-    if node instanceof JS.Identifier
-      node.name == 'arguments'
-    else
-      mapChildNodes node, usesArguments, ((a,b) -> a or b), false
+    if not node? then false
+    else if node instanceof JS.Identifier then node.name == 'arguments'
+    else mapChildNodes node, usesArguments, ((a,b) -> a or b), false
 
   if any block.body, usesArguments
     if parameters.length > 0

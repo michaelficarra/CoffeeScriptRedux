@@ -805,7 +805,13 @@ class exports.Compiler
         if parameters.length > 0
           if parameters[-1..][0].rest
             if options.targetES6
-              rest = new JS.Identifier(parameters.pop().expression.name)
+              expression = parameters.pop().expression
+              rest = if expression instanceof JS.Identifier
+                new JS.Identifier(expression.name)
+              else
+                sym = genSym 'rest'
+                block.body.unshift stmt new JS.AssignmentExpression '=', expression, sym
+                sym
             else
               paramName = parameters.pop().expression
               numParams = parameters.length

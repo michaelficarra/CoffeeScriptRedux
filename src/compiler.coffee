@@ -99,6 +99,8 @@ expr = (s) ->
     block = new JS.BlockStatement [makeReturn s]
     iife = funcExpr body: block
     new JS.CallExpression (memberAccess iife.g(), 'call'), [new JS.ThisExpression]
+  else if typeof s.becomeExpression == 'function'
+    s.becomeExpression()
   else
     # TODO: comprehensive
     throw new Error "expr: Cannot use a #{s.type} as a value"
@@ -913,7 +915,10 @@ class exports.Compiler
               # no properties, with name, so we use an assignment
               # expression, and we provide the option to simplify to a
               # declaration if we're used in a statement context.
-              classAssignment.becomeStatement = -> new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
+              classAssignment.becomeStatement = ->
+                statement = new JS.ClassDeclaration(classIdentifier, parentIdentifier, new JS.ClassBody(methods))
+                statement.becomeExpression = -> classAssignment
+                statement
               classAssignment
           else
             # need to set properties, so create an IIFE

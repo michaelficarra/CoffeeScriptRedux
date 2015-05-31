@@ -441,18 +441,28 @@ findES6Methods = (classIdentifier, body) ->
   for statement in body.body
     expression = statement.expression
     if (expression instanceof JS.AssignmentExpression) and (expression.operator == '=') and (expression.left instanceof JS.MemberExpression)
-      if (expression.left.object instanceof JS.MemberExpression) and (expression.left.object.property.name == 'prototype') and (expression.left.object.object.instanceof JS.ThisExpression)
+
+      property = expression.left.property
+
+      propertyName = if property instanceof JS.Identifier
+        property.name
+      else if property instanceof JS.Literal
+        property.value
+
+      object = expression.left.object
+
+      if (object instanceof JS.MemberExpression) and (object.property.name == 'prototype') and (object.object.instanceof JS.ThisExpression)
         if expression.right instanceof JS.FunctionExpression
-          methods.push(new JS.MethodDefinition(methodIdentifier(expression), expression.right))
+          methods.push(new JS.MethodDefinition(new JS.Identifier(propertyName), expression.right))
         else
-          properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, new JS.MemberExpression(false, classIdentifier, new JS.Identifier('prototype')), expression.left.property), expression.right)
-      else if expression.left.object instanceof JS.ThisExpression
+          properties.push new JS.AssignmentExpression('=', memberAccess(memberAccess(classIdentifier, 'prototype'), propertyName), expression.right)
+      else if object instanceof JS.ThisExpression
         if expression.right instanceof JS.FunctionExpression
-          m = new JS.MethodDefinition(methodIdentifier(expression), expression.right)
+          m = new JS.MethodDefinition(new JS.Identifier(propertyName), expression.right)
           m.static = true
           methods.push(m)
         else
-          properties.push new JS.AssignmentExpression('=', new JS.MemberExpression(false, classIdentifier, expression.left.property), expression.right)
+          properties.push new JS.AssignmentExpression('=', memberAccess(classIdentifier, propertyName), expression.right)
     else
       unmatched.push(statement)
 

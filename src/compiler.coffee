@@ -907,6 +907,8 @@ class exports.Compiler
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its constructor does not follow the ES6 rules for super."
         else if nameAssignee and not nameAssignee.instanceof JS.Identifier
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because it's being assigned to a compound name."
+        else if parent and not (parent instanceof JS.Identifier)
+          debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because it extends an expression."
         else if unmatched.length > 0
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its body contains code that we couldn't map directly to methods, static methods, prototype properties, or class properties."
         else

@@ -131,16 +131,17 @@ makeReturn = (node) ->
   else if (node.instanceof JS.UnaryExpression) and node.operator is 'void' then new JS.ReturnStatement
   else new JS.ReturnStatement expr node
 
-
-generateMutatingWalker = (fn) -> (node, args...) ->
+generateWalker = (makeIdentity) -> (fn) -> (node, args...) ->
   mapper = (child, nameInParent) -> [nameInParent, (if child? then fn.apply(child, args) else child)]
   reducer = (parent, [name, newChild]) -> parent[name] = newChild; parent
-  mapChildNodes node, mapper, reducer, node, {
+  identity = makeIdentity(node)
+  mapChildNodes node, mapper, reducer, identity, {
     listReducer: ([_, accum],[name, newChild]) -> [name, accum.concat(newChild) ]
     listIdentity: [null, []]
   }
 
-
+generateMutatingWalker = generateWalker (node) -> node
+generateCopyingWalker = generateWalker (node) -> node.shallowCopy()
 
 declaredIdentifiers = (node) ->
   return [] unless node?
@@ -425,10 +426,11 @@ inlineHelpers =
 for own h, fn of inlineHelpers
   helpers[h] = fn
 
-findES6Methods = (classIdentifier, body) ->
+findES6Methods = (classIdentifier, ctor, isDerivedClass, body) ->
   methods = []
   properties = []
   unmatched = []
+  foundConstructor = false
 
   methodIdentifier = (expression) ->
     prop = expression.left.property
@@ -438,7 +440,29 @@ findES6Methods = (classIdentifier, body) ->
       # ES6 allows method names that are the same as reserved keywords
       new JS.Identifier(prop.value)
 
+  rewriteSuper = generateCopyingWalker ->
+    if isScopeBoundary(this) then this
+    else if @toES6Super then @toES6Super()
+    else rewriteSuper this
+
+  if ctor
+    ctor = rewriteSuper(ctor)
+    if (safeCtorBody = es6SafeConstructor(isDerivedClass, ctor.body))
+      methods.push new JS.MethodDefinition(new JS.Identifier('constructor'), funcExpr(params: ctor.params, defaults: ctor.defaults, rest: ctor.rest, body: safeCtorBody))
+    else
+      debugES6 "#{describeClass classIdentifier}'s constructor does not follow the ES6 rules for super."
+      unmatched.push ctor
+
   for statement in body.body
+
+    if (statement instanceof JS.FunctionDeclaration) and not foundConstructor
+      # The first function declaration is the constructor inserted by
+      # the CS.Class rule, but it's not direclty usable because it
+      # obscures that there may be an external constructor. We rely on
+      # our ctor argument instead.
+      foundConstructor = true
+      continue
+
     expression = statement.expression
     if (expression instanceof JS.AssignmentExpression) and (expression.operator == '=') and (expression.left instanceof JS.MemberExpression)
 
@@ -450,15 +474,17 @@ findES6Methods = (classIdentifier, body) ->
         property.value
 
       object = expression.left.object
+      methodBody = if expression.right instanceof JS.FunctionExpression
+        funcExpr(id: expression.right.id, params: expression.right.params, defaults: expression.right.defaults, rest: expression.right.rest, body: rewriteSuper(expression.right.body))
 
       if (object instanceof JS.MemberExpression) and (object.property.name == 'prototype') and (object.object.instanceof JS.ThisExpression)
-        if expression.right instanceof JS.FunctionExpression
-          methods.push(new JS.MethodDefinition(new JS.Identifier(propertyName), expression.right))
+        if methodBody
+          methods.push(new JS.MethodDefinition(new JS.Identifier(propertyName), methodBody))
         else
           properties.push new JS.AssignmentExpression('=', memberAccess(memberAccess(classIdentifier, 'prototype'), propertyName), expression.right)
       else if object instanceof JS.ThisExpression
-        if expression.right instanceof JS.FunctionExpression
-          m = new JS.MethodDefinition(new JS.Identifier(propertyName), expression.right)
+        if methodBody
+          m = new JS.MethodDefinition(new JS.Identifier(propertyName), methodBody)
           m.static = true
           methods.push(m)
         else
@@ -466,7 +492,7 @@ findES6Methods = (classIdentifier, body) ->
     else
       unmatched.push(statement)
 
-  rewriteThis = generateMutatingWalker ->
+  rewriteThis = generateCopyingWalker ->
     if @instanceof JS.ThisExpression then classIdentifier
     else if isScopeBoundary(this) then this
     else rewriteThis this
@@ -878,33 +904,19 @@ class exports.Compiler
     # TODO: comment
     [CS.Class, ({nameAssignee, parent, name, ctor, body, compile, options, ancestry}) ->
       if options.targetES6
+        parentIdentifier = new JS.Identifier(parent.name) if parent
         classIdentifier = if name.name
           new JS.Identifier(name.name)
         else
           genSym 'klass'
-        if parent
-          parentIdentifier = new JS.Identifier(parent.name)
-        { methods, properties, unmatched } = findES6Methods(classIdentifier, forceBlock body)
-        if ctor and (safeCtor = es6SafeConstructor(parent?, ctor.body))
-          for c, i in unmatched when c.instanceof JS.FunctionDeclaration
-            ctorIndex = i
-            break
-          unmatched.splice(ctorIndex, 1)
-          methods.unshift new JS.MethodDefinition(new JS.Identifier('constructor'), funcExpr(
-            id: ctor.id,
-            params: ctor.params,
-            body: safeCtor
-            defaults: ctor.defaults,
-            rest: ctor.rest
-          ))
+
+        { methods, properties, unmatched } = findES6Methods(classIdentifier, ctor, parent?, forceBlock body)
 
         # Emit our ES6 class only if we were able to account for
         # everything in its definition. Otherwise, fall through to the
         # non-ES6 emulation
         if @ctor and not @ctor.expression.instanceof CS.Functions
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its constructor is not a function expression."
-        else if @ctor and not safeCtor
-          debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its constructor does not follow the ES6 rules for super."
         else if nameAssignee and not nameAssignee.instanceof JS.Identifier
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because it's being assigned to a compound name."
         else if parent and not (parent instanceof JS.Identifier)
@@ -1067,6 +1079,20 @@ class exports.Compiler
     ]
 
     [CS.Super, ({arguments: args, compile, inScope, ancestry, options}) ->
+
+      tagForES6 = (node) ->
+        # If we're inside an ES6 class expression, we need to compile to
+        # an ES6 "super". But at this point we can't actually tell if
+        # we're going to end up inside an ES6 class expression, because
+        # our enclosing class may turn out to be untranspilable. So for
+        # now we just tag the node as eligible to be converted.
+        node.toES6Super = ->
+          if functionName == 'constructor'
+            new JS.CallExpression new JS.Identifier('super'), (map args, expr)
+          else
+            new JS.CallExpression (memberAccess new JS.Identifier('super'), functionName), (map args, expr)
+        node
+
       classNode = find ancestry, (node) =>
         (node instanceof CS.Class) or (node.assignee instanceof CS.ProtoMemberAccessOp)
 
@@ -1101,23 +1127,17 @@ class exports.Compiler
           className = classNode.assignee.expression.data
           functionName = classNode.assignee.memberName
 
-      if options.targetES6
-        if functionName == 'constructor'
-          return new JS.CallExpression new JS.Identifier('super'), (map args, expr)
-        else
-          return new JS.CallExpression (memberAccess new JS.Identifier('super'), functionName), (map args, expr)
-
       if className is 'class'
         if args.length > 0
           calledExprs = [new JS.ThisExpression].concat (map args, expr)
-          return new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier classNode.parent.data) , 'prototype'), functionName), 'call'), calledExprs
+          return tagForES6 new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier classNode.parent.data) , 'prototype'), functionName), 'call'), calledExprs
         else
-          return new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier classNode.parent.data) , 'prototype'), functionName), 'apply'), [
+          return tagForES6 new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier classNode.parent.data) , 'prototype'), functionName), 'apply'), [
             new JS.ThisExpression
             new JS.Identifier 'arguments'
           ]
 
-      if isStatic
+      tagForES6 if isStatic
         if args.length is 0
           new JS.CallExpression (memberAccess (memberAccess (memberAccess (memberAccess (new JS.Identifier className) , '__super__'), 'constructor'),  functionName), 'apply'), [
             new JS.ThisExpression

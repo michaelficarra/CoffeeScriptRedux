@@ -35,6 +35,14 @@ exports.Nodes = class Nodes
         obj[property] = this[property]
     obj
 
+  shallowCopy: ->
+    c = new (this.constructor)
+    for k,v of this
+      if k and (k in @listMembers)
+        k = k.slice()
+      c[k] = v
+    c
+
 nodeData = [
   # constructor name, isStatement, construction parameters
   ['ArrayExpression'      , no , ['elements']]

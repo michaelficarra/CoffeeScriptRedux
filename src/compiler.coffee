@@ -105,8 +105,17 @@ expr = (s) ->
     # TODO: comprehensive
     throw new Error "expr: Cannot use a #{s.type} as a value"
 
-isScopeBoundary = (node) ->
+# When looking downward, it's up to us to control the scope
+# boundaries, and we want them to stop only at user-created functions,
+# not compiler-generated functions.
+isDownwardScopeBoundary = (node) ->
   (node.instanceof JS.FunctionExpression, JS.FunctionDeclaration) and not node.generated
+
+# When looking upward for scope boundaries, we need to respect the
+# real Javascript scope boundaries because our declarations will not
+# escape even compiler-generated functions.
+isUpwardScopeBoundary = (node) ->
+  node.instanceof JS.FunctionExpression, JS.FunctionDeclaration
 
 makeReturn = (node) ->
   return new JS.ReturnStatement unless node?
@@ -158,13 +167,13 @@ declarationsNeeded = (node) ->
 
 declarationsNeededRecursive = (node) ->
   return [] unless node?
-  if isScopeBoundary(node) then []
+  if isDownwardScopeBoundary(node) then []
   else union (declarationsNeeded node), mapChildNodes(node, declarationsNeededRecursive, ((a,b)->a.concat(b)), [])
 
 variableDeclarations = (node) ->
   return [] unless node?
   if node.instanceof JS.FunctionDeclaration then [node.id]
-  else if isScopeBoundary(node) then []
+  else if isUpwardScopeBoundary(node) then []
   else if node.instanceof JS.VariableDeclarator then [node.id]
   else mapChildNodes(node, variableDeclarations, ((a,b)->a.concat(b)), [])
 
@@ -441,7 +450,7 @@ findES6Methods = (classIdentifier, ctor, isDerivedClass, body) ->
       new JS.Identifier(prop.value)
 
   rewriteSuper = generateCopyingWalker ->
-    if isScopeBoundary(this) then this
+    if isDownwardScopeBoundary(this) then this
     else if @toES6Super then @toES6Super()
     else rewriteSuper this
 
@@ -494,7 +503,7 @@ findES6Methods = (classIdentifier, ctor, isDerivedClass, body) ->
 
   rewriteThis = generateCopyingWalker ->
     if @instanceof JS.ThisExpression then classIdentifier
-    else if isScopeBoundary(this) then this
+    else if isDownwardScopeBoundary(this) then this
     else rewriteThis this
 
   properties = map properties, rewriteThis
@@ -549,7 +558,7 @@ es6SafeArrowExpression = (parameters, defaults, rest, block) ->
     rest ?= genSym 'arguments'
     rewriteArguments = generateMutatingWalker ->
       if (@instanceof JS.Identifier) and @name == 'arguments' then rest
-      else if isScopeBoundary(this) then this
+      else if isDownwardScopeBoundary(this) then this
       else rewriteArguments this
     for statement in block.body
       rewriteArguments(statement)
@@ -1442,7 +1451,7 @@ class exports.Compiler
           newNode = new JS.Identifier generateName this, state
           usedSymbols.push newNode.name
           newNode
-        else if isScopeBoundary(this)
+        else if isDownwardScopeBoundary(this)
           params = concatMap @params, collectIdentifiers
           nsCounters_ = {}
           nsCounters_[k] = v for own k, v of nsCounters

@@ -231,7 +231,7 @@ es6AssignmentPattern = (assignee) ->
           new JS.RestElement elt.expression
       else
         es6AssignmentPattern(elt)
-    if all(elements, (elt) -> elt?)
+    if all(elements, (elt) -> elt?) and elements.length > 0
       new JS.ArrayPattern(elements)
 
 # TODO: rewrite this whole thing using the CS AST nodes

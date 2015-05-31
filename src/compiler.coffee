@@ -873,6 +873,7 @@ class exports.Compiler
               index = i
               break
             parameters.splice index, 1
+            defaults.splice index, 1
             numParams = parameters.length
             numArgs = genSym 'numArgs'
             reassignments = new JS.IfStatement (new JS.BinaryExpression '>', (new JS.AssignmentExpression '=', numArgs, memberAccess (new JS.Identifier 'arguments'), 'length'), new JS.Literal numParams), (new JS.BlockStatement [

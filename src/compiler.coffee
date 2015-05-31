@@ -927,6 +927,8 @@ class exports.Compiler
         # non-ES6 emulation
         if @ctor and not @ctor.expression.instanceof CS.Functions
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because its constructor is not a function expression."
+        else if @boundMembers.length > 0
+          debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because it has bound function members."
         else if nameAssignee and not nameAssignee.instanceof JS.Identifier
           debugES6 "#{describeClass(name, ancestry[0])} was not converted to ES6 because it's being assigned to a compound name."
         else if parent and not (parent instanceof JS.Identifier)

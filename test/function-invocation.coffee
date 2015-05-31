@@ -241,7 +241,13 @@ suite 'Function Invocation', ->
     ok (func --val) is 5
 
   test "jashkenas/coffee-script#855: execution context for `func arr...` should be `null`", ->
-    contextTest = -> eq this, if window? then window else global
+    isStrictMode = (-> this == undefined)()
+
+    contextTest = ->
+      if isStrictMode
+        ok(not this?)
+      else
+        eq this, if window? then window else global
     array = []
     contextTest array
     contextTest.apply null, array

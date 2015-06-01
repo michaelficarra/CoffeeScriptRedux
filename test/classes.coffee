@@ -468,7 +468,7 @@ suite 'Classes', ->
       # Ensure that constructors invoked with splats cache the function.
       called = 0
       get = -> if called++ then false else class Type
-      new get() args...
+      new (get()) args...
 
     test '`new` shouldn\'t add extra parens', ->
 

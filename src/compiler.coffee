@@ -361,26 +361,46 @@ generateSoak = do ->
     new CS.Conditional (foldl1 tests, (memo, t) -> new CS.LogicalAndOp memo, t), e
 
 
+baseExtends = (myName, copyClassProperties) ->
+  protoAccess = (e) -> memberAccess e, 'prototype'
+  child = new JS.Identifier 'child'
+  parent = new JS.Identifier 'parent'
+  ctor = new JS.Identifier 'ctor'
+
+  block = [
+    copyClassProperties(parent, child)
+    funcDecl(id: ctor , body: new JS.BlockStatement [
+      stmt new JS.AssignmentExpression '=', (memberAccess new JS.ThisExpression, 'constructor'), child
+    ])
+    new JS.AssignmentExpression '=', (protoAccess ctor), protoAccess parent
+    new JS.AssignmentExpression '=', (protoAccess child), new JS.NewExpression ctor, []
+    new JS.AssignmentExpression '=', (memberAccess child, '__super__'), protoAccess parent
+    new JS.ReturnStatement child
+  ]
+  funcDecl(id: helperNames[myName], params: [child, parent], body: (new JS.BlockStatement map block, stmt))
+
 helperNames = {}
 helpers =
   extends: ->
-    protoAccess = (e) -> memberAccess e, 'prototype'
-    child = new JS.Identifier 'child'
-    parent = new JS.Identifier 'parent'
-    ctor = new JS.Identifier 'ctor'
     key = new JS.Identifier 'key'
-    block = [
+    copyClassProperties = (parent, child) ->
       new JS.ForInStatement (new JS.VariableDeclaration 'var', [new JS.VariableDeclarator key, null]), parent, new JS.IfStatement (helpers.isOwn parent, key), f = # TODO: figure out how we can allow this
         stmt new JS.AssignmentExpression '=', (new JS.MemberExpression yes, child, key), new JS.MemberExpression yes, parent, key
-      funcDecl(id: ctor , body: new JS.BlockStatement [
-        stmt new JS.AssignmentExpression '=', (memberAccess new JS.ThisExpression, 'constructor'), child
-      ])
-      new JS.AssignmentExpression '=', (protoAccess ctor), protoAccess parent
-      new JS.AssignmentExpression '=', (protoAccess child), new JS.NewExpression ctor, []
-      new JS.AssignmentExpression '=', (memberAccess child, '__super__'), protoAccess parent
-      new JS.ReturnStatement child
-    ]
-    funcDecl(id: helperNames.extends, params: [child, parent], body: (new JS.BlockStatement map block, stmt))
+    baseExtends('extends', copyClassProperties)
+  extendsES6: ->
+    # This version of the extends helper makes a CoffeeScript-style
+    # class able to extend a real ES6 class. The usual `extends`
+    # helper doesn't work because the properties we're trying to copy
+    # are non-enumerable.
+    copyClassProperties = (parent, child) ->
+      propertyNames = new JS.CallExpression (memberAccess new JS.Identifier('Object'), 'getOwnPropertyNames'), [parent]
+      key = new JS.Identifier 'key'
+      copyKey = new JS.AssignmentExpression('=', (new JS.MemberExpression yes, child, key), (new JS.MemberExpression yes, parent, key))
+      condition = ['callee', 'caller', 'arguments'].map((forbidden) -> new JS.BinaryExpression('!==', key, new JS.Literal(forbidden))).reduce (a,b) -> new JS.BinaryExpression('&&', a, b)
+      conditional = new JS.IfStatement condition, forceBlock copyKey
+      func = funcExpr(params: [key], body: forceBlock conditional)
+      new JS.CallExpression (memberAccess propertyNames, 'forEach'), [func]
+    baseExtends('extendsES6', copyClassProperties)
   construct: ->
     child = new JS.Identifier 'child'
     ctor = new JS.Identifier 'ctor'
@@ -1013,7 +1033,11 @@ class exports.Compiler
       if parent?
         params.push parentRef
         args.push parent
-        block.body.unshift stmt helpers.extends name, parentRef
+        helper = if options.targetES6
+          'extendsES6'
+        else
+          'extends'
+        block.body.unshift stmt helpers[helper] name, parentRef
       block.body.push new JS.ReturnStatement new JS.ThisExpression
 
       rewriteThis = generateMutatingWalker ->
@@ -1324,7 +1348,10 @@ class exports.Compiler
       else
         helpers.in (expr left), expr right
     ]
-    [CS.ExtendsOp, ({left, right}) -> helpers.extends (expr left), expr right]
+    [CS.ExtendsOp, ({left, right, options}) ->
+      helper = if options.targetES6 then 'extendsES6' else 'extends'
+      helpers[helper] (expr left), expr right
+    ]
     [CS.InstanceofOp, ({left, right}) -> new JS.BinaryExpression 'instanceof', (expr left), expr right]
 
     [CS.LogicalAndOp, ({left, right}) -> new JS.LogicalExpression '&&', (expr left), expr right]

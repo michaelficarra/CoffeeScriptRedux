@@ -71,6 +71,10 @@ to patch over.
    already call super, we will insert a `super()` call to make your
    class legal.
 
+ - if you call `super` in a function that's not inside a class
+   definition, and try to attach that function to a class and use it,
+   the `super` is not going to work.
+
  - In CoffeeScript, a parameter's default value is used if the given
    value is `null` or `undefined`. In ES6, a parameter's default value
    is only used if the given value is `undefined`.

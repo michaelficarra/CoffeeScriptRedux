@@ -4,6 +4,14 @@ suite 'Classes', ->
 
     test "Overriding the static property new doesn't clobber Function::new", ->
 
+      # This test doesn't work with ES6 classes. In CoffeesScript,
+      # class properties (like `new` below) are copied from parent
+      # class to child class. But in ES6 classes, they use real
+      # prototypical inheritance. So `delete TwoClass.new` doesn't do
+      # anything, and `TwoClass.new` will continue referring to
+      # OneClass's `new` via the prototype chain.
+      return if __TARGET_ES6__
+
       class OneClass
         @new: 'new'
         function: 'function'
@@ -516,7 +524,11 @@ suite 'Classes', ->
       ok Base.static('word') is 'static/word'
 
       FirstChild::func = (string) ->
-        super('one/').length + string
+        if __TARGET_ES6__
+          # you cannot use 'super' outside of the class definition in ES6.
+          Base.prototype.func.call(this, 'one/').length + string
+        else
+          super('one/').length + string
 
       result = (new ThirdChild).func 'four'
       # eq result, '9two/three/four' # can't pass super('one/').length + string

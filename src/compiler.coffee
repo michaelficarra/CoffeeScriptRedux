@@ -1123,10 +1123,14 @@ class exports.Compiler
         # our enclosing class may turn out to be untranspilable. So for
         # now we just tag the node as eligible to be converted.
         node.toES6Super = ->
-          if functionName == 'constructor'
-            new JS.CallExpression new JS.Identifier('super'), (map args, expr)
+          callee = if functionName == 'constructor'
+            new JS.Identifier('super')
           else
-            new JS.CallExpression (memberAccess new JS.Identifier('super'), functionName), (map args, expr)
+            memberAccess new JS.Identifier('super'), functionName
+          if args.length > 0
+            new JS.CallExpression callee, (map args, expr)
+          else
+            new JS.CallExpression (memberAccess callee, 'apply'), [new JS.ThisExpression, new JS.Identifier('arguments')]
         node
 
       classNode = find ancestry, (node) =>
@@ -1193,8 +1197,8 @@ class exports.Compiler
           new JS.CallExpression (memberAccess (memberAccess (memberAccess (new JS.Identifier className) , '__super__'), functionName), 'call'), calledExprs
     ]
 
-    [CS.FunctionApplication, ({function: fn, arguments: args, compile}) ->
-      if any args, (m) -> m.spread
+    [CS.FunctionApplication, ({function: fn, arguments: args, compile, options}) ->
+      if (not options.targetES6) and any args, (m) -> m.spread
         lhs = @function
         context = new CS.Null
         if needsCaching @function
@@ -1212,7 +1216,11 @@ class exports.Compiler
           context = new CS.SoakedMemberAccessOp context, 'prototype'
         compile new CS.FunctionApplication (new CS.MemberAccessOp lhs, 'apply'), [context, new CS.ArrayInitialiser @arguments]
       else if hasSoak this then compile generateSoak this
-      else new JS.CallExpression (expr fn), map args, expr
+      else new JS.CallExpression (expr fn), map args, (a) ->
+        expr if options.targetES6 and a.spread
+          new JS.SpreadElement a.expression
+        else
+          a
     ]
     [CS.SoakedFunctionApplication, ({compile}) -> compile generateSoak this]
     [CS.NewOp, ({ctor, arguments: args, compile}) ->

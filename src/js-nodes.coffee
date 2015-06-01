@@ -82,6 +82,7 @@ nodeData = [
   ['RestElement'          , yes, ['argument']]
   ['ReturnStatement'      , yes, ['argument']]
   ['SequenceExpression'   , no , ['expressions']]
+  ['SpreadElement'        , no,  ['argument']]  
   ['SwitchCase'           , yes, ['test', 'consequent']]
   ['SwitchStatement'      , yes, ['discriminant', 'cases']]
   ['ThisExpression'       , no , []]

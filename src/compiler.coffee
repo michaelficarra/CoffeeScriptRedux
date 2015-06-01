@@ -805,13 +805,17 @@ class exports.Compiler
             [ys, zs] = [sliced, zs[1..]]
           else ys = new JS.ArrayExpression map ys, expr
           [ys].concat groupMembers zs
-      ({members, compile}) ->
-        if any members, (m) -> m.spread
+      ({members, compile, options}) ->
+        if (not options.targetES6) and any members, (m) -> m.spread
           grouped = map (groupMembers members), expr
           if grouped.length <= 1 then grouped[0]
           else new JS.CallExpression (memberAccess grouped[0], 'concat'), grouped[1..]
         else
-          new JS.ArrayExpression map members, expr
+          new JS.ArrayExpression map members, (m) ->
+            expr if m.spread
+              new JS.SpreadElement(m.expression)
+            else
+              m
     ]
     [CS.Spread, ({expression}) -> {spread: yes, expression: expr expression}]
     [CS.ObjectInitialiser, ({members}) -> new JS.ObjectExpression members]
@@ -1338,7 +1342,7 @@ class exports.Compiler
 
     [CS.OfOp, ({left, right}) -> new JS.BinaryExpression 'in', (expr left), expr right]
     [CS.InOp, ({left, right}) ->
-      if (right.instanceof JS.ArrayExpression) and right.elements.length < 5
+      if (right.instanceof JS.ArrayExpression) and right.elements.length < 5 and all right.elements, (elt) -> not (elt instanceof JS.SpreadElement)
         switch right.elements.length
           when 0
             if needsCaching @left

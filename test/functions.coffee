@@ -139,7 +139,14 @@ suite 'Function Literals', ->
       eq nonceA, a(0)
       eq nonceB, a(0,0,nonceB)
       eq nonceA, a(0,0,undefined)
-      eq nonceA, a(0,0,null)
+      if __TARGET_ES6__
+        # Deliberate semantic difference: ES6 default parameters take
+        # their default value only when their given value is
+        # undefined. Null is allowed to override the default
+        # value.
+        eq null, a(0,0,null)
+      else
+        eq nonceA, a(0,0,null)
       eq false , a(0,0,false)
       eq nonceB, a(undefined,undefined,nonceB,undefined)
       b = (_,arg=nonceA,_1,_2) -> arg
@@ -147,7 +154,11 @@ suite 'Function Literals', ->
       eq nonceA, b(0)
       eq nonceB, b(0,nonceB)
       eq nonceA, b(0,undefined)
-      eq nonceA, b(0,null)
+      if __TARGET_ES6__
+        # See above comment
+        eq null, b(0,null)
+      else
+        eq nonceA, b(0,null)
       eq false , b(0,false)
       eq nonceB, b(undefined,nonceB,undefined)
       c = (arg=nonceA,_,_1) -> arg
@@ -155,7 +166,11 @@ suite 'Function Literals', ->
       eq      0, c(0)
       eq nonceB, c(nonceB)
       eq nonceA, c(undefined)
-      eq nonceA, c(null)
+      if __TARGET_ES6__
+        # See above comment
+        eq null, c(null)
+      else
+        eq nonceA, c(null)
       eq false , c(false)
       eq nonceB, c(nonceB,undefined,undefined)
 

@@ -708,11 +708,11 @@ class exports.Compiler
         else if (step instanceof JS.Literal) and step.value == 1
           target
 
-        if es6Target
-          if valAssignee and keyAssignee
-            return new JS.ForOfStatement(new JS.VariableDeclaration('var', [new JS.VariableDeclarator new JS.ArrayPattern([keyAssignee, valAssignee])]), new JS.CallExpression((memberAccess es6Target, 'entries'), []), forceBlock body)
-          else if valAssignee
-            return new JS.ForOfStatement(new JS.VariableDeclaration('var', [new JS.VariableDeclarator valAssignee]), es6Target, forceBlock body)
+        if es6Target and valAssignee and (valPattern = if (valAssignee instanceof JS.Identifier) then valAssignee else es6AssignmentPattern(valAssignee))
+          if keyAssignee
+            return new JS.ForOfStatement(new JS.VariableDeclaration('var', [new JS.VariableDeclarator new JS.ArrayPattern([keyAssignee, valPattern])]), new JS.CallExpression((memberAccess es6Target, 'entries'), []), forceBlock body)
+          else
+            return new JS.ForOfStatement(new JS.VariableDeclaration('var', [new JS.VariableDeclarator valPattern]), es6Target, forceBlock body)
 
 
       i = genSym 'i'

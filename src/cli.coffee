@@ -210,6 +210,7 @@ else
         raw: options.raw or options.sourceMap or options.sourceMapFile or options.eval
         inputSource: inputSource
         literate: options.literate
+        targetES6: options.targetES6
     catch e
       console.error e.message
       process.exit 1

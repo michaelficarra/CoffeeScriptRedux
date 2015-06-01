@@ -37,6 +37,7 @@ CoffeeScript =
       parsed = Parser.parse preprocessed,
         raw: options.raw
         inputSource: options.inputSource
+        targetES6: options.targetES6
       if options.optimise then Optimiser.optimise parsed else parsed
     catch e
       throw e unless e instanceof Parser.SyntaxError

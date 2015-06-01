@@ -932,6 +932,7 @@ macro
   / "__TIME__" { rp new CS.String (new Date).toTimeString()[0...8] }
   / "__DATETIMEMS__" { rp new CS.Int +new Date }
   / "__COFFEE_VERSION__" { rp new CS.String (require '../package.json').version }
+  / "__TARGET_ES6__" { rp new CS.Bool !!options.targetES6 }
 
 
 bool

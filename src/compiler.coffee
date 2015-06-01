@@ -236,10 +236,15 @@ es6AssignmentPattern = (assignee) ->
     if all(elements, (elt) -> elt?) and elements.length > 0
       new JS.ArrayPattern(elements)
   else if assignee instanceof JS.ObjectExpression
-    new JS.ObjectPattern assignee.properties.map (p) ->
-      if (p.value instanceof JS.Identifier) and p.value.name == p.key.name
-        p.shorthand = true
-      p
+    props = assignee.properties.map (p) ->
+      if p.value instanceof JS.Identifier
+        if p.value.name == p.key.name
+          p.shorthand = true
+        p
+      else if (pattern = es6AssignmentPattern p.value)
+        new JS.Property p.key, pattern
+    if all(props, (elt) -> elt?) and props.length > 0
+      new JS.ObjectPattern props
 
 
 # TODO: rewrite this whole thing using the CS AST nodes

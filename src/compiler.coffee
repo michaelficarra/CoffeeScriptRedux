@@ -1131,10 +1131,11 @@ class exports.Compiler
             new JS.Identifier('super')
           else
             memberAccess new JS.Identifier('super'), functionName
-          if args.length > 0
-            new JS.CallExpression callee, (map args, expr)
+          args = if args.length > 0
+            map args, expr
           else
-            new JS.CallExpression (memberAccess callee, 'apply'), [new JS.ThisExpression, new JS.Identifier('arguments')]
+            [new JS.SpreadElement(new JS.Identifier('arguments'))]
+          new JS.CallExpression callee, args
         node
 
       classNode = find ancestry, (node) =>

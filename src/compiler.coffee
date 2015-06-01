@@ -182,6 +182,8 @@ collectIdentifiers = (node) -> nub switch
   when node.instanceof JS.Identifier then [node.name]
   when (node.instanceof JS.MemberExpression) and not node.computed
     collectIdentifiers node.object
+  when node.instanceof JS.ObjectPattern
+    map(node.properties, (p) -> collectIdentifiers(p.value)).reduce(((a,b) -> a.concat(b)), [])
   else mapChildNodes node, collectIdentifiers, ((a,b)->a.concat(b)), []
 
 # TODO: something like Optimiser.mayHaveSideEffects

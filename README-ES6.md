@@ -33,7 +33,9 @@ path.
         You can get the same effect with assignment, like `X.Foo =
         class ...`.
 
-     - we don't deal with arbitrary expressions for the parent class:
+     - we don't deal with arbitrary expressions for the parent class
+       (even though ES6 does support this pattern, it has not been
+       implemented here):
 
             class X extends someFunctionThatRetunsAClass()
 

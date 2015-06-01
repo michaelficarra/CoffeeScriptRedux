@@ -30,7 +30,7 @@ exports.Nodes = class Nodes
         if @raw? then @offset + @raw.length else undefined
       ]
 
-    for property in ['leadingComments', 'raw', 'expression', 'generator', 'static']
+    for property in ['leadingComments', 'raw', 'expression', 'generator', 'static', 'shorthand']
       if this[property]? && property not in @childNodes
         obj[property] = this[property]
     obj
@@ -77,6 +77,7 @@ nodeData = [
   ['MethodDefinition'     , no , ['key', 'value']]
   ['NewExpression'        , no , ['callee', 'arguments']]
   ['ObjectExpression'     , no , ['properties']]
+  ['ObjectPattern'        , no , ['properties']]
   ['Program'              , yes, ['body']]
   ['Property'             , yes, ['key', 'value']]
   ['RestElement'          , yes, ['argument']]
@@ -105,7 +106,7 @@ for [node, isStatement, params] in nodeData
 {
   Program, BlockStatement, Literal, Identifier, FunctionExpression,
   CallExpression, SequenceExpression, ArrayExpression, ArrayPattern, BinaryExpression,
-  UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression,
+  UnaryExpression, NewExpression, VariableDeclaration, ObjectExpression, ObjectPattern,
   MemberExpression, UpdateExpression, AssignmentExpression, LogicalExpression,
   GenSym, FunctionDeclaration, VariableDeclaration, SwitchStatement, SwitchCase,
   TryStatement, ArrowFunctionExpression, ClassBody
@@ -146,6 +147,7 @@ handleLists FunctionDeclaration, ['params', 'defaults']
 handleLists FunctionExpression, ['params', 'defaults']
 handleLists NewExpression, ['arguments']
 handleLists ObjectExpression, ['properties']
+handleLists ObjectPattern, ['properties']
 handleLists Program, ['body']
 handleLists SequenceExpression, ['expressions']
 handleLists SwitchCase, ['consequent']

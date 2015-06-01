@@ -64,6 +64,7 @@ nodeData = [
   ['EmptyStatement'       , yes, []]
   ['ExpressionStatement'  , yes, ['expression']]
   ['ForInStatement'       , yes, ['left', 'right', 'body']]
+  ['ForOfStatement'       , yes, ['left', 'right', 'body']]
   ['ForStatement'         , yes, ['init', 'test', 'update', 'body']]
   ['FunctionDeclaration'  , yes, ['id', 'params', 'defaults', 'rest', 'body']]
   ['FunctionExpression'   , no , ['id', 'params', 'defaults', 'rest', 'body']]
@@ -95,6 +96,7 @@ nodeData = [
   ['VariableDeclarator'   , yes, ['id', 'init']]
   ['WhileStatement'       , yes, ['test', 'body']]
   ['WithStatement'        , yes, ['object', 'body']]
+  ['YieldExpression'      , no,  ['argument']]
 ]
 
 for [node, isStatement, params] in nodeData

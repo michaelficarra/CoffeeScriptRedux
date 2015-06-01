@@ -80,7 +80,7 @@ expr = (s) ->
     consequent = expr (s.consequent ? helpers.undef())
     alternate = expr (s.alternate ? helpers.undef())
     new JS.ConditionalExpression s.test, consequent, alternate
-  else if s.instanceof JS.ForInStatement, JS.ForStatement, JS.WhileStatement
+  else if s.instanceof JS.ForInStatement, JS.ForOfStatement, JS.ForStatement, JS.WhileStatement
     accum = genSym 'accum'
     # TODO: remove accidental mutation like this in these helpers
     push = (x) -> stmt new JS.CallExpression (memberAccess accum, 'push'), [x]
@@ -160,7 +160,7 @@ declaredIdentifiers = (node) ->
 
 declarationsNeeded = (node) ->
   return [] unless node?
-  if ((node.instanceof JS.AssignmentExpression) and node.operator is '=') or (node.instanceof JS.ForInStatement)
+  if ((node.instanceof JS.AssignmentExpression) and node.operator is '=') or (node.instanceof JS.ForInStatement) or (node.instanceof JS.ForOfStatement)
     declaredIdentifiers(node.left)
   else
     []
@@ -452,6 +452,31 @@ helpers =
       new JS.Literal no
     ]
     funcDecl(id: helperNames.in, params: [member, list], body: (makeReturn new JS.BlockStatement map functionBody, stmt))
+  range: ->
+    first = new JS.Identifier('first')
+    last = new JS.Identifier('last')
+    step = new JS.Identifier('step')
+    isInclusive = new JS.Identifier('isInclusive')
+    i = new JS.Identifier('i')
+    init = new JS.VariableDeclaration 'let', [ new JS.VariableDeclarator i, first ]
+    test = new JS.ConditionalExpression(isInclusive, (new JS.BinaryExpression '<=', i, last), (new JS.BinaryExpression '<', i, last))
+    update = new JS.AssignmentExpression '=', i, new JS.BinaryExpression '+', i, step
+    body = [
+      new JS.ForStatement init, test, update, new JS.BlockStatement [stmt new JS.YieldExpression i]
+    ]
+    fn = funcDecl(id: helperNames.range, params: [first, last, step, isInclusive], defaults: [null, null, new JS.Literal(1), new JS.Literal(false)], body: new JS.BlockStatement map body, stmt)
+    fn.generator = true
+    fn
+
+  inclusiveRange: ->
+    first = new JS.Identifier('first')
+    last = new JS.Identifier('last')
+    step = new JS.Identifier('step')
+    body = [
+      makeReturn helpers.range first, last, step, new JS.Literal(true)
+    ]
+    funcDecl(id: helperNames.inclusiveRange, params: [first, last, step], defaults: [null, null, new JS.Literal(1)], body: new JS.BlockStatement body )
+
 
 enabledHelpers = []
 for own h, fn of helpers
@@ -671,6 +696,25 @@ class exports.Compiler
       new JS.IfStatement (expr condition), (forceBlock consequent), alternate
     ]
     [CS.ForIn, ({valAssignee, keyAssignee, target, step, filter, body, compile, options}) ->
+      if options.targetES6 and !filter
+        es6Target = if @target.instanceof CS.Range
+          rangeArgs = [compile(@target.left), compile(@target.right)]
+          unless (step instanceof JS.Literal) and step.value == 1
+            rangeArgs.push step
+          if @target.isInclusive
+            helpers.inclusiveRange(rangeArgs...)
+          else
+            helpers.range(rangeArgs...)
+        else if (step instanceof JS.Literal) and step.value == 1
+          target
+
+        if es6Target
+          if valAssignee and keyAssignee
+            return new JS.ForOfStatement(new JS.VariableDeclaration('var', [new JS.VariableDeclarator new JS.ArrayPattern([keyAssignee, valAssignee])]), new JS.CallExpression((memberAccess es6Target, 'entries'), []), forceBlock body)
+          else if valAssignee
+            return new JS.ForOfStatement(new JS.VariableDeclaration('var', [new JS.VariableDeclarator valAssignee]), es6Target, forceBlock body)
+
+
       i = genSym 'i'
       length = genSym 'length'
       block = forceBlock body

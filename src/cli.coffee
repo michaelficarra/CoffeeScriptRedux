@@ -123,7 +123,7 @@ output = (out) ->
 
 # start processing options
 if options.help
-  $0 = if process.argv[0] is 'node' then process.argv[1] else process.argv[0]
+  $0 = if path.basename(process.argv[0]) is 'node' then process.argv[1] else process.argv[0]
   $0 = path.basename $0
 
   console.log "

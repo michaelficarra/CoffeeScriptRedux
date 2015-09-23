@@ -272,36 +272,37 @@
     return peg$reportedPos - csr$controlCharacterCount;
   }
 
-  function peg$computePosDetails() {
-    function advanceCachedReportedPos() {
-      var ch;
+  function peg$computePosDetails(pos) {
+    function advance(details, startPos, endPos) {
+      var p, ch;
 
-      for (; peg$cachedPos < peg$reportedPos; peg$cachedPos++) {
-        ch = input.charAt(peg$cachedPos);
+      for (p = startPos; p < endPos; p++) {
+        ch = input.charAt(p);
         if (ch === "\n") {
-          if (!peg$cachedPosDetails.seenCR) { peg$cachedPosDetails.line++; }
-          peg$cachedPosDetails.column = 1;
-          peg$cachedPosDetails.seenCR = false;
+          if (!details.seenCR) { details.line++; }
+          details.column = 1;
+          details.seenCR = false;
         } else if (ch === "\r" || ch === "\u2028" || ch === "\u2029") {
-          peg$cachedPosDetails.line++;
-          peg$cachedPosDetails.column = 1;
-          peg$cachedPosDetails.seenCR = true;
+          details.line++;
+          details.column = 1;
+          details.seenCR = true;
         } else if(!/[\uEFEF\uEFFE\uEFFF]/.test(ch)) {
-          peg$cachedPosDetails.column++;
-          peg$cachedPosDetails.seenCR = false;
+          details.column++;
+          details.seenCR = false;
         } else {
           csr$controlCharacterCount++;
         }
       }
     }
 
-    if (peg$cachedPos !== peg$reportedPos) {
-      if (peg$cachedPos > peg$reportedPos) {
+    if (peg$cachedPos !== pos) {
+      if (peg$cachedPos > pos) {
         csr$controlCharacterCount = 0;
         peg$cachedPos = 0;
         peg$cachedPosDetails = { line: 1, column: 1, seenCR: false };
       }
-      advanceCachedReportedPos();
+      advance(peg$cachedPosDetails, peg$cachedPos, pos);
+      peg$cachedPos = pos;
     }
 
     return peg$cachedPosDetails;

@@ -47,17 +47,17 @@ wiki page.
 ### Notable Contributors
 
 I'd like to thank the following financial contributors for their large
-donations to [the Kickstarter project](http://www.kickstarter.com/projects/michaelficarra/make-a-better-coffeescript-compiler)
+donations to [the Kickstarter project](https://www.kickstarter.com/projects/michaelficarra/make-a-better-coffeescript-compiler)
 that funded the initial work on this compiler.
 Together, you donated over $10,000. Without you, I wouldn't have been able to do this.
 
-* [Groupon](http://groupon.com/), who is generously allowing me to work in their offices
+* [Groupon](https://www.groupon.com/), who is generously allowing me to work in their offices
 * [Trevor Burnham](http://trevorburnham.com)
-* [Shopify](http://www.shopify.com)
+* [Shopify](https://www.shopify.com/)
 * [Abakas](http://abakas.com)
 * [37signals](http://37signals.com)
-* [Brightcove](http://www.brightcove.com)
-* [Gaslight](http://gaslight.co)
+* [Brightcove](https://www.brightcove.com/en/)
+* [Gaslight](https://teamgaslight.com/)
 * [Pantheon](https://www.getpantheon.com)
 * Benbria
 * Sam Stephenson
@@ -76,5 +76,5 @@ Together, you donated over $10,000. Without you, I wouldn't have been able to do
 * Michael Edmondson
 
 And of course, thank you [Jeremy](https://github.com/jashkenas) (and all the other
-[contributors](https://github.com/jashkenas/coffee-script/graphs/contributors))
+[contributors](https://github.com/jashkenas/coffeescript/graphs/contributors))
 for making [the original CoffeeScript compiler](https://github.com/jashkenas/coffee-script).

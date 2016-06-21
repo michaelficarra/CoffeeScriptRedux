@@ -137,7 +137,7 @@ if options.help
       example: #{$0}
 
   -b, --bare              omit the top-level function wrapper
-  -c, --compile           output a JSON-serialised AST representation of the output
+  -c, --compile           output a JSON-serialised AST representation of the input
   -e, --eval              evaluate compiled JavaScript
   -f, --cscodegen         output cscodegen-generated CoffeeScript code
   -i, --input FILE        file to be used as input instead of STDIN

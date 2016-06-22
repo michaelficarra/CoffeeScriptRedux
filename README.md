@@ -58,7 +58,7 @@ Together, you donated over $10,000. Without you, I wouldn't have been able to do
 * [37signals](http://37signals.com)
 * [Brightcove](https://www.brightcove.com/en/)
 * [Gaslight](https://teamgaslight.com/)
-* [Pantheon](https://www.getpantheon.com)
+* [Pantheon](https://pantheon.io/)
 * Benbria
 * Sam Stephenson
 * Bevan Hunt
@@ -77,4 +77,4 @@ Together, you donated over $10,000. Without you, I wouldn't have been able to do
 
 And of course, thank you [Jeremy](https://github.com/jashkenas) (and all the other
 [contributors](https://github.com/jashkenas/coffeescript/graphs/contributors))
-for making [the original CoffeeScript compiler](https://github.com/jashkenas/coffee-script).
+for making [the original CoffeeScript compiler](https://github.com/jashkenas/coffeescript).

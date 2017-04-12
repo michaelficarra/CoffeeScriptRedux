@@ -316,6 +316,21 @@ generateSoak = do ->
     [tests, e] = fn node
     new CS.Conditional (foldl1 tests, (memo, t) -> new CS.LogicalAndOp memo, t), e
 
+extractNumber = (what) ->
+  return what.data if what.instanceof CS.Int
+  return false unless what.instanceof CS.UnaryNegateOp
+  return false unless what.expression.instanceof CS.Int
+  return 0-what.expression.data
+
+extractStaticRange = (range) ->
+  return undefined unless range.instanceof CS.Range
+  left = extractNumber(range.left)
+  right = extractNumber(range.right)
+
+  return undefined if left == false
+  return undefined if right == false
+
+  return [left,right]
 
 helperNames = {}
 helpers =
@@ -392,7 +407,6 @@ for own h, fn of inlineHelpers
   helpers[h] = fn
 
 
-
 class exports.Compiler
 
   @compile = => (new this).compile arguments...
@@ -449,17 +463,17 @@ class exports.Compiler
       block = forceBlock body
       block.body.push stmt helpers.undef() unless block.body.length
 
+      numericRange = extractStaticRange(@target)
       increment =
         if @step? and not ((@step.instanceof CS.Int) and @step.data is 1)
           (x) -> new JS.AssignmentExpression '+=', x, step
+        else if numericRange? and numericRange[1] < numericRange[0]
+          (x) -> new JS.UpdateExpression '--', yes, x
         else
           (x) -> new JS.UpdateExpression '++', yes, x
 
       # optimise loops over static, integral ranges
-      if (@target.instanceof CS.Range) and
-      # TODO: extract this test to some "static, integral range" helper
-      ((@target.left.instanceof CS.Int) or ((@target.left.instanceof CS.UnaryNegateOp) and @target.left.expression.instanceof CS.Int)) and
-      ((@target.right.instanceof CS.Int) or ((@target.right.instanceof CS.UnaryNegateOp) and @target.right.expression.instanceof CS.Int))
+      if numericRange?
         varDeclaration = new JS.VariableDeclaration 'var', [new JS.VariableDeclarator i, compile @target.left]
         update = increment i
         if @filter?
@@ -471,7 +485,10 @@ class exports.Compiler
           block.body.unshift stmt new JS.AssignmentExpression '=', keyAssignee, k
         if valAssignee?
           block.body.unshift stmt new JS.AssignmentExpression '=', valAssignee, i
-        op = if @target.isInclusive then '<=' else '<'
+        if numericRange[1] > numericRange[0]
+          op = if @target.isInclusive then '<=' else '<'
+        else
+          op = if @target.isInclusive then '>=' else '>'
         return new JS.ForStatement varDeclaration, (new JS.BinaryExpression op, i, compile @target.right), update, block
 
       e = if needsCaching @target then genSym 'cache' else target

@@ -32,15 +32,27 @@ cleanMarkers = (str) -> str.replace /[\uEFEF\uEFFE\uEFFF]/g, ''
   ((str.replace /\uEFEF/g, '(INDENT)').replace /\uEFFE/g, '(DEDENT)').replace /\uEFFF/g, '(TERM)'
 
 @formatParserError = (input, e) ->
-  realColumn = (cleanMarkers "#{(input.split '\n')[e.line - 1]}\n"[...e.column]).length
+  lines = input.split('\n')
+  line = e.line - 1 # switch to zero-indexed
+  column = e.column
+  offset = e.offset
+  while offset > 0
+    if offset > lines[line].length + 1 # these "+1"s are for the trailing "\n"
+      offset -= lines[line].length + 1
+      line += 1
+    else
+      column += offset
+      offset = 0
+  realColumn = (cleanMarkers "#{lines[line]}\n"[...column]).length
+  line += 1 # switch back to one-indexed
   unless e.found?
-    return "Syntax error on line #{e.line}, column #{realColumn}: unexpected end of input"
+    return "Syntax error on line #{line}, column #{realColumn}: unexpected end of input"
   found = JSON.stringify humanReadable e.found
   found = ((found.replace /^"|"$/g, '').replace /'/g, '\\\'').replace /\\"/g, '"'
   unicode = ((e.found.charCodeAt 0).toString 16).toUpperCase()
   unicode = "\\u#{"0000"[unicode.length..]}#{unicode}"
-  message = "Syntax error on line #{e.line}, column #{realColumn}: unexpected '#{found}' (#{unicode})"
-  "#{message}\n#{pointToErrorLocation input, e.line, realColumn}"
+  message = "Syntax error on line #{line}, column #{realColumn}: unexpected '#{found}' (#{unicode})"
+  "#{message}\n#{pointToErrorLocation input, line, realColumn}"
 
 @pointToErrorLocation = pointToErrorLocation = (source, line, column, numLinesOfContext = 3) ->
   lines = source.split '\n'

@@ -883,7 +883,7 @@ class exports.Compiler
       else
         access = memberAccess expression, @memberName
         # manually calculate raw/position info for member name
-        if @raw
+        if @raw and @expression.raw
           access.property.raw = @memberName
           access.property.line = @line
           offset = @raw.length - @memberName.length

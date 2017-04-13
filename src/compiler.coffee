@@ -320,17 +320,17 @@ extractNumber = (what) ->
   return what.data if what.instanceof CS.Int
   return false unless what.instanceof CS.UnaryNegateOp
   return false unless what.expression.instanceof CS.Int
-  return 0-what.expression.data
+  return 0 - what.expression.data
 
 extractStaticRange = (range) ->
   return undefined unless range.instanceof CS.Range
-  left = extractNumber(range.left)
-  right = extractNumber(range.right)
+  left = extractNumber range.left
+  right = extractNumber range.right
 
   return undefined if left == false
   return undefined if right == false
 
-  return [left,right]
+  return [left, right]
 
 helperNames = {}
 helpers =

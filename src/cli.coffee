@@ -12,7 +12,11 @@ cscodegen = try require 'cscodegen'
 escodegen = try require 'escodegen'
 esmangle = try require 'esmangle'
 
-inspect = (o) -> (require 'util').inspect o, no, 9e9, yes
+inspect = (o) -> 
+  
+  if options.output then return JSON.stringify o, null, 2
+
+  (require 'util').inspect o, no, 9e9, yes
 
 knownOpts = {}
 option = -> knownOpts[o] = Boolean for o in arguments; return
